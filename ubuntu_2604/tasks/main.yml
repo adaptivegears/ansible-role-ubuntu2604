@@ -21,14 +21,15 @@
 # container behavior is consistent across fresh cloud images and rebuilds.
 # -----------------------------------------------------------------------------
 
-- name: Kernel | Load bridge networking modules
+- name: Kernel | Load container networking modules
   community.general.modprobe:
     name: "{{ item }}"
     persistent: present
     state: present
   loop:
-    - overlay
     - br_netfilter
+    - nf_conntrack
+    - overlay
 
 - name: Kernel | Configure sysctls
   ansible.posix.sysctl:
@@ -38,6 +39,9 @@
     state: present
     reload: true
   loop:
+    # Send bridged ARP packets through arptables so host bridge policy can see L2 container traffic.
+    - name: net.bridge.bridge-nf-call-arptables
+      value: "1"
     # Send bridged IPv6 packets through ip6tables so host policy can see container traffic.
     - name: net.bridge.bridge-nf-call-ip6tables
       value: "1"
@@ -48,6 +52,9 @@
     # Raise the host-wide open-file pool so dense container workloads do not exhaust it.
     - name: fs.file-max
       value: "2097152"
+    # Raise queued inotify events so watch-heavy tools do not lose file-change notifications.
+    - name: fs.inotify.max_queued_events
+      value: "32768"
     # Raise per-user inotify instance count so multiple agents can watch files concurrently.
     - name: fs.inotify.max_user_instances
       value: "512"
@@ -64,6 +71,9 @@
     # Convert kernel oops into panic because continuing after kernel faults is unsafe.
     - name: kernel.panic_on_oops
       value: "1"
+    # Raise the host PID ceiling so dense container workers do not exhaust global PID space.
+    - name: kernel.pid_max
+      value: "4194304"
     # Track per-task CPU, I/O, and memory-delay time for diagnosing noisy containers.
     - name: kernel.task_delayacct
       value: "1"
@@ -78,12 +88,42 @@
     # Allow the host kernel to route IPv4 packets for container bridges and gateways.
     - name: net.ipv4.ip_forward
       value: "1"
+    # Widen ephemeral ports so NATed containers do not exhaust outbound source ports.
+    - name: net.ipv4.ip_local_port_range
+      value: "1024 65535"
     # Let rootless services bind ports below 1024 without granting extra capabilities.
     - name: net.ipv4.ip_unprivileged_port_start
       value: "0"
+    # Raise the IPv4 neighbor table start threshold so dense container networks avoid early GC.
+    - name: net.ipv4.neigh.default.gc_thresh1
+      value: "2048"
+    # Raise the IPv4 neighbor table pressure threshold for hosts with many container peers.
+    - name: net.ipv4.neigh.default.gc_thresh2
+      value: "4096"
+    # Raise the IPv4 neighbor table hard limit so ARP entries do not cap container density.
+    - name: net.ipv4.neigh.default.gc_thresh3
+      value: "8192"
+    # Free FIN-WAIT-2 sockets faster so high-churn services do not pin dead connections.
+    - name: net.ipv4.tcp_fin_timeout
+      value: "15"
+    # Probe idle TCP connections sooner so dead peers release resources quickly.
+    - name: net.ipv4.tcp_keepalive_intvl
+      value: "30"
+    # Limit keepalive retries so dead connections fail within operational health windows.
+    - name: net.ipv4.tcp_keepalive_probes
+      value: "5"
+    # Start TCP keepalive after minutes instead of hours for long-lived container connections.
+    - name: net.ipv4.tcp_keepalive_time
+      value: "600"
     # Raise the half-open TCP queue so proxies and edges absorb SYN bursts.
     - name: net.ipv4.tcp_max_syn_backlog
       value: "65536"
+    # Enable SYN cookies on backlog overflow so internet-facing services resist SYN floods.
+    - name: net.ipv4.tcp_syncookies
+      value: "1"
+    # Reuse safe TIME-WAIT sockets so high-outbound workloads avoid ephemeral-port starvation.
+    - name: net.ipv4.tcp_tw_reuse
+      value: "1"
 
     # Accept IPv6 router advertisements even while forwarding, preserving provider SLAAC.
     - name: net.ipv6.conf.all.accept_ra
@@ -91,13 +131,36 @@
     # Allow the host kernel to route IPv6 packets for container bridges and gateways.
     - name: net.ipv6.conf.all.forwarding
       value: "1"
+    # Make future IPv6 interfaces keep SLAAC even when container forwarding is enabled.
+    - name: net.ipv6.conf.default.accept_ra
+      value: "2"
+    # Make future IPv6 interfaces inherit routing behavior required by container gateways.
+    - name: net.ipv6.conf.default.forwarding
+      value: "1"
 
+    # Raise conntrack capacity so container NAT does not silently drop new connections.
+    - name: net.netfilter.nf_conntrack_max
+      value: "1048576"
+
+    # Allow many rootless containers and build sandboxes to create user namespaces.
+    - name: user.max_user_namespaces
+      value: "15000"
+
+    # Raise mmap area count for Elasticsearch, databases, and JVM workloads in containers.
+    - name: vm.max_map_count
+      value: "262144"
+    # Keep a small free-memory reserve so the VM avoids reclaim deadlocks under pressure.
+    - name: vm.min_free_kbytes
+      value: "131072"
     # Allow optimistic memory reservations common in containers without early allocation failure.
     - name: vm.overcommit_memory
       value: "1"
     # Do not panic the VM on OOM; let cgroup and userspace OOM handling run first.
     - name: vm.panic_on_oom
       value: "0"
+    # Prefer keeping application pages in RAM instead of swapping active container memory.
+    - name: vm.swappiness
+      value: "10"
   loop_control:
     label: "{{ item.name }}"
 

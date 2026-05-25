@@ -232,6 +232,24 @@
     state: started
 
 # -----------------------------------------------------------------------------
+# Swap
+# -----------------------------------------------------------------------------
+# Swap causes unpredictable latency for container workloads and defeats OOM
+# behavior expectations; disable it at runtime and persist the change.
+# -----------------------------------------------------------------------------
+
+- name: Swap | Disable active swap
+  ansible.builtin.command: swapoff -a
+  changed_when: false
+
+- name: Swap | Remove swap entries from fstab
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: "^.*swap.*$"
+    replace: ""
+    backup: true
+
+# -----------------------------------------------------------------------------
 # APT
 # -----------------------------------------------------------------------------
 # Keep package metadata fresh before package operations while avoiding source

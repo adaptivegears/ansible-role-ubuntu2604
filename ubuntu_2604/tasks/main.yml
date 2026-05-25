@@ -15,14 +15,108 @@
 # -----------------------------------------------------------------------------
 # Kernel
 # -----------------------------------------------------------------------------
-# Apply host-level kernel defaults in a dedicated sysctl drop-in so platform
-# assumptions are explicit, auditable, and separate from distribution files.
+# Apply the same Linux host policy as the Debian role: container-friendly bridge
+# networking, predictable forwarding behavior, higher runtime limits, safer
+# panic/OOM recovery, performance-oriented CPU policy, and transparent hugepage
+# behavior that avoids surprising latency spikes. Keep these settings in
+# dedicated drop-ins and services instead of editing distribution-owned files.
 # -----------------------------------------------------------------------------
 
-- name: Kernel | Enable task delay accounting
+- name: Kernel | Load bridge networking modules
+  community.general.modprobe:
+    name: "{{ item }}"
+    persistent: present
+    state: present
+  loop:
+    - overlay
+    - br_netfilter
+
+- name: Kernel | Configure sysctls
   ansible.posix.sysctl:
-    name: kernel.task_delayacct
-    value: "1"
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
     sysctl_file: /etc/sysctl.d/99-ubuntu-2604.conf
     state: present
     reload: true
+  loop:
+    - name: kernel.task_delayacct
+      value: "1"
+    - name: net.ipv6.conf.all.accept_ra
+      value: "2"
+    - name: vm.panic_on_oom
+      value: "0"
+    - name: vm.overcommit_memory
+      value: "1"
+    - name: kernel.panic
+      value: "10"
+    - name: kernel.panic_on_oops
+      value: "1"
+    - name: fs.file-max
+      value: "2097152"
+    - name: fs.nr_open
+      value: "2097152"
+    - name: net.core.somaxconn
+      value: "65536"
+    - name: net.ipv4.tcp_max_syn_backlog
+      value: "65536"
+    - name: net.core.netdev_max_backlog
+      value: "65536"
+    - name: fs.inotify.max_user_watches
+      value: "524288"
+    - name: fs.inotify.max_user_instances
+      value: "512"
+    - name: net.bridge.bridge-nf-call-iptables
+      value: "1"
+    - name: net.bridge.bridge-nf-call-ip6tables
+      value: "1"
+    - name: net.ipv4.ip_forward
+      value: "1"
+    - name: net.ipv6.conf.all.forwarding
+      value: "1"
+    - name: net.ipv4.ip_unprivileged_port_start
+      value: "0"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Kernel | Configure PAM limits
+  community.general.pam_limits:
+    domain: "*"
+    limit_item: "{{ item.name }}"
+    limit_type: "{{ item.type }}"
+    value: 65536
+  loop:
+    - name: nofile
+      type: soft
+    - name: nofile
+      type: hard
+    - name: nproc
+      type: soft
+    - name: nproc
+      type: hard
+  loop_control:
+    label: "{{ item.type }} {{ item.name }}"
+
+- name: Kernel | Create transparent hugepages service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/disable-transparent-hugepages.service
+    content: |
+      [Unit]
+      Description=Disable Transparent Hugepages
+      After=multi-user.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/bin/sh -c 'echo madvise | tee /sys/kernel/mm/transparent_hugepage/enabled'
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
+  register: ubuntu_2604__thp_service
+
+- name: Kernel | Start transparent hugepages service
+  ansible.builtin.systemd_service:
+    name: disable-transparent-hugepages
+    enabled: true
+    daemon_reload: "{{ ubuntu_2604__thp_service.changed }}"
+    state: started

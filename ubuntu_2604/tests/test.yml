@@ -1,0 +1,6 @@
+---
+- name: Test ubuntu_2604 role
+  hosts: localhost
+  remote_user: root
+  roles:
+    - ubuntu_2604

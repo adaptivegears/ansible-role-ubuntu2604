@@ -1,0 +1,15 @@
+---
+# Ansible-lint configuration for this role repository.
+# See: https://docs.ansible.com/projects/lint/configuring/
+
+profile: production
+
+offline: true
+
+exclude_paths:
+  - .cache/
+
+warn_list:
+  - experimental
+  - jinja[spacing]
+  - fqcn[deep]

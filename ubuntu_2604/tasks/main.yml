@@ -9,7 +9,11 @@
 - name: APT | Update package cache
   ansible.builtin.apt:
     update_cache: true
+    # Reuse metadata briefly so repeated role runs do not hammer mirrors while
+    # still catching updates during routine provisioning.
     cache_valid_time: 3600
+  # Cache refreshes are preconditions, not managed host state, so they should
+  # not make every converge look like configuration drift.
   changed_when: false
 
 # -----------------------------------------------------------------------------
@@ -21,7 +25,7 @@
 # container behavior is consistent across fresh cloud images and rebuilds.
 # -----------------------------------------------------------------------------
 
-- name: Kernel | Load container networking modules
+- name: Kernel | Load container kernel modules
   community.general.modprobe:
     name: "{{ item }}"
     persistent: present
@@ -173,6 +177,8 @@
     domain: "*"
     limit_item: "{{ item.name }}"
     limit_type: "{{ item.type }}"
+    # Keep session limits high enough for dense workers without making mistakes
+    # unlimited for every login context.
     value: 65536
   loop:
     # Keep PAM-launched sessions from retaining low descriptor defaults after
@@ -190,21 +196,23 @@
   loop_control:
     label: "{{ item.type }} {{ item.name }}"
 
-# Use madvise instead of never so runtimes can opt in explicitly while databases
-# and latency-sensitive workloads avoid surprise page compaction. A systemd unit
-# persists this boot-time policy because THP is exposed through sysfs rather than
-# sysctl.
-- name: Kernel | Create transparent hugepages service
+# Keep THP opt-in rather than globally disabled: runtimes that benefit can
+# request huge pages with madvise, while databases and low-latency services avoid
+# surprise page compaction. A systemd one-shot owns this policy because the
+# kernel exposes THP through sysfs rather than sysctl.
+- name: Kernel | Create transparent hugepages policy service
   ansible.builtin.copy:
     dest: /etc/systemd/system/disable-transparent-hugepages.service
     content: |
       [Unit]
-      Description=Disable Transparent Hugepages
+      Description=Set Transparent Hugepages to madvise
       After=multi-user.target
 
       [Service]
       Type=oneshot
       ExecStart=/bin/sh -c 'echo madvise | tee /sys/kernel/mm/transparent_hugepage/enabled'
+      # Stay active after the sysfs write so Ansible does not rerun the one-shot
+      # on every converge.
       RemainAfterExit=yes
 
       [Install]
@@ -212,9 +220,11 @@
     mode: "0644"
   register: ubuntu_2604__thp_service
 
-- name: Kernel | Start transparent hugepages service
+- name: Kernel | Start transparent hugepages policy service
   ansible.builtin.systemd_service:
     name: disable-transparent-hugepages
     enabled: true
+    # Reload units only after the generated policy changes so idempotent runs
+    # avoid needless systemd work.
     daemon_reload: "{{ ubuntu_2604__thp_service.changed }}"
     state: started

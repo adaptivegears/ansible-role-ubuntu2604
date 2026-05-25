@@ -15,11 +15,10 @@
 # -----------------------------------------------------------------------------
 # Kernel
 # -----------------------------------------------------------------------------
-# Apply the same Linux host policy as the Debian role: container-friendly bridge
-# networking, predictable forwarding behavior, higher runtime limits, safer
-# panic/OOM recovery, performance-oriented CPU policy, and transparent hugepage
-# behavior that avoids surprising latency spikes. Keep these settings in
-# dedicated drop-ins and services instead of editing distribution-owned files.
+# Ubuntu defaults are conservative for general-purpose hosts, while these VMs
+# are treated as disposable container workers. The role chooses host-level
+# defaults that favor routing, density, observability, and automatic recovery so
+# container behavior is consistent across fresh cloud images and rebuilds.
 # -----------------------------------------------------------------------------
 
 - name: Kernel | Load bridge networking modules
@@ -39,41 +38,65 @@
     state: present
     reload: true
   loop:
-    - name: kernel.task_delayacct
-      value: "1"
-    - name: net.ipv6.conf.all.accept_ra
-      value: "2"
-    - name: vm.panic_on_oom
-      value: "0"
-    - name: vm.overcommit_memory
-      value: "1"
-    - name: kernel.panic
-      value: "10"
-    - name: kernel.panic_on_oops
-      value: "1"
-    - name: fs.file-max
-      value: "2097152"
-    - name: fs.nr_open
-      value: "2097152"
-    - name: net.core.somaxconn
-      value: "65536"
-    - name: net.ipv4.tcp_max_syn_backlog
-      value: "65536"
-    - name: net.core.netdev_max_backlog
-      value: "65536"
-    - name: fs.inotify.max_user_watches
-      value: "524288"
-    - name: fs.inotify.max_user_instances
-      value: "512"
-    - name: net.bridge.bridge-nf-call-iptables
-      value: "1"
+    # Send bridged IPv6 packets through ip6tables so host policy can see container traffic.
     - name: net.bridge.bridge-nf-call-ip6tables
       value: "1"
+    # Send bridged IPv4 packets through iptables so host policy can see container traffic.
+    - name: net.bridge.bridge-nf-call-iptables
+      value: "1"
+
+    # Raise the host-wide open-file pool so dense container workloads do not exhaust it.
+    - name: fs.file-max
+      value: "2097152"
+    # Raise per-user inotify instance count so multiple agents can watch files concurrently.
+    - name: fs.inotify.max_user_instances
+      value: "512"
+    # Raise per-user inotify watch count for build tools, reloaders, and volume watchers.
+    - name: fs.inotify.max_user_watches
+      value: "524288"
+    # Raise the per-process open-file ceiling to match the larger host-wide FD pool.
+    - name: fs.nr_open
+      value: "2097152"
+
+    # Reboot 10 seconds after kernel panic so cattle VMs recover without console access.
+    - name: kernel.panic
+      value: "10"
+    # Convert kernel oops into panic because continuing after kernel faults is unsafe.
+    - name: kernel.panic_on_oops
+      value: "1"
+    # Track per-task CPU, I/O, and memory-delay time for diagnosing noisy containers.
+    - name: kernel.task_delayacct
+      value: "1"
+
+    # Raise the NIC backlog so bursty container ingress is queued instead of dropped early.
+    - name: net.core.netdev_max_backlog
+      value: "65536"
+    # Raise the listen backlog ceiling so many colocated services can accept bursts.
+    - name: net.core.somaxconn
+      value: "65536"
+
+    # Allow the host kernel to route IPv4 packets for container bridges and gateways.
     - name: net.ipv4.ip_forward
       value: "1"
+    # Let rootless services bind ports below 1024 without granting extra capabilities.
+    - name: net.ipv4.ip_unprivileged_port_start
+      value: "0"
+    # Raise the half-open TCP queue so proxies and edges absorb SYN bursts.
+    - name: net.ipv4.tcp_max_syn_backlog
+      value: "65536"
+
+    # Accept IPv6 router advertisements even while forwarding, preserving provider SLAAC.
+    - name: net.ipv6.conf.all.accept_ra
+      value: "2"
+    # Allow the host kernel to route IPv6 packets for container bridges and gateways.
     - name: net.ipv6.conf.all.forwarding
       value: "1"
-    - name: net.ipv4.ip_unprivileged_port_start
+
+    # Allow optimistic memory reservations common in containers without early allocation failure.
+    - name: vm.overcommit_memory
+      value: "1"
+    # Do not panic the VM on OOM; let cgroup and userspace OOM handling run first.
+    - name: vm.panic_on_oom
       value: "0"
   loop_control:
     label: "{{ item.name }}"

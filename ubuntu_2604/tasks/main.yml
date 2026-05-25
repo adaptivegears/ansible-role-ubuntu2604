@@ -250,6 +250,33 @@
     backup: true
 
 # -----------------------------------------------------------------------------
+# Locale
+# -----------------------------------------------------------------------------
+# Container tools and editors expect a consistent UTF-8 environment; ensure the
+# locale is generated and set as the system default.
+# -----------------------------------------------------------------------------
+
+# Minimal and cloud images (including AWS) do not ship the locales package by
+# default, so locale-gen would fail silently without it.
+- name: Locale | Install locales package
+  ansible.builtin.apt:
+    name: locales
+    state: present
+
+- name: Locale | Generate system locale
+  community.general.locale_gen:
+    name: "{{ ubuntu_2604_locale }}"
+    state: present
+
+- name: Locale | Set default locale
+  ansible.builtin.lineinfile:
+    path: /etc/default/locale
+    regexp: "^LANG="
+    line: "LANG={{ ubuntu_2604_locale }}"
+    create: true
+    mode: "0644"
+
+# -----------------------------------------------------------------------------
 # APT
 # -----------------------------------------------------------------------------
 # Keep package metadata fresh before package operations while avoiding source

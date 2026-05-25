@@ -1,2 +1,22 @@
 ---
-[]
+# -----------------------------------------------------------------------------
+# APT
+# -----------------------------------------------------------------------------
+
+- name: APT | Update package cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: "{{ ubuntu_2604_apt_cache_valid_time }}"
+  changed_when: false
+
+# -----------------------------------------------------------------------------
+# Kernel
+# -----------------------------------------------------------------------------
+
+- name: Kernel | Enable task delay accounting
+  ansible.posix.sysctl:
+    name: kernel.task_delayacct
+    value: "1"
+    sysctl_file: "{{ ubuntu_2604_sysctl }}"
+    state: present
+    reload: true

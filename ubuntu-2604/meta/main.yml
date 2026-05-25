@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: ubuntu_2604
+  namespace: local
+  author: local
+  description: Basic Ubuntu 26.04 role skeleton
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all
+
+dependencies: []

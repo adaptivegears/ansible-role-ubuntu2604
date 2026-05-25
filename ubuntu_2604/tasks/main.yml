@@ -2,21 +2,27 @@
 # -----------------------------------------------------------------------------
 # APT
 # -----------------------------------------------------------------------------
+# Keep package metadata fresh before package operations while avoiding source
+# management until Ubuntu 26.04 repository format and image defaults are clear.
+# -----------------------------------------------------------------------------
 
 - name: APT | Update package cache
   ansible.builtin.apt:
     update_cache: true
-    cache_valid_time: "{{ ubuntu_2604_apt_cache_valid_time }}"
+    cache_valid_time: 3600
   changed_when: false
 
 # -----------------------------------------------------------------------------
 # Kernel
+# -----------------------------------------------------------------------------
+# Apply host-level kernel defaults in a dedicated sysctl drop-in so platform
+# assumptions are explicit, auditable, and separate from distribution files.
 # -----------------------------------------------------------------------------
 
 - name: Kernel | Enable task delay accounting
   ansible.posix.sysctl:
     name: kernel.task_delayacct
     value: "1"
-    sysctl_file: "{{ ubuntu_2604_sysctl }}"
+    sysctl_file: /etc/sysctl.d/99-ubuntu-2604.conf
     state: present
     reload: true

@@ -27,8 +27,12 @@
     persistent: present
     state: present
   loop:
+    # Bridge netfilter must be loaded before bridge sysctls exist on minimal images.
     - br_netfilter
+    # Preload connection tracking so NAT capacity tuning applies before runtimes start.
     - nf_conntrack
+    # OverlayFS is the common writable layer for container images; load it early
+    # for predictable startup.
     - overlay
 
 - name: Kernel | Configure sysctls
@@ -171,10 +175,14 @@
     limit_type: "{{ item.type }}"
     value: 65536
   loop:
+    # Keep PAM-launched sessions from retaining low descriptor defaults after
+    # raising kernel FD ceilings.
     - name: nofile
       type: soft
     - name: nofile
       type: hard
+    # Keep login shells and user services from hitting per-session limits before
+    # host PID capacity.
     - name: nproc
       type: soft
     - name: nproc
@@ -182,6 +190,10 @@
   loop_control:
     label: "{{ item.type }} {{ item.name }}"
 
+# Use madvise instead of never so runtimes can opt in explicitly while databases
+# and latency-sensitive workloads avoid surprise page compaction. A systemd unit
+# persists this boot-time policy because THP is exposed through sysfs rather than
+# sysctl.
 - name: Kernel | Create transparent hugepages service
   ansible.builtin.copy:
     dest: /etc/systemd/system/disable-transparent-hugepages.service

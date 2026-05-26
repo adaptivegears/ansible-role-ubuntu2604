@@ -259,17 +259,107 @@
 # -----------------------------------------------------------------------------
 # APT
 # -----------------------------------------------------------------------------
-# Keep package metadata fresh before package operations while avoiding source
-# management until Ubuntu 26.04 repository format and image defaults are clear.
+# Ubuntu cloud images normally let cloud-init choose the archive. The role takes
+# ownership after boot so package resolution is deterministic, avoids runtime
+# fastest-mirror probing, and keeps EC2 hosts close to their regional archive
+# while preserving Canonical-operated endpoints as outage fallbacks.
 # -----------------------------------------------------------------------------
+
+# Probe local platform facts before calling IMDS so non-AWS hosts do not pay a
+# metadata timeout or accidentally query another cloud's link-local service.
+- name: APT | Detect EC2 platform hint
+  ansible.builtin.set_fact:
+    ubuntu_2604__maybe_ec2: >-
+      {{
+        ansible_facts.get('system_vendor', '') == 'Amazon EC2'
+        or ansible_facts.get('chassis_vendor', '') == 'Amazon EC2'
+        or ansible_facts.get('product_uuid', '') is match('(?i)^ec2')
+        or ansible_facts.get('product_name', '') is search('(?i)amazon')
+      }}
+
+- name: APT | Gather EC2 metadata facts
+  amazon.aws.ec2_metadata_facts:
+    # A larger token lifetime avoids intermittent failures while the module
+    # walks metadata on hosts with several network interfaces or tags enabled.
+    metadata_token_ttl_seconds: 240
+  register: ubuntu_2604__ec2_metadata_facts
+  when: ubuntu_2604__maybe_ec2
+  failed_when: false
+  changed_when: false
+
+- name: APT | Select AWS region
+  ansible.builtin.set_fact:
+    ubuntu_2604__aws_region: >-
+      {{
+        ansible_facts.get('ansible_ec2_instance_identity_document_region', '')
+        if (
+          ansible_facts.get('ansible_ec2_instance_identity_document_region', '')
+          is match('^[a-z]{2}(?:-gov)?(?:-[a-z]+)+-[0-9]+$')
+        )
+        else ''
+      }}
+
+# Prefer AWS's regional Ubuntu mirror when the instance region is known because
+# it is the image-default path on EC2; keep the official archive second so a
+# regional DNS, sync, or reachability issue does not block provisioning.
+- name: APT | Configure mirror list
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/apt/ubuntu-mirrors.txt
+    content: |
+      {% if ubuntu_2604__aws_region | length > 0 %}
+      http://{{ ubuntu_2604__aws_region }}.ec2.archive.ubuntu.com/ubuntu/	priority:1
+      http://archive.ubuntu.com/ubuntu/	priority:2
+      {% else %}
+      http://archive.ubuntu.com/ubuntu/	priority:1
+      {% endif %}
+    mode: "0644"
+  register: ubuntu_2604__apt_primary_mirrors
+
+# Security uses its own list so fallback preserves Ubuntu's dedicated security
+# endpoint. The main archive remains last because it currently carries security
+# suites too, but should only be used after the preferred security paths fail.
+- name: APT | Configure security mirror list
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/apt/ubuntu-security-mirrors.txt
+    content: |
+      {% if ubuntu_2604__aws_region | length > 0 %}
+      http://{{ ubuntu_2604__aws_region }}.ec2.archive.ubuntu.com/ubuntu/	priority:1
+      http://security.ubuntu.com/ubuntu/	priority:2
+      http://archive.ubuntu.com/ubuntu/	priority:3
+      {% else %}
+      http://security.ubuntu.com/ubuntu/	priority:1
+      http://archive.ubuntu.com/ubuntu/	priority:2
+      {% endif %}
+    mode: "0644"
+  register: ubuntu_2604__apt_security_mirrors
+
+- name: APT | Configure Ubuntu archive sources
+  become: true
+  ansible.builtin.template:
+    src: ubuntu.sources.j2
+    dest: /etc/apt/sources.list.d/ubuntu.sources
+    mode: "0644"
+  register: ubuntu_2604__apt_sources
 
 - name: APT | Update package cache
   become: true
   ansible.builtin.apt:
     update_cache: true
-    # Reuse metadata briefly so repeated role runs do not hammer mirrors while
-    # still catching updates during routine provisioning.
-    cache_valid_time: 3600
+    # Source changes need a forced refresh because the previous cache may still
+    # be fresh for the old mirror set; otherwise reuse metadata briefly so
+    # repeated role runs do not hammer mirrors during routine provisioning.
+    cache_valid_time: >-
+      {{
+        0
+        if (
+          ubuntu_2604__apt_primary_mirrors is changed
+          or ubuntu_2604__apt_security_mirrors is changed
+          or ubuntu_2604__apt_sources is changed
+        )
+        else 3600
+      }}
   # Cache refreshes are preconditions, not managed host state, so they should
   # not make every converge look like configuration drift.
   changed_when: false

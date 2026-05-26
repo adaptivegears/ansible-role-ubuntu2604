@@ -141,6 +141,75 @@ def test_fstab_has_no_active_swap_entries(host):
 
 
 # -----------------------------------------------------------------------------
+# APT
+# -----------------------------------------------------------------------------
+
+
+APT_MIRRORS = "/etc/apt/ubuntu-mirrors.txt"
+APT_SECURITY_MIRRORS = "/etc/apt/ubuntu-security-mirrors.txt"
+APT_SOURCES = "/etc/apt/sources.list.d/ubuntu.sources"
+
+
+def test_apt_sources_use_managed_mirror_lists(host):
+    sources = host.file(APT_SOURCES)
+
+    assert sources.exists
+    assert sources.contains(r"^Types: deb$")
+    assert sources.contains(
+        rf"^URIs: mirror\+file:{grep_literal(APT_MIRRORS)}$"
+    )
+    assert sources.contains(
+        rf"^URIs: mirror\+file:{grep_literal(APT_SECURITY_MIRRORS)}$"
+    )
+    assert sources.contains(r"^Components: main restricted universe multiverse$")
+    assert sources.contains(
+        r"^Signed-By: /usr/share/keyrings/ubuntu-archive-keyring\.gpg$"
+    )
+
+
+def test_apt_mirrors_keep_official_archive_fallback(host):
+    mirrors = host.file(APT_MIRRORS)
+
+    assert mirrors.exists
+    assert mirrors.contains(r"^http://archive\.ubuntu\.com/ubuntu/[[:space:]]+priority:[0-9]+$")
+
+
+def test_apt_security_mirrors_keep_official_fallbacks(host):
+    mirrors = host.file(APT_SECURITY_MIRRORS)
+
+    assert mirrors.exists
+    assert mirrors.contains(r"^http://security\.ubuntu\.com/ubuntu/[[:space:]]+priority:[0-9]+$")
+    assert mirrors.contains(r"^http://archive\.ubuntu\.com/ubuntu/[[:space:]]+priority:[0-9]+$")
+
+
+def test_apt_uses_regional_ec2_mirror_first_on_aws(host):
+    instance_data = host.file("/run/cloud-init/instance-data.json")
+    if not instance_data.exists:
+        pytest.skip("cloud-init instance data is not present")
+
+    result = host.run(
+        "python3 - <<'PY'\n"
+        "import json\n"
+        "with open('/run/cloud-init/instance-data.json', encoding='utf-8') as fh:\n"
+        "    data = json.load(fh)\n"
+        "v1 = data.get('v1', {})\n"
+        "if v1.get('cloud_name') == 'aws' and v1.get('region'):\n"
+        "    print(v1['region'])\n"
+        "PY"
+    )
+    region = result.stdout.strip()
+    if not region:
+        pytest.skip("host is not an AWS EC2 instance")
+
+    first_primary_mirror = host.file(APT_MIRRORS).content_string.splitlines()[0]
+    first_security_mirror = host.file(APT_SECURITY_MIRRORS).content_string.splitlines()[0]
+    expected = f"http://{region}.ec2.archive.ubuntu.com/ubuntu/\tpriority:1"
+
+    assert first_primary_mirror == expected
+    assert first_security_mirror == expected
+
+
+# -----------------------------------------------------------------------------
 # Locale
 # -----------------------------------------------------------------------------
 

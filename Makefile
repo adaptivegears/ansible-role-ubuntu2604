@@ -4,7 +4,9 @@ ROLE_DIR ?= ubuntu_2604
 ANSIBLE_COLLECTIONS_PATH ?= $(CURDIR)/.ansible/collections
 ANSIBLE_GALAXY ?= uvx --from ansible-core ansible-galaxy
 ANSIBLE_LINT ?= uvx --from ansible-lint ansible-lint
-ANSIBLE_PLAYBOOK ?= uvx --from ansible-core ansible-playbook
+PYTEST ?= uvx --from pytest --with pytest-testinfra --with ansible-core pytest
+TEST_HOSTS ?= ansible://all
+TEST_INVENTORY ?= inventory.ini
 
 .PHONY: help check deps lint test
 
@@ -19,5 +21,5 @@ deps: ## Install Ansible collection dependencies
 lint: deps ## Run ansible-lint against the role
 	ANSIBLE_COLLECTIONS_PATH=$(ANSIBLE_COLLECTIONS_PATH) $(ANSIBLE_LINT) $(ROLE_DIR)
 
-test: ## Run verification test playbook against inventory.ini
-	ANSIBLE_HOST_KEY_CHECKING=False $(ANSIBLE_PLAYBOOK) -i inventory.ini $(ROLE_DIR)/tests/test.yml
+test: ## Run testinfra verification tests against inventory.ini
+	ANSIBLE_HOST_KEY_CHECKING=False $(PYTEST) --hosts=$(TEST_HOSTS) --ansible-inventory=$(TEST_INVENTORY) $(ROLE_DIR)/tests

@@ -53,31 +53,21 @@ Or reference the role directly:
 
 ## Step 4 — Verify the changes
 
-Check that container kernel modules are loaded:
+Run the included test suite against your inventory:
+
+```bash
+make test
+```
+
+This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks in parallel across all hosts to confirm kernel modules, sysctl persistence, PAM limits, transparent hugepages, swap removal, and locale configuration.
+
+You can also spot-check individual settings with ad-hoc Ansible commands:
 
 ```bash
 ansible workers -i inventory.ini -m ansible.builtin.shell -a "lsmod | grep -E 'br_netfilter|overlay|nf_conntrack'" --become
-```
-
-Check a key sysctl value:
-
-```bash
 ansible workers -i inventory.ini -m ansible.builtin.shell -a "sysctl net.ipv4.ip_forward" --become
-```
-
-Expected output:
-
-```
-net.ipv4.ip_forward = 1
-```
-
-Confirm swap is disabled:
-
-```bash
 ansible workers -i inventory.ini -m ansible.builtin.shell -a "free -h | grep -i swap" --become
 ```
-
-The `Swap` line should show `0B` or no output.
 
 ## What changed on the host
 

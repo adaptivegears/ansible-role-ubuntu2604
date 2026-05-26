@@ -17,3 +17,7 @@ These docs are for operators and platform engineers who manage Ubuntu 26.04 VMs 
 ## Reference
 
 - [Configuration](reference/configuration.md) — Variables, defaults, and customization options.
+
+## Releases
+
+- [Changelog](../../CHANGELOG.md) — Version history and notable changes.

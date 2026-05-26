@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow [CalVer](https://calver.org/) (`YYYY.M.MICRO`).
 
+## [2026.5.2] - 2026-05-26
+
+### Highlights
+This release adds a comprehensive pytest-testinfra verification suite, user-facing documentation, and faster parallel test execution.
+
+### New Features
+- **Integration test suite**: `ubuntu_2604/tests/test_ubuntu_2604.py` verifies kernel modules, sysctl persistence, PAM limits, transparent hugepages, swap removal, and locale configuration using pytest-testinfra
+- **Documentation site**: New `docs/` pages including a quickstart guide, configuration reference, and overview index
+
+### Improvements
+- **Parallel test execution**: `make test` runs testinfra checks across 8 workers with `pytest-xdist` for faster verification cycles
+- **Makefile organization**: Variables renamed for clarity and separated by tool (Ansible vs. testinfra)
+
+### Internal
+- Replaced legacy Ansible role test scaffolding (`tests/test.yml`, `tests/inventory`) with the new pytest-based suite
+
 ## [2026.5.1] - 2026-05-26
 
 ### Highlights

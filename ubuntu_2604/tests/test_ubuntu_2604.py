@@ -260,7 +260,7 @@ def test_unattended_reboot_behavior_is_disabled(host, name, expected):
 
 def test_needrestart_is_configured_for_list_only_mode(host):
     assert host.file(NEEDRESTART_POLICY).contains(
-        r"^\$nrconf\{restart\}[[:space:]]*=[[:space:]]*'l';$"
+        r"^\$nrconf{restart}[[:space:]]*=[[:space:]]*'l';$"
     )
 
 

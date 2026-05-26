@@ -3,9 +3,10 @@ galaxy_info:
   role_name: ubuntu_2604
   namespace: local
   author: local
-  description: Basic Ubuntu 26.04 role skeleton
+  description: Ubuntu 26.04 server provisioning for container-worker VMs
   license: MIT
   min_ansible_version: "2.15"
+  version: "2026.5.1"
   platforms:
     - name: Ubuntu
       versions:

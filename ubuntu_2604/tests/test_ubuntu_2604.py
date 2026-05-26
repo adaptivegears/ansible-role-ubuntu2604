@@ -156,10 +156,10 @@ def test_apt_sources_use_managed_mirror_lists(host):
     assert sources.exists
     assert sources.contains(r"^Types: deb$")
     assert sources.contains(
-        rf"^URIs: mirror\+file:{grep_literal(APT_MIRRORS)}$"
+        rf"^URIs: mirror+file:{grep_literal(APT_MIRRORS)}$"
     )
     assert sources.contains(
-        rf"^URIs: mirror\+file:{grep_literal(APT_SECURITY_MIRRORS)}$"
+        rf"^URIs: mirror+file:{grep_literal(APT_SECURITY_MIRRORS)}$"
     )
     assert sources.contains(r"^Components: main restricted universe multiverse$")
     assert sources.contains(
@@ -171,15 +171,15 @@ def test_apt_mirrors_keep_official_archive_fallback(host):
     mirrors = host.file(APT_MIRRORS)
 
     assert mirrors.exists
-    assert mirrors.contains(r"^http://archive\.ubuntu\.com/ubuntu/[[:space:]]+priority:[0-9]+$")
+    assert mirrors.contains(r"^http://archive\.ubuntu\.com/ubuntu/[[:space:]][[:space:]]*priority:[0-9][0-9]*$")
 
 
 def test_apt_security_mirrors_keep_official_fallbacks(host):
     mirrors = host.file(APT_SECURITY_MIRRORS)
 
     assert mirrors.exists
-    assert mirrors.contains(r"^http://security\.ubuntu\.com/ubuntu/[[:space:]]+priority:[0-9]+$")
-    assert mirrors.contains(r"^http://archive\.ubuntu\.com/ubuntu/[[:space:]]+priority:[0-9]+$")
+    assert mirrors.contains(r"^http://security\.ubuntu\.com/ubuntu/[[:space:]][[:space:]]*priority:[0-9][0-9]*$")
+    assert mirrors.contains(r"^http://archive\.ubuntu\.com/ubuntu/[[:space:]][[:space:]]*priority:[0-9][0-9]*$")
 
 
 def test_apt_uses_regional_ec2_mirror_first_on_aws(host):

@@ -300,9 +300,9 @@
   ansible.builtin.set_fact:
     ubuntu_2604__aws_region: >-
       {{
-        ansible_facts.get('ansible_ec2_instance_identity_document_region', '')
+        ansible_facts.get('ec2_instance_identity_document_region', '')
         if (
-          ansible_facts.get('ansible_ec2_instance_identity_document_region', '')
+          ansible_facts.get('ec2_instance_identity_document_region', '')
           is match('^[a-z]{2}(?:-gov)?(?:-[a-z]+)+-[0-9]+$')
         )
         else ''

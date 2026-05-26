@@ -210,6 +210,47 @@ def test_apt_uses_regional_ec2_mirror_first_on_aws(host):
 
 
 # -----------------------------------------------------------------------------
+# Unattended upgrades
+# -----------------------------------------------------------------------------
+
+
+UNATTENDED_AUTO_UPGRADES = "/etc/apt/apt.conf.d/20auto-upgrades"
+EXPECTED_UNATTENDED_AUTO_UPGRADES = {
+    "APT::Periodic::Update-Package-Lists": "1",
+    "APT::Periodic::Unattended-Upgrade": "1",
+    "APT::Periodic::Download-Upgradeable-Packages": "1",
+    "APT::Periodic::AutocleanInterval": "7",
+}
+EXPECTED_UNATTENDED_TIMERS = (
+    "apt-daily.timer",
+    "apt-daily-upgrade.timer",
+)
+
+
+def test_unattended_upgrades_package_is_installed(host):
+    assert host.package("unattended-upgrades").is_installed
+
+
+@pytest.mark.parametrize("name, expected", EXPECTED_UNATTENDED_AUTO_UPGRADES.items())
+def test_periodic_unattended_upgrade_setting_is_enabled(host, name, expected):
+    pattern = (
+        f"^{grep_literal(name)}[[:space:]][[:space:]]*"
+        f'"{grep_literal(expected)}";[[:space:]]*$'
+    )
+
+    assert host.file(UNATTENDED_AUTO_UPGRADES).contains(pattern)
+
+
+@pytest.mark.parametrize("timer", EXPECTED_UNATTENDED_TIMERS)
+def test_apt_maintenance_timer_is_active_and_enabled(host, timer):
+    service = host.service(timer)
+
+    assert service.exists
+    assert service.is_running
+    assert service.is_enabled
+
+
+# -----------------------------------------------------------------------------
 # Locale
 # -----------------------------------------------------------------------------
 

@@ -393,6 +393,45 @@
   tags: [apt, upgrade, packages]
 
 # -----------------------------------------------------------------------------
+# Unattended upgrades
+# -----------------------------------------------------------------------------
+# Fresh Ubuntu servers normally enable security updates, but image pipelines and
+# derivative images can remove the package or periodic APT switches. Make the
+# security-update path explicit while leaving reboot and broader update policy to
+# operators, avoiding surprise restarts on container hosts.
+# -----------------------------------------------------------------------------
+
+- name: Unattended upgrades | Install unattended upgrades package
+  become: true
+  ansible.builtin.apt:
+    name: unattended-upgrades
+    state: present
+  tags: [unattended_upgrades, packages]
+
+- name: Unattended upgrades | Enable periodic security upgrades
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::Download-Upgradeable-Packages "1";
+      APT::Periodic::AutocleanInterval "7";
+    mode: "0644"
+  tags: unattended_upgrades
+
+- name: Unattended upgrades | Start APT maintenance timers
+  become: true
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  tags: unattended_upgrades
+  loop:
+    - apt-daily.timer
+    - apt-daily-upgrade.timer
+
+# -----------------------------------------------------------------------------
 # Locale
 # -----------------------------------------------------------------------------
 # Container tools and editors expect a consistent UTF-8 environment; ensure the

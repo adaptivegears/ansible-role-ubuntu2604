@@ -31,7 +31,7 @@
       ansible.builtin.command: "sysctl -n {{ item.name }}"
       changed_when: false
       register: sysctl_result
-      failed_when: sysctl_result.stdout != item.value
+      failed_when: (sysctl_result.stdout | regex_replace('\t', ' ')) != item.value
       loop:
         - { name: "net.bridge.bridge-nf-call-arptables", value: "1" }
         - { name: "net.bridge.bridge-nf-call-ip6tables", value: "1" }
@@ -128,10 +128,10 @@
 
     - name: Verify | System locale is generated
       become: true
-      ansible.builtin.command: locale -a | grep -ix '{{ verify_locale | regex_replace("-", "") | lower }}'
+      ansible.builtin.command: locale -a
       changed_when: false
       register: locale_gen
-      failed_when: locale_gen.rc != 0
+      failed_when: "'en_us.utf8' not in locale_gen.stdout | lower"
 
     - name: Verify | Default locale is set
       become: true

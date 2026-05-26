@@ -74,6 +74,56 @@ Swap is disabled at runtime and all swap entries are removed from `/etc/fstab`.
 
 A systemd one-shot service (`transparent-hugepages-madvise`) sets THP to `madvise` on boot, letting runtimes opt in without forcing global hugepages.
 
+### APT and unattended upgrades
+
+The role manages APT deterministically so package resolution is consistent across rebuilds and does not rely on cloud-init defaults.
+
+**Mirror selection**
+
+On EC2 instances the role detects the AWS region via IMDS and prefers the regional `ec2.archive.ubuntu.com` mirror with `priority:1`. The official Canonical archives are kept as fallback so a regional outage does not block provisioning. On non-EC2 hosts the official archive is used directly.
+
+Mirror lists are written to:
+
+- `/etc/apt/ubuntu-mirrors.txt` — primary archive mirrors
+- `/etc/apt/ubuntu-security-mirrors.txt` — security archive mirrors
+
+Sources are configured in DEB822 format at `/etc/apt/sources.list.d/ubuntu.sources` and use the `mirror+file` URI scheme so APT respects the priority lists.
+
+**Safe upgrades**
+
+During each role run the role applies `upgrade: safe`, `autoremove`, and `autoclean`. This keeps fresh VMs current without accepting disruptive dependency changes or leaving orphaned packages on small disks.
+
+**Unattended security upgrades**
+
+The role explicitly installs `unattended-upgrades` and enables periodic security updates while blocking behavior that could disrupt workloads outside a maintenance window:
+
+- Automatic reboot is disabled
+- Reboot-with-users is disabled
+- Install-on-shutdown is disabled
+- `needrestart` is set to list-only mode so stale processes are reported but not restarted automatically
+
+The APT daily and daily-upgrade timers are enabled so metadata and security patches are fetched on schedule.
+
+## Task tags
+
+All tasks carry semantic tags so you can run or skip sections with `ansible-playbook --tags` or `--skip-tags`.
+
+| Tag | Covers |
+|-----|--------|
+| `kernel` | Kernel modules, sysctls, PAM limits, transparent hugepages service |
+| `swap` | Swap disable and `/etc/fstab` cleanup |
+| `apt` | Mirror lists, sources list, and cache update |
+| `upgrade` | Safe package upgrade, autoremove, and autoclean |
+| `packages` | Package installs and removals across all sections |
+| `unattended_upgrades` | Unattended upgrades config, reboot policy, needrestart, and timers |
+| `locale` | Locale generation and default locale setting |
+
+Example: run only APT and upgrade tasks:
+
+```bash
+ansible-playbook -i inventory.ini playbook.yml --tags "apt,upgrade"
+```
+
 ## Related pages
 
 - [Quickstart](../getting-started/quickstart.md) — Apply the role and verify results.

@@ -59,7 +59,7 @@ Run the included test suite against your inventory:
 make test
 ```
 
-This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks in parallel across all hosts to confirm kernel modules, sysctl persistence, PAM limits, transparent hugepages, swap removal, and locale configuration.
+This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks in parallel across all hosts to confirm kernel modules, sysctl persistence, PAM limits, transparent hugepages, swap removal, APT source and mirror configuration, unattended-upgrade policy, and locale configuration.
 
 You can also spot-check individual settings with ad-hoc Ansible commands:
 
@@ -76,7 +76,39 @@ ansible workers -i inventory.ini -m ansible.builtin.shell -a "free -h | grep -i 
 - PAM soft and hard limits for `nofile` and `nproc` raised to `65536`
 - Transparent hugepages set to `madvise` via systemd service
 - Swap disabled and removed from `/etc/fstab`
+- APT sources configured with AWS-aware regional mirror selection and official-archive fallback
+- Safe package upgrades, autoremove, and autoclean applied during the run
+- Unattended security upgrades enabled with automatic reboots, shutdown-time installs, and needrestart service restarts blocked
 - UTF-8 locale generated and set as system default
+- Tasks tagged for selective execution
+
+## Run only specific sections
+
+Every task is tagged with a semantic selector. Use `--tags` or `--skip-tags` to run only the sections you need.
+
+Available tags:
+
+| Tag | Section |
+|-----|---------|
+| `kernel` | Kernel modules, sysctls, PAM limits, and transparent hugepages |
+| `swap` | Swap disable and fstab cleanup |
+| `apt` | APT source configuration, mirror lists, and cache update |
+| `upgrade` | Safe package upgrade, autoremove, and autoclean |
+| `packages` | Package installs and removals across all sections |
+| `unattended_upgrades` | Unattended security upgrades, reboot policy, and needrestart |
+| `locale` | Locale generation and default locale setting |
+
+Example: apply only kernel and swap tuning:
+
+```bash
+ansible-playbook -i inventory.ini playbook.yml --tags "kernel,swap"
+```
+
+Example: skip the package upgrade step on a host that is already current:
+
+```bash
+ansible-playbook -i inventory.ini playbook.yml --skip-tags upgrade
+```
 
 ## Next steps
 

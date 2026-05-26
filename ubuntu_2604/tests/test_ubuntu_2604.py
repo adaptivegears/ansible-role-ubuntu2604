@@ -1,25 +1,37 @@
-"""Production verification for the ubuntu_2604 role.
-
-These tests validate externally observable host behavior rather than Ansible task
-implementation details. The assertions are grouped to mirror the role's semantic
-sections so a failure points back to the relevant contract in tasks/main.yml.
-"""
+"""Production verification for the ubuntu_2604 role."""
 
 from __future__ import annotations
 
-import json
 import re
-from pathlib import Path
+
+import pytest
 
 
-ROLE_DIR = Path(__file__).resolve().parents[1]
-ROLE_VARS_FILE = ROLE_DIR / "vars" / "main.yml"
+def grep_literal(value: str) -> str:
+    """Escape a literal for the POSIX grep regexes used by File.contains()."""
+    return re.sub(r"([][\\.^$*])", r"\\\1", value)
+
+
+def locale_a_name(locale: str) -> str:
+    return re.sub(r"utf-?8$", "utf8", locale.lower())
+
+
+# -----------------------------------------------------------------------------
+# Kernel
+# -----------------------------------------------------------------------------
+
 
 EXPECTED_KERNEL_MODULES = (
     "br_netfilter",
     "nf_conntrack",
     "overlay",
 )
+
+
+@pytest.mark.parametrize("module", EXPECTED_KERNEL_MODULES)
+def test_container_kernel_module_is_loaded(host, module):
+    assert host.file(f"/sys/module/{module}").is_directory
+
 
 EXPECTED_SYSCTLS = {
     "net.bridge.bridge-nf-call-arptables": "1",
@@ -62,6 +74,22 @@ EXPECTED_SYSCTLS = {
     "vm.swappiness": "10",
 }
 
+
+@pytest.mark.parametrize("name, expected", EXPECTED_SYSCTLS.items())
+def test_runtime_sysctl_value(host, name, expected):
+    assert " ".join(str(host.sysctl(name)).split()) == expected
+
+
+@pytest.mark.parametrize("name, expected", EXPECTED_SYSCTLS.items())
+def test_sysctl_value_is_persistent(host, name, expected):
+    pattern = (
+        f"^[[:space:]]*{grep_literal(name)}[[:space:]]*="
+        f"[[:space:]]*{grep_literal(expected)}[[:space:]]*$"
+    )
+
+    assert host.file("/etc/sysctl.d/99-ubuntu-2604.conf").contains(pattern)
+
+
 EXPECTED_PAM_LIMITS = (
     ("soft", "nofile", "65536"),
     ("hard", "nofile", "65536"),
@@ -69,175 +97,70 @@ EXPECTED_PAM_LIMITS = (
     ("hard", "nproc", "65536"),
 )
 
-FSTAB_SWAP_PATTERN = re.compile(r"^\s*[^#\s]+\s+[^\s]+\s+swap\s+", re.MULTILINE)
 
-
-def _role_var(name: str) -> str:
-    pattern = re.compile(rf"^{re.escape(name)}:\s*(?P<value>.+?)\s*$")
-    for line in ROLE_VARS_FILE.read_text(encoding="utf-8").splitlines():
-        match = pattern.match(line)
-        if match:
-            return match.group("value").strip().strip('"\'')
-    raise AssertionError(f"{name} is missing from {ROLE_VARS_FILE}")
-
-
-def _locale_name_for_locale_a(locale: str) -> str:
-    return re.sub(r"utf-?8$", "utf8", locale.lower())
-
-
-def _literal_setting_pattern(name: str, value: str) -> re.Pattern[str]:
-    return re.compile(
-        rf"^\s*{re.escape(name)}\s*=\s*{re.escape(value)}\s*(?:#.*)?$",
-        re.MULTILINE,
+@pytest.mark.parametrize("limit_type, name, expected", EXPECTED_PAM_LIMITS)
+def test_pam_limit_is_configured(host, limit_type, name, expected):
+    pattern = (
+        rf"^\*[[:space:]][[:space:]]*{limit_type}[[:space:]][[:space:]]*{name}"
+        rf"[[:space:]][[:space:]]*{expected}[[:space:]]*$"
     )
 
-
-# -----------------------------------------------------------------------------
-# Kernel
-# -----------------------------------------------------------------------------
-# The role prepares the host kernel for container networking and dense process
-# trees. These checks validate the observable runtime policy and the persistent
-# configuration needed for the same behavior after a reboot.
-# -----------------------------------------------------------------------------
-
-
-def test_container_kernel_modules_are_loaded(host):
-    missing = [
-        module
-        for module in EXPECTED_KERNEL_MODULES
-        if not host.file(f"/sys/module/{module}").is_directory
-    ]
-
-    assert not missing, f"kernel modules are not loaded: {missing}"
-
-
-def test_runtime_sysctl_values_match_role_contract(host):
-    names = json.dumps(list(EXPECTED_SYSCTLS))
-    result = host.run(
-        f"""python3 - <<'PY'
-import json
-from pathlib import Path
-
-names = {names}
-values = {{}}
-errors = {{}}
-
-for name in names:
-    path = Path("/proc/sys") / Path(name.replace(".", "/"))
-    try:
-        values[name] = " ".join(path.read_text(encoding="utf-8").split())
-    except OSError as exc:
-        errors[name] = str(exc)
-
-print(json.dumps({{"errors": errors, "values": values}}, sort_keys=True))
-PY"""
-    )
-
-    assert result.rc == 0, result.stderr
-
-    payload = json.loads(result.stdout)
-    mismatches = {
-        name: {"expected": expected, "actual": payload["values"].get(name)}
-        for name, expected in EXPECTED_SYSCTLS.items()
-        if payload["values"].get(name) != expected
-    }
-
-    assert not payload["errors"], f"failed to read sysctls: {payload['errors']}"
-    assert not mismatches, f"runtime sysctl mismatches: {mismatches}"
-
-
-def test_sysctl_values_persist_across_reboot(host):
-    content = host.file("/etc/sysctl.d/99-ubuntu-2604.conf").content_string
-    missing = [
-        f"{name} = {value}"
-        for name, value in EXPECTED_SYSCTLS.items()
-        if _literal_setting_pattern(name, value).search(content) is None
-    ]
-
-    assert not missing, f"persistent sysctl settings are missing: {missing}"
-
-
-def test_pam_limits_match_role_contract(host):
-    content = host.file("/etc/security/limits.conf").content_string
-    missing = []
-
-    for limit_type, name, value in EXPECTED_PAM_LIMITS:
-        pattern = re.compile(
-            rf"^\*\s+{limit_type}\s+{name}\s+{re.escape(value)}\s*(?:#.*)?$",
-            re.MULTILINE,
-        )
-        if pattern.search(content) is None:
-            missing.append(f"* {limit_type} {name} {value}")
-
-    assert not missing, f"PAM limits are missing: {missing}"
+    assert host.file("/etc/security/limits.conf").contains(pattern)
 
 
 def test_transparent_hugepages_service_is_active_and_enabled(host):
     service = host.service("transparent-hugepages-madvise.service")
 
-    assert service.is_running, "transparent-hugepages-madvise.service is not active"
-    assert service.is_enabled, "transparent-hugepages-madvise.service is not enabled"
+    assert service.exists
+    assert service.is_running
+    assert service.is_enabled
 
 
 def test_transparent_hugepages_mode_is_madvise(host):
-    content = host.file("/sys/kernel/mm/transparent_hugepage/enabled").content_string
-
-    assert "[madvise]" in content, f"transparent hugepages mode is {content.strip()}"
+    assert host.file("/sys/kernel/mm/transparent_hugepage/enabled").contains(
+        r"\[madvise\]"
+    )
 
 
 # -----------------------------------------------------------------------------
 # Swap
 # -----------------------------------------------------------------------------
-# Container hosts should let cgroups and OOM policy handle memory pressure, so
-# swap must be absent both from the live system and from reboot-time mounts.
-# -----------------------------------------------------------------------------
 
 
 def test_no_swap_is_active(host):
-    result = host.run("swapon --show=NAME --noheadings")
-
-    assert result.rc == 0, result.stderr
-    assert result.stdout.strip() == "", f"active swap devices: {result.stdout!r}"
+    assert host.file("/proc/swaps").content_string.splitlines()[1:] == []
 
 
 def test_fstab_has_no_active_swap_entries(host):
-    content = host.file("/etc/fstab").content_string
-
-    assert FSTAB_SWAP_PATTERN.search(content) is None, (
-        "/etc/fstab contains uncommented swap entries"
+    swap_entry = (
+        r"^[[:space:]]*[^#[:space:]][^[:space:]]*[[:space:]][[:space:]]*"
+        r"[^[:space:]][^[:space:]]*[[:space:]][[:space:]]*swap[[:space:]][[:space:]]*"
     )
+
+    assert not host.file("/etc/fstab").contains(swap_entry)
 
 
 # -----------------------------------------------------------------------------
 # Locale
 # -----------------------------------------------------------------------------
-# The role standardizes the host's UTF-8 locale because build tools, editors,
-# and container CLIs often inherit the system default environment.
-# -----------------------------------------------------------------------------
+
+
+EXPECTED_LOCALE = "en_US.UTF-8"
 
 
 def test_locales_package_is_installed(host):
-    assert host.package("locales").is_installed, "locales package is not installed"
+    assert host.package("locales").is_installed
 
 
 def test_configured_locale_is_generated(host):
-    expected_locale = _role_var("ubuntu_2604_locale")
-    result = host.run("locale -a")
-
-    assert result.rc == 0, result.stderr
-
     generated_locales = {
-        _locale_name_for_locale_a(line.strip()) for line in result.stdout.splitlines()
+        locale_a_name(line) for line in host.check_output("locale -a").splitlines()
     }
-    assert _locale_name_for_locale_a(expected_locale) in generated_locales, (
-        f"locale {expected_locale} is not generated; observed {sorted(generated_locales)}"
-    )
+
+    assert locale_a_name(EXPECTED_LOCALE) in generated_locales
 
 
 def test_default_locale_is_configured(host):
-    expected_locale = _role_var("ubuntu_2604_locale")
-    content = host.file("/etc/default/locale").content_string
-
-    assert re.search(rf"^LANG={re.escape(expected_locale)}$", content, re.MULTILINE), (
-        f"/etc/default/locale does not contain LANG={expected_locale}"
+    assert host.file("/etc/default/locale").contains(
+        f"^LANG={grep_literal(EXPECTED_LOCALE)}$"
     )

@@ -9,6 +9,7 @@
 # -----------------------------------------------------------------------------
 
 - name: Kernel | Load container kernel modules
+  become: true
   community.general.modprobe:
     name: "{{ item }}"
     persistent: present
@@ -23,6 +24,7 @@
     - overlay
 
 - name: Kernel | Configure sysctls
+  become: true
   ansible.posix.sysctl:
     name: "{{ item.name }}"
     value: "{{ item.value }}"
@@ -175,6 +177,7 @@
     label: "{{ item.name }}"
 
 - name: Kernel | Configure PAM limits
+  become: true
   community.general.pam_limits:
     domain: "*"
     limit_item: "{{ item.name }}"
@@ -203,6 +206,7 @@
 # surprise page compaction. A systemd one-shot owns this policy because the
 # kernel exposes THP through sysfs rather than sysctl.
 - name: Kernel | Create transparent hugepages policy service
+  become: true
   ansible.builtin.copy:
     dest: /etc/systemd/system/transparent-hugepages-madvise.service
     content: |
@@ -223,6 +227,7 @@
   register: ubuntu_2604__thp_service
 
 - name: Kernel | Start transparent hugepages policy service
+  become: true
   ansible.builtin.systemd_service:
     name: transparent-hugepages-madvise
     enabled: true
@@ -239,10 +244,12 @@
 # -----------------------------------------------------------------------------
 
 - name: Swap | Disable active swap
+  become: true
   ansible.builtin.command: swapoff -a
   changed_when: false
 
 - name: Swap | Remove swap entries from fstab
+  become: true
   ansible.builtin.replace:
     path: /etc/fstab
     regexp: "^.*swap.*$"
@@ -257,6 +264,7 @@
 # -----------------------------------------------------------------------------
 
 - name: APT | Update package cache
+  become: true
   ansible.builtin.apt:
     update_cache: true
     # Reuse metadata briefly so repeated role runs do not hammer mirrors while
@@ -276,16 +284,19 @@
 # Minimal and cloud images (including AWS) do not ship the locales package by
 # default, so locale-gen would fail silently without it.
 - name: Locale | Install locales package
+  become: true
   ansible.builtin.apt:
     name: locales
     state: present
 
 - name: Locale | Generate system locale
+  become: true
   community.general.locale_gen:
     name: "{{ ubuntu_2604_locale }}"
     state: present
 
 - name: Locale | Set default locale
+  become: true
   ansible.builtin.lineinfile:
     path: /etc/default/locale
     regexp: "^LANG="

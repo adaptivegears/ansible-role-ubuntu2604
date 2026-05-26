@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow [CalVer](https://calver.org/) (`YYYY.M.MICRO`).
 
+## [2026.5.3] - 2026-05-26
+
+### Highlights
+This release adds deterministic APT source management with AWS regional mirror awareness, safe package upgrades, and explicit unattended security upgrade policies that block automatic reboots.
+
+### New Features
+- **AWS-aware APT mirror selection**: Detects EC2 instances via platform facts and IMDS, preferring regional `ec2.archive.ubuntu.com` mirrors with fallback to Canonical-operated endpoints; replaces cloud-init defaults with deterministic source lists
+- **Safe APT upgrades**: Applies `safe` upgrades, `autoremove`, and `autoclean` during role runs so fresh VMs stay current without accepting disruptive dependency changes
+- **Unattended security upgrades**: Explicitly enables periodic security updates while disabling automatic reboots, shutdown-time installs, and needrestart automatic service restarts; container workloads remain stable outside operator-controlled maintenance windows
+- **Task tags**: All tasks tagged with semantic selectors (`kernel`, `swap`, `apt`, `locale`, `unattended_upgrades`, `upgrade`, `packages`) for selective execution
+
+### Improvements
+- **Expanded testinfra coverage**: New parametrized tests verify APT mirror lists, source file syntax, unattended-upgrade settings, needrestart policy, and APT maintenance timer state
+
+### Internal
+- Added `amazon.aws` collection dependency (`10.1.2`) for EC2 metadata fact gathering
+- Removed unused `templates/.gitkeep` scaffolding
+
 ## [2026.5.2] - 2026-05-26
 
 ### Highlights

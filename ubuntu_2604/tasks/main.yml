@@ -250,6 +250,23 @@
     backup: true
 
 # -----------------------------------------------------------------------------
+# APT
+# -----------------------------------------------------------------------------
+# Keep package metadata fresh before package operations while avoiding source
+# management until Ubuntu 26.04 repository format and image defaults are clear.
+# -----------------------------------------------------------------------------
+
+- name: APT | Update package cache
+  ansible.builtin.apt:
+    update_cache: true
+    # Reuse metadata briefly so repeated role runs do not hammer mirrors while
+    # still catching updates during routine provisioning.
+    cache_valid_time: 3600
+  # Cache refreshes are preconditions, not managed host state, so they should
+  # not make every converge look like configuration drift.
+  changed_when: false
+
+# -----------------------------------------------------------------------------
 # Locale
 # -----------------------------------------------------------------------------
 # Container tools and editors expect a consistent UTF-8 environment; ensure the
@@ -275,20 +292,3 @@
     line: "LANG={{ ubuntu_2604_locale }}"
     create: true
     mode: "0644"
-
-# -----------------------------------------------------------------------------
-# APT
-# -----------------------------------------------------------------------------
-# Keep package metadata fresh before package operations while avoiding source
-# management until Ubuntu 26.04 repository format and image defaults are clear.
-# -----------------------------------------------------------------------------
-
-- name: APT | Update package cache
-  ansible.builtin.apt:
-    update_cache: true
-    # Reuse metadata briefly so repeated role runs do not hammer mirrors while
-    # still catching updates during routine provisioning.
-    cache_valid_time: 3600
-  # Cache refreshes are preconditions, not managed host state, so they should
-  # not make every converge look like configuration drift.
-  changed_when: false

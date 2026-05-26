@@ -215,11 +215,18 @@ def test_apt_uses_regional_ec2_mirror_first_on_aws(host):
 
 
 UNATTENDED_AUTO_UPGRADES = "/etc/apt/apt.conf.d/20auto-upgrades"
+UNATTENDED_REBOOT_POLICY = "/etc/apt/apt.conf.d/52ubuntu-2604-unattended-upgrades"
+NEEDRESTART_POLICY = "/etc/needrestart/conf.d/99-ubuntu-2604-no-auto-restarts.conf"
 EXPECTED_UNATTENDED_AUTO_UPGRADES = {
     "APT::Periodic::Update-Package-Lists": "1",
     "APT::Periodic::Unattended-Upgrade": "1",
     "APT::Periodic::Download-Upgradeable-Packages": "1",
     "APT::Periodic::AutocleanInterval": "7",
+}
+EXPECTED_UNATTENDED_REBOOT_POLICY = {
+    "Unattended-Upgrade::Automatic-Reboot": "false",
+    "Unattended-Upgrade::Automatic-Reboot-WithUsers": "false",
+    "Unattended-Upgrade::InstallOnShutdown": "false",
 }
 EXPECTED_UNATTENDED_TIMERS = (
     "apt-daily.timer",
@@ -239,6 +246,22 @@ def test_periodic_unattended_upgrade_setting_is_enabled(host, name, expected):
     )
 
     assert host.file(UNATTENDED_AUTO_UPGRADES).contains(pattern)
+
+
+@pytest.mark.parametrize("name, expected", EXPECTED_UNATTENDED_REBOOT_POLICY.items())
+def test_unattended_reboot_behavior_is_disabled(host, name, expected):
+    pattern = (
+        f"^{grep_literal(name)}[[:space:]][[:space:]]*"
+        f'"{grep_literal(expected)}";[[:space:]]*$'
+    )
+
+    assert host.file(UNATTENDED_REBOOT_POLICY).contains(pattern)
+
+
+def test_needrestart_is_configured_for_list_only_mode(host):
+    assert host.file(NEEDRESTART_POLICY).contains(
+        r"^\$nrconf\{restart\}[[:space:]]*=[[:space:]]*'l';$"
+    )
 
 
 @pytest.mark.parametrize("timer", EXPECTED_UNATTENDED_TIMERS)

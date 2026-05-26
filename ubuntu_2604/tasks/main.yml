@@ -397,8 +397,9 @@
 # -----------------------------------------------------------------------------
 # Fresh Ubuntu servers normally enable security updates, but image pipelines and
 # derivative images can remove the package or periodic APT switches. Make the
-# security-update path explicit while leaving reboot and broader update policy to
-# operators, avoiding surprise restarts on container hosts.
+# security-update path explicit while blocking unattended reboots and daemon
+# restarts; workload disruption should happen only inside an orchestrated
+# maintenance window.
 # -----------------------------------------------------------------------------
 
 - name: Unattended upgrades | Install unattended upgrades package
@@ -417,6 +418,43 @@
       APT::Periodic::Unattended-Upgrade "1";
       APT::Periodic::Download-Upgradeable-Packages "1";
       APT::Periodic::AutocleanInterval "7";
+    mode: "0644"
+  tags: unattended_upgrades
+
+- name: Unattended upgrades | Disable unattended reboot behavior
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/52ubuntu-2604-unattended-upgrades
+    content: |
+      // Production container hosts must not reboot themselves outside the
+      // maintenance process, even after kernel or libc security updates.
+      Unattended-Upgrade::Automatic-Reboot "false";
+      // Keep the no-reboot policy explicit for hosts with active or inactive
+      // login sessions; maintenance automation owns reboot decisions.
+      Unattended-Upgrade::Automatic-Reboot-WithUsers "false";
+      // Shutdown-time installs make controlled stops unpredictable and can
+      // extend replacement or recovery workflows.
+      Unattended-Upgrade::InstallOnShutdown "false";
+    mode: "0644"
+  tags: unattended_upgrades
+
+- name: Unattended upgrades | Create needrestart override directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/needrestart/conf.d
+    state: directory
+    mode: "0755"
+  tags: unattended_upgrades
+
+- name: Unattended upgrades | Disable needrestart automatic service restarts
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/needrestart/conf.d/99-ubuntu-2604-no-auto-restarts.conf
+    content: |
+      # Keep needrestart in list-only mode so unattended-upgrades can report
+      # stale processes without restarting container runtimes, databases, or
+      # workload services outside an operator-controlled maintenance window.
+      $nrconf{restart} = 'l';
     mode: "0644"
   tags: unattended_upgrades
 

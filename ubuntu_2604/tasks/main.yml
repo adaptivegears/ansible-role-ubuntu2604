@@ -14,6 +14,7 @@
     name: "{{ item }}"
     persistent: present
     state: present
+  tags: kernel
   loop:
     # Bridge netfilter must be loaded before bridge sysctls exist on minimal images.
     - br_netfilter
@@ -31,6 +32,7 @@
     sysctl_file: /etc/sysctl.d/99-ubuntu-2604.conf
     state: present
     reload: true
+  tags: kernel
   loop:
     # Send bridged ARP packets through arptables so host bridge policy can see L2 container traffic.
     - name: net.bridge.bridge-nf-call-arptables
@@ -185,6 +187,7 @@
     # Keep session limits high enough for dense workers without making mistakes
     # unlimited for every login context.
     value: 65536
+  tags: kernel
   loop:
     # Keep PAM-launched sessions from retaining low descriptor defaults after
     # raising kernel FD ceilings.
@@ -224,6 +227,7 @@
       [Install]
       WantedBy=multi-user.target
     mode: "0644"
+  tags: kernel
   register: ubuntu_2604__thp_service
 
 - name: Kernel | Start transparent hugepages policy service
@@ -235,6 +239,7 @@
     # avoid needless systemd work.
     daemon_reload: "{{ ubuntu_2604__thp_service.changed }}"
     state: started
+  tags: kernel
 
 # -----------------------------------------------------------------------------
 # Swap
@@ -247,6 +252,7 @@
   become: true
   ansible.builtin.command: swapoff -a
   changed_when: false
+  tags: swap
 
 - name: Swap | Remove swap entries from fstab
   become: true
@@ -255,6 +261,7 @@
     regexp: "^.*swap.*$"
     replace: ""
     backup: true
+  tags: swap
 
 # -----------------------------------------------------------------------------
 # APT
@@ -276,6 +283,7 @@
         or ansible_facts.get('product_uuid', '') is match('(?i)^ec2')
         or ansible_facts.get('product_name', '') is search('(?i)amazon')
       }}
+  tags: apt
 
 - name: APT | Gather EC2 metadata facts
   amazon.aws.ec2_metadata_facts:
@@ -286,6 +294,7 @@
   when: ubuntu_2604__maybe_ec2
   failed_when: false
   changed_when: false
+  tags: apt
 
 - name: APT | Select AWS region
   ansible.builtin.set_fact:
@@ -298,6 +307,7 @@
         )
         else ''
       }}
+  tags: apt
 
 # Prefer AWS's regional Ubuntu mirror when the instance region is known because
 # it is the image-default path on EC2; keep the official archive second so a
@@ -314,6 +324,7 @@
       http://archive.ubuntu.com/ubuntu/	priority:1
       {% endif %}
     mode: "0644"
+  tags: apt
   register: ubuntu_2604__apt_primary_mirrors
 
 # Security uses its own list so fallback preserves Ubuntu's dedicated security
@@ -333,6 +344,7 @@
       http://archive.ubuntu.com/ubuntu/	priority:2
       {% endif %}
     mode: "0644"
+  tags: apt
   register: ubuntu_2604__apt_security_mirrors
 
 - name: APT | Configure Ubuntu archive sources
@@ -341,6 +353,7 @@
     src: ubuntu.sources.j2
     dest: /etc/apt/sources.list.d/ubuntu.sources
     mode: "0644"
+  tags: apt
   register: ubuntu_2604__apt_sources
 
 - name: APT | Update package cache
@@ -363,6 +376,7 @@
   # Cache refreshes are preconditions, not managed host state, so they should
   # not make every converge look like configuration drift.
   changed_when: false
+  tags: apt
 
 - name: APT | Upgrade packages and clean unused package data
   become: true
@@ -376,6 +390,7 @@
     # Drop obsolete package files while keeping reusable cache entries, which
     # protects small VM disks without forcing every later install to redownload.
     autoclean: true
+  tags: [apt, upgrade, packages]
 
 # -----------------------------------------------------------------------------
 # Locale
@@ -391,12 +406,14 @@
   ansible.builtin.apt:
     name: locales
     state: present
+  tags: [locale, packages]
 
 - name: Locale | Generate system locale
   become: true
   community.general.locale_gen:
     name: "{{ ubuntu_2604_locale }}"
     state: present
+  tags: locale
 
 - name: Locale | Set default locale
   become: true
@@ -406,3 +423,4 @@
     line: "LANG={{ ubuntu_2604_locale }}"
     create: true
     mode: "0644"
+  tags: locale

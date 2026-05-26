@@ -364,6 +364,19 @@
   # not make every converge look like configuration drift.
   changed_when: false
 
+- name: APT | Upgrade packages and clean unused package data
+  become: true
+  ansible.builtin.apt:
+    # Apply upgrades that do not remove installed packages, keeping rebuilt VMs
+    # current without accepting disruptive dependency changes during role runs.
+    upgrade: safe
+    # Remove orphaned dependencies so image defaults and prior provisioning do
+    # not leave packages that compete with container workloads for disk space.
+    autoremove: true
+    # Drop obsolete package files while keeping reusable cache entries, which
+    # protects small VM disks without forcing every later install to redownload.
+    autoclean: true
+
 # -----------------------------------------------------------------------------
 # Locale
 # -----------------------------------------------------------------------------

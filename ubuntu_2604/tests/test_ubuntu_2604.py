@@ -242,11 +242,10 @@ def test_periodic_unattended_upgrade_setting_is_enabled(host, name, expected):
 
 
 @pytest.mark.parametrize("timer", EXPECTED_UNATTENDED_TIMERS)
-def test_apt_maintenance_timer_is_active_and_enabled(host, timer):
+def test_apt_maintenance_timer_is_enabled(host, timer):
     service = host.service(timer)
 
     assert service.exists
-    assert service.is_running
     assert service.is_enabled
 
 

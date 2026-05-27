@@ -273,6 +273,30 @@ def test_apt_maintenance_timer_is_enabled(host, timer):
 
 
 # -----------------------------------------------------------------------------
+# Packages
+# -----------------------------------------------------------------------------
+
+
+EXPECTED_OPERATION_PACKAGES = (
+    "bind9-dnsutils",
+    "curl",
+    "exip",
+    "htop",
+    "lsof",
+    "tcpdump",
+    "tmux",
+    "traceroute",
+    "tree",
+    "wget",
+)
+
+
+@pytest.mark.parametrize("package", EXPECTED_OPERATION_PACKAGES)
+def test_operation_package_is_installed(host, package):
+    assert host.package(package).is_installed
+
+
+# -----------------------------------------------------------------------------
 # Locale
 # -----------------------------------------------------------------------------
 

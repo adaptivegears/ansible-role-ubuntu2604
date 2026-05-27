@@ -469,6 +469,43 @@
     - apt-daily-upgrade.timer
 
 # -----------------------------------------------------------------------------
+# Packages
+# -----------------------------------------------------------------------------
+# Minimal cloud images often omit day-two troubleshooting tools. Install a small
+# operator toolbox explicitly so admins can inspect processes, filesystems, DNS,
+# HTTP endpoints, and network paths without changing the host's boot, kernel, or
+# package-management policy.
+# -----------------------------------------------------------------------------
+
+- name: Packages | Install operational tools
+  become: true
+  ansible.builtin.apt:
+    name:
+      # Provide dig, host, and nslookup for diagnosing resolver and authoritative DNS issues.
+      - bind9-dnsutils
+      # Exercise HTTP APIs, metadata endpoints, and service health checks from the host.
+      - curl
+      # Report the instance's public IP through several external and STUN-based methods.
+      - exip
+      # Inspect live CPU, memory, and process behavior during incidents.
+      - htop
+      # Map open files, sockets, and deleted-but-open files back to owning processes.
+      - lsof
+      # Capture packets when routing, firewall, or application-level traces are insufficient.
+      - tcpdump
+      # Keep long-running maintenance sessions resilient to SSH disconnects.
+      - tmux
+      # Show network hop paths so operators can localize reachability and routing failures.
+      - traceroute
+      # Display directory structure quickly when inspecting mounted volumes or config trees.
+      - tree
+      # Fetch files and artifacts with a simple noninteractive downloader.
+      - wget
+    state: present
+    install_recommends: false
+  tags: packages
+
+# -----------------------------------------------------------------------------
 # Locale
 # -----------------------------------------------------------------------------
 # Container tools and editors expect a consistent UTF-8 environment; ensure the

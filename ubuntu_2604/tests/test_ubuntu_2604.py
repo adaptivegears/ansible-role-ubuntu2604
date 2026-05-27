@@ -274,6 +274,122 @@ def test_operation_package_is_installed(host, package):
 
 
 # -----------------------------------------------------------------------------
+# SSH
+# -----------------------------------------------------------------------------
+
+
+SSHD_CONFIG = "/etc/ssh/sshd_config"
+EXPECTED_SSHD_HARDENING_SETTINGS = (
+    ("LogLevel", "loglevel", "VERBOSE"),
+    ("X11Forwarding", "x11forwarding", "no"),
+    ("MaxAuthTries", "maxauthtries", "3"),
+    ("IgnoreRhosts", "ignorerhosts", "yes"),
+    ("HostbasedAuthentication", "hostbasedauthentication", "no"),
+    ("PermitRootLogin", "permitrootlogin", "no"),
+    ("PermitEmptyPasswords", "permitemptypasswords", "no"),
+    ("PermitUserEnvironment", "permituserenvironment", "no"),
+    ("Ciphers", "ciphers", "aes256-ctr,aes192-ctr,aes128-ctr"),
+    ("MACs", "macs", "hmac-sha2-512,hmac-sha2-256"),
+    (
+        "KexAlgorithms",
+        "kexalgorithms",
+        "ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256",
+    ),
+    ("ClientAliveInterval", "clientaliveinterval", "300"),
+    ("ClientAliveCountMax", "clientalivecountmax", "0"),
+    ("LoginGraceTime", "logingracetime", "60"),
+    ("Banner", "banner", "none"),
+    ("UsePAM", "usepam", "yes"),
+    ("AllowTcpForwarding", "allowtcpforwarding", "no"),
+    ("MaxStartups", "maxstartups", "10:30:60"),
+    ("MaxSessions", "maxsessions", "3"),
+    ("PubkeyAuthentication", "pubkeyauthentication", "yes"),
+    ("PasswordAuthentication", "passwordauthentication", "no"),
+    (
+        "HostKeyAlgorithms",
+        "hostkeyalgorithms",
+        "ecdsa-sha2-nistp521,ecdsa-sha2-nistp384,ecdsa-sha2-nistp256",
+    ),
+)
+
+
+def sshd_effective_config(host):
+    return {
+        line.split(None, 1)[0]: line.split(None, 1)[1]
+        for line in host.check_output("sshd -T").splitlines()
+        if line.strip()
+    }
+
+
+def test_openssh_server_package_is_installed(host):
+    assert host.package("openssh-server").is_installed
+
+
+def test_ssh_service_is_active_and_enabled(host):
+    service = host.service("ssh")
+
+    assert service.exists
+    assert service.is_running
+    assert service.is_enabled
+
+
+def test_sshd_config_permissions(host):
+    config = host.file(SSHD_CONFIG)
+
+    assert config.exists
+    assert config.user == "root"
+    assert config.group == "root"
+    assert config.mode == 0o600
+
+
+def test_sshd_config_has_no_obsolete_protocol_directive(host):
+    assert not host.file(SSHD_CONFIG).contains(r"^[[:space:]]*Protocol[[:space:]]")
+
+
+@pytest.mark.parametrize(
+    "directive, _effective_key, expected", EXPECTED_SSHD_HARDENING_SETTINGS
+)
+def test_sshd_hardening_setting_is_persistent(host, directive, _effective_key, expected):
+    pattern = rf"^{directive}[[:space:]][[:space:]]*{grep_literal(expected)}$"
+
+    assert host.file(SSHD_CONFIG).contains(pattern)
+
+
+@pytest.mark.parametrize(
+    "_directive, effective_key, expected", EXPECTED_SSHD_HARDENING_SETTINGS
+)
+def test_sshd_hardening_setting_is_effective(host, _directive, effective_key, expected):
+    assert sshd_effective_config(host)[effective_key] == expected
+
+
+def test_ssh_private_host_key_permissions(host):
+    paths = host.check_output(
+        "find /etc/ssh -maxdepth 1 -type f -name 'ssh_host_*_key' ! -name '*.pub' "
+        "-print"
+    ).splitlines()
+
+    assert paths
+    for path in paths:
+        key = host.file(path)
+        assert key.user == "root"
+        assert key.group == "root"
+        assert key.mode == 0o600
+
+
+def test_ssh_public_host_key_permissions(host):
+    paths = host.check_output(
+        "find /etc/ssh -maxdepth 1 -type f -name 'ssh_host_*.pub' -print"
+    ).splitlines()
+
+    assert paths
+    for path in paths:
+        key = host.file(path)
+        assert key.user == "root"
+        assert key.group == "root"
+        assert key.mode == 0o644
+
+
+# -----------------------------------------------------------------------------
 # Locale
 # -----------------------------------------------------------------------------
 

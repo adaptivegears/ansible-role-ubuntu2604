@@ -499,6 +499,327 @@
   tags: packages
 
 # -----------------------------------------------------------------------------
+# SSH
+# -----------------------------------------------------------------------------
+# SSH is the recovery path for these VMs, so hardening writes the daemon's main
+# configuration file directly and validates the result before restarting. Keep
+# the policy explicit here so auditors can map each setting back to the server
+# hardening contract without relying on include-order side effects.
+# -----------------------------------------------------------------------------
+
+- name: SSH | Install OpenSSH server
+  become: true
+  ansible.builtin.apt:
+    name: openssh-server
+    state: present
+    install_recommends: false
+  tags: [ssh, packages]
+
+- name: SSH | Ensure sshd runtime directory exists
+  become: true
+  ansible.builtin.file:
+    path: /run/sshd
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: ssh
+
+- name: SSH | Hardening | Configure sshd_config permissions
+  become: true
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: "0600"
+  tags: ssh
+
+- name: SSH | Hardening | Find private host key files
+  become: true
+  ansible.builtin.find:
+    paths: /etc/ssh
+    patterns: "ssh_host_*_key"
+    excludes: "*.pub"
+  tags: ssh
+  register: ubuntu_2604__ssh_private_key_files
+
+- name: SSH | Hardening | Configure private host key permissions
+  become: true
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  tags: ssh
+  loop: "{{ ubuntu_2604__ssh_private_key_files.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: SSH | Hardening | Find public host key files
+  become: true
+  ansible.builtin.find:
+    paths: /etc/ssh
+    patterns: "ssh_host_*.pub"
+  tags: ssh
+  register: ubuntu_2604__ssh_public_key_files
+
+- name: SSH | Hardening | Configure public host key permissions
+  become: true
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  tags: ssh
+  loop: "{{ ubuntu_2604__ssh_public_key_files.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+# OpenSSH has removed SSH protocol 1 support, so modern sshd versions either
+# ignore or reject the legacy Protocol directive. Removing it keeps the effective
+# behavior at protocol 2 without risking an invalid daemon configuration.
+- name: SSH | Hardening | Remove obsolete Protocol directive
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*Protocol\b'
+    state: absent
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Set LogLevel to VERBOSE
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*LogLevel\b'
+    line: "LogLevel VERBOSE"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Disable X11 forwarding
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*X11Forwarding\b'
+    line: "X11Forwarding no"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Set MaxAuthTries to 3
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*MaxAuthTries\b'
+    line: "MaxAuthTries 3"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Enable IgnoreRhosts
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*IgnoreRhosts\b'
+    line: "IgnoreRhosts yes"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Disable HostbasedAuthentication
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*HostbasedAuthentication\b'
+    line: "HostbasedAuthentication no"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Configure PermitRootLogin
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*PermitRootLogin\b'
+    line: "PermitRootLogin {{ ubuntu_2604_ssh_hardening_allow_root_login | bool | ternary('yes', 'no') }}"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Disable PermitEmptyPasswords
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*PermitEmptyPasswords\b'
+    line: "PermitEmptyPasswords no"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Disable PermitUserEnvironment
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*PermitUserEnvironment\b'
+    line: "PermitUserEnvironment no"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Configure strong ciphers
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*Ciphers\b'
+    line: "Ciphers aes256-ctr,aes192-ctr,aes128-ctr"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Configure strong MAC algorithms
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*MACs\b'
+    line: "MACs hmac-sha2-512,hmac-sha2-256"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Configure strong key exchange algorithms
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*KexAlgorithms\b'
+    line: "KexAlgorithms ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Configure idle timeout interval
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*{{ item.key }}\b'
+    line: "{{ item.key }} {{ item.value }}"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  loop:
+    - key: ClientAliveInterval
+      value: 300
+    - key: ClientAliveCountMax
+      value: 0
+  loop_control:
+    label: "{{ item.key }}"
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Set LoginGraceTime to 60
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*LoginGraceTime\b'
+    line: "LoginGraceTime 60"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Configure warning banner
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*Banner\b'
+    line: "Banner none"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Enable UsePAM
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*UsePAM\b'
+    line: "UsePAM yes"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Configure AllowTcpForwarding
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*AllowTcpForwarding\b'
+    line: "AllowTcpForwarding {{ ubuntu_2604_ssh_hardening_allow_tcp_forwarding | bool | ternary('yes', 'no') }}"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Configure MaxStartups
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*MaxStartups\b'
+    line: "MaxStartups 10:30:60"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Set MaxSessions to 3
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*MaxSessions\b'
+    line: "MaxSessions 3"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Enable public key authentication
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*PubkeyAuthentication\b'
+    line: "PubkeyAuthentication yes"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Disable password authentication
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*PasswordAuthentication\b'
+    line: "PasswordAuthentication no"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Configure strong host key algorithms
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*HostKeyAlgorithms\b'
+    line: "HostKeyAlgorithms ecdsa-sha2-nistp521,ecdsa-sha2-nistp384,ecdsa-sha2-nistp256"
+    validate: /usr/sbin/sshd -t -f %s
+  tags: ssh
+  notify: Restart OpenSSH
+
+- name: SSH | Hardening | Validate sshd configuration
+  become: true
+  ansible.builtin.command: /usr/sbin/sshd -t
+  changed_when: false
+  tags: ssh
+
+- name: SSH | Ensure OpenSSH service is active
+  become: true
+  ansible.builtin.systemd_service:
+    name: ssh
+    state: started
+    enabled: true
+  tags: ssh
+
+# -----------------------------------------------------------------------------
 # Locale
 # -----------------------------------------------------------------------------
 # Pin a UTF-8 host locale so noninteractive tools from minimal images do not

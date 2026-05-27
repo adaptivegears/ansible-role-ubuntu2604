@@ -302,7 +302,7 @@ EXPECTED_SSHD_HARDENING_SETTINGS = (
     ("UsePAM", "usepam", "yes"),
     ("AllowTcpForwarding", "allowtcpforwarding", "no"),
     ("MaxStartups", "maxstartups", "10:30:60"),
-    ("MaxSessions", "maxsessions", "3"),
+    ("MaxSessions", "maxsessions", "8"),
     ("PubkeyAuthentication", "pubkeyauthentication", "yes"),
     ("PasswordAuthentication", "passwordauthentication", "no"),
     (

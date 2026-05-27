@@ -765,12 +765,12 @@
   tags: ssh
   notify: Restart OpenSSH
 
-- name: SSH | Hardening | Set MaxSessions to 3
+- name: SSH | Hardening | Set MaxSessions to 8
   become: true
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^\s*#?\s*MaxSessions\b'
-    line: "MaxSessions 3"
+    line: "MaxSessions 8"
     validate: /usr/sbin/sshd -t -f %s
   tags: ssh
   notify: Restart OpenSSH

@@ -542,3 +542,26 @@
     create: true
     mode: "0644"
   tags: locale
+
+# -----------------------------------------------------------------------------
+# Time
+# -----------------------------------------------------------------------------
+# Container hosts must log in UTC so timestamps are consistent across regions
+# and correlate cleanly between orchestrators, runtimes, and remote collectors.
+# Ubuntu 26.04 uses chrony as its default NTP client with NTS enabled; the role
+# leaves the NTP configuration untouched and only enforces the timezone.
+# -----------------------------------------------------------------------------
+
+- name: Time | Set timezone to UTC
+  become: true
+  community.general.timezone:
+    name: "{{ ubuntu_2604_timezone }}"
+  tags: time
+
+- name: Time | Ensure chrony time synchronization is active
+  become: true
+  ansible.builtin.systemd_service:
+    name: chrony
+    state: started
+    enabled: true
+  tags: time

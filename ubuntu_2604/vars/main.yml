@@ -1,2 +1,3 @@
 ---
 ubuntu_2604_locale: en_US.UTF-8
+ubuntu_2604_timezone: UTC

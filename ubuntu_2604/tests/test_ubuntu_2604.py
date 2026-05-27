@@ -297,3 +297,22 @@ def test_default_locale_is_configured(host):
     assert host.file("/etc/default/locale").contains(
         f"^LANG={grep_literal(EXPECTED_LOCALE)}$"
     )
+
+
+# -----------------------------------------------------------------------------
+# Time
+# -----------------------------------------------------------------------------
+
+EXPECTED_TIMEZONE = "UTC"
+
+
+def test_timezone_is_utc(host):
+    assert host.check_output("timedatectl show --property=Timezone --value").strip() == EXPECTED_TIMEZONE
+
+
+def test_chrony_service_is_active_and_enabled(host):
+    service = host.service("chrony")
+
+    assert service.exists
+    assert service.is_running
+    assert service.is_enabled

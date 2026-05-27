@@ -279,6 +279,7 @@ def test_operation_package_is_installed(host, package):
 
 
 SSHD_CONFIG = "/etc/ssh/sshd_config"
+SSHD_HARDENING_CONFIG = "/etc/ssh/sshd_config.d/00-ubuntu-2604-hardening.conf"
 EXPECTED_SSHD_HARDENING_SETTINGS = (
     ("LogLevel", "loglevel", "VERBOSE"),
     ("X11Forwarding", "x11forwarding", "no"),
@@ -302,7 +303,7 @@ EXPECTED_SSHD_HARDENING_SETTINGS = (
     ("UsePAM", "usepam", "yes"),
     ("AllowTcpForwarding", "allowtcpforwarding", "no"),
     ("MaxStartups", "maxstartups", "10:30:60"),
-    ("MaxSessions", "maxsessions", "8"),
+    ("MaxSessions", "maxsessions", "3"),
     ("PubkeyAuthentication", "pubkeyauthentication", "yes"),
     ("PasswordAuthentication", "passwordauthentication", "no"),
     (
@@ -342,8 +343,25 @@ def test_sshd_config_permissions(host):
     assert config.mode == 0o600
 
 
-def test_sshd_config_has_no_obsolete_protocol_directive(host):
-    assert not host.file(SSHD_CONFIG).contains(r"^[[:space:]]*Protocol[[:space:]]")
+def test_sshd_config_loads_dropins(host):
+    assert host.file(SSHD_CONFIG).contains(
+        r"^Include /etc/ssh/sshd_config\.d/\*\.conf$"
+    )
+
+
+def test_sshd_hardening_dropin_permissions(host):
+    config = host.file(SSHD_HARDENING_CONFIG)
+
+    assert config.exists
+    assert config.user == "root"
+    assert config.group == "root"
+    assert config.mode == 0o644
+
+
+def test_sshd_hardening_dropin_has_no_obsolete_protocol_directive(host):
+    assert not host.file(SSHD_HARDENING_CONFIG).contains(
+        r"^[[:space:]]*Protocol[[:space:]]"
+    )
 
 
 @pytest.mark.parametrize(
@@ -352,7 +370,7 @@ def test_sshd_config_has_no_obsolete_protocol_directive(host):
 def test_sshd_hardening_setting_is_persistent(host, directive, _effective_key, expected):
     pattern = rf"^{directive}[[:space:]][[:space:]]*{grep_literal(expected)}$"
 
-    assert host.file(SSHD_CONFIG).contains(pattern)
+    assert host.file(SSHD_HARDENING_CONFIG).contains(pattern)
 
 
 @pytest.mark.parametrize(

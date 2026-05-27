@@ -29,4 +29,4 @@ lint: deps ## Run ansible-lint against the role
 
 .PHONY: test
 test: ## Run testinfra verification tests against inventory.ini
-	ANSIBLE_HOST_KEY_CHECKING=False $(TESTINFRA_PYTEST) -n $(TESTINFRA_WORKERS) --dist=worksteal --hosts='$(TESTINFRA_HOSTS)' --ansible-inventory=$(ANSIBLE_INVENTORY) $(ANSIBLE_ROLE_DIR)/tests
+	ANSIBLE_HOST_KEY_CHECKING=False $(TESTINFRA_PYTEST) -n $(TESTINFRA_WORKERS) --dist=worksteal --hosts='$(TESTINFRA_HOSTS)' --ansible-inventory=$(ANSIBLE_INVENTORY) --sudo $(ANSIBLE_ROLE_DIR)/tests

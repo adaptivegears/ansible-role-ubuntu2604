@@ -612,3 +612,25 @@
     mode: "0644"
   tags: dns
   notify: Restart systemd-resolved
+
+# -----------------------------------------------------------------------------
+# MOTD
+# -----------------------------------------------------------------------------
+# Ubuntu cloud images ship a noisy dynamic MOTD (landscape stats, Canonical
+# ads, update counts, ESM upsells).  Container workers do not need a welcome
+# message on every SSH login; removing the source files suppresses it cleanly.
+# The cached /run/motd.dynamic is also removed so the effect is immediate
+# without waiting for a reboot (it lives on tmpfs and would disappear anyway).
+# -----------------------------------------------------------------------------
+
+- name: MOTD | Remove MOTD source files
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  tags: motd
+  loop:
+    - /etc/motd
+    - /etc/motd.d
+    - /etc/update-motd.d
+    - /run/motd.dynamic

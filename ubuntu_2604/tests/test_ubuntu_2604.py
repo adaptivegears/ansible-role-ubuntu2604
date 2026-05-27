@@ -353,3 +353,20 @@ def test_fallback_dns_is_configured(host, address):
     assert dropin.contains(
         rf"^FallbackDNS=.*\b{re.escape(address)}\b.*$"
     )
+
+
+# -----------------------------------------------------------------------------
+# MOTD
+# -----------------------------------------------------------------------------
+
+EXPECTED_MOTD_PATHS = (
+    "/etc/motd",
+    "/etc/motd.d",
+    "/etc/update-motd.d",
+    "/run/motd.dynamic",
+)
+
+
+@pytest.mark.parametrize("path", EXPECTED_MOTD_PATHS)
+def test_motd_source_is_absent(host, path):
+    assert not host.file(path).exists

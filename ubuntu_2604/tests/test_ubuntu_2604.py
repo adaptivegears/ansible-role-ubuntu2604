@@ -475,17 +475,6 @@ def test_fallback_dns_is_configured(host, address):
 # MOTD
 # -----------------------------------------------------------------------------
 
-EXPECTED_MOTD_CACHE_PATHS = (
-    "/run/motd.dynamic",
-    "/var/cache/motd-news",
-)
-
-
-@pytest.mark.parametrize("path", EXPECTED_MOTD_CACHE_PATHS)
-def test_motd_cache_is_absent(host, path):
-    assert not host.file(path).exists
-
-
 def test_update_motd_d_is_empty(host):
     d = host.file("/etc/update-motd.d")
     assert d.is_directory

@@ -43,6 +43,16 @@ Use the included playbook or add the role to your own:
 ansible-playbook -i inventory.ini playbook.yml
 ```
 
+If your VMs run on AWS, enable AWS-aware behavior such as regional APT mirror selection:
+
+```yaml
+- hosts: workers
+  vars:
+    ubuntu_2604_cloud: "aws"
+  roles:
+    - role: ubuntu_2604
+```
+
 Or reference the role directly:
 
 ```yaml
@@ -64,22 +74,28 @@ This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks in parall
 You can also spot-check individual settings with ad-hoc Ansible commands:
 
 ```bash
-ansible workers -i inventory.ini -m ansible.builtin.shell -a "lsmod | grep -E 'br_netfilter|overlay|nf_conntrack'" --become
+ansible workers -i inventory.ini -m ansible.builtin.shell -a "lsmod | grep -E 'br_netfilter|nf_conntrack'" --become
 ansible workers -i inventory.ini -m ansible.builtin.shell -a "sysctl net.ipv4.ip_forward" --become
 ansible workers -i inventory.ini -m ansible.builtin.shell -a "free -h | grep -i swap" --become
+ansible workers -i inventory.ini -m ansible.builtin.shell -a "timedatectl show --property=Timezone --value" --become
+ansible workers -i inventory.ini -m ansible.builtin.shell -a "resolvectl status" --become
 ```
 
 ## What changed on the host
 
-- Kernel modules `br_netfilter`, `nf_conntrack`, and `overlay` are loaded and persisted
+- Kernel modules `br_netfilter` and `nf_conntrack` are loaded and persisted
 - 30+ sysctl parameters tuned for container networking, density, and recovery
 - PAM soft and hard limits for `nofile` and `nproc` raised to `65536`
 - Transparent hugepages set to `madvise` via systemd service
 - Swap disabled and removed from `/etc/fstab`
-- APT sources configured with AWS-aware regional mirror selection and official-archive fallback
+- APT sources configured with AWS-aware regional mirror selection (when `ubuntu_2604_cloud: "aws"`) and official-archive fallback
 - Safe package upgrades, autoremove, and autoclean applied during the run
 - Unattended security upgrades enabled with automatic reboots, shutdown-time installs, and needrestart service restarts blocked
 - UTF-8 locale generated and set as system default
+- Operational troubleshooting toolbox installed (`htop`, `iotop`, `jq`, `tcpdump`, `tmux`, `bind9-dnsutils`, and others)
+- Timezone pinned to UTC with `chrony` time synchronization active
+- `systemd-resolved` enabled with Cloudflare fallback DNS (`1.1.1.1`, `1.0.0.1`) for when DHCP resolvers are unavailable
+- Dynamic and static MOTD cleared and `motd-news.timer` masked for quiet SSH logins
 - Tasks tagged for selective execution
 
 ## Run only specific sections
@@ -92,11 +108,15 @@ Available tags:
 |-----|---------|
 | `kernel` | Kernel modules, sysctls, PAM limits, and transparent hugepages |
 | `swap` | Swap disable and fstab cleanup |
+| `aws` | EC2 metadata gathering and regional APT mirror selection |
 | `apt` | APT source configuration, mirror lists, and cache update |
 | `upgrade` | Safe package upgrade, autoremove, and autoclean |
 | `packages` | Package installs and removals across all sections |
 | `unattended_upgrades` | Unattended security upgrades, reboot policy, and needrestart |
 | `locale` | Locale generation and default locale setting |
+| `time` | Timezone and chrony time synchronization |
+| `dns` | systemd-resolved stub and fallback DNS configuration |
+| `motd` | MOTD cleanup and motd-news timer masking |
 
 Example: apply only kernel and swap tuning:
 

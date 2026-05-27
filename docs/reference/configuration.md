@@ -1,8 +1,30 @@
 # Configuration
 
-The `ubuntu_2604` role exposes one user-configurable variable. All other settings are applied as fixed defaults tuned for container-worker VMs.
+The `ubuntu_2604` role exposes two user-configurable variables. All other settings are applied as fixed defaults tuned for container-worker VMs.
 
 ## Variables
+
+### `ubuntu_2604_cloud`
+
+The cloud platform the VM runs on. This enables platform-specific behavior such as regional APT mirror selection.
+
+| Attribute     | Value          |
+|---------------|----------------|
+| Type          | String         |
+| Default       | `""`           |
+| Required      | No             |
+
+Set to `"aws"` on EC2 instances to enable AWS-aware tuning. The role reads EC2 instance metadata to discover the region and prefers the regional `ec2.archive.ubuntu.com` mirror. When left empty, the role uses the official Canonical archives directly.
+
+Example: enable AWS-aware behavior.
+
+```yaml
+- hosts: workers
+  vars:
+    ubuntu_2604_cloud: "aws"
+  roles:
+    - role: ubuntu_2604
+```
 
 ### `ubuntu_2604_locale`
 
@@ -34,7 +56,6 @@ Loaded and persisted on every boot:
 
 - `br_netfilter` — enables bridge netfilter for container bridge policy
 - `nf_conntrack` — supports NAT capacity tuning before runtimes start
-- `overlay` — common writable layer for container images
 
 ### Sysctl parameters
 
@@ -80,7 +101,7 @@ The role manages APT deterministically so package resolution is consistent acros
 
 **Mirror selection**
 
-On EC2 instances the role detects the AWS region via IMDS and prefers the regional `ec2.archive.ubuntu.com` mirror with `priority:1`. The official Canonical archives are kept as fallback so a regional outage does not block provisioning. On non-EC2 hosts the official archive is used directly.
+When `ubuntu_2604_cloud` is set to `"aws"`, the role gathers EC2 metadata via IMDS to discover the region and prefers the regional `ec2.archive.ubuntu.com` mirror with `priority:1`. The official Canonical archives are kept as fallback so a regional outage does not block provisioning. When the cloud variable is empty or set to another value, the role uses the official archive directly.
 
 Mirror lists are written to:
 
@@ -104,6 +125,22 @@ The role explicitly installs `unattended-upgrades` and enables periodic security
 
 The APT daily and daily-upgrade timers are enabled so metadata and security patches are fetched on schedule.
 
+### Operational packages
+
+The role installs a standard troubleshooting toolbox so incident response does not start by changing package state. Installed packages include `bind9-dnsutils`, `curl`, `exip`, `htop`, `iotop`, `jq`, `less`, `lsof`, `tcpdump`, `tmux`, `traceroute`, `tree`, `unzip`, and `wget`.
+
+### Time
+
+The timezone is pinned to `UTC` and the `chrony` NTP service is enabled and started. UTC everywhere keeps logs from regional workers correlating without timezone translation.
+
+### DNS
+
+The role ensures `systemd-resolved` is enabled and running, links `/etc/resolv.conf` to the systemd stub resolver, and configures fallback DNS servers (`1.1.1.1` and `1.0.0.1`) in a drop-in file at `/etc/systemd/resolved.conf.d/60-ubuntu-2604-fallback-dns.conf`. Fallback DNS is only consulted when no per-link servers are known, so DHCP-provided resolvers remain primary and internal zone resolution is preserved.
+
+### MOTD
+
+Dynamic MOTD entries under `/etc/update-motd.d` are removed, the static `/etc/motd` file is cleared, transient cache files (`/run/motd.dynamic`, `/var/cache/motd-news`) are removed, and the `motd-news.timer` is stopped, disabled, and masked. The dynamic MOTD framework remains installed but produces no output, keeping SSH logins quiet on container workers.
+
 ## Task tags
 
 All tasks carry semantic tags so you can run or skip sections with `ansible-playbook --tags` or `--skip-tags`.
@@ -112,11 +149,15 @@ All tasks carry semantic tags so you can run or skip sections with `ansible-play
 |-----|--------|
 | `kernel` | Kernel modules, sysctls, PAM limits, transparent hugepages service |
 | `swap` | Swap disable and `/etc/fstab` cleanup |
+| `aws` | EC2 metadata gathering and regional APT mirror selection |
 | `apt` | Mirror lists, sources list, and cache update |
 | `upgrade` | Safe package upgrade, autoremove, and autoclean |
 | `packages` | Package installs and removals across all sections |
 | `unattended_upgrades` | Unattended upgrades config, reboot policy, needrestart, and timers |
 | `locale` | Locale generation and default locale setting |
+| `time` | Timezone and chrony time synchronization |
+| `dns` | systemd-resolved stub and fallback DNS configuration |
+| `motd` | MOTD cleanup and motd-news timer masking |
 
 Example: run only APT and upgrade tasks:
 

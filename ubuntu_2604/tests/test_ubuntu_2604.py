@@ -316,3 +316,40 @@ def test_chrony_service_is_active_and_enabled(host):
     assert service.exists
     assert service.is_running
     assert service.is_enabled
+
+
+# -----------------------------------------------------------------------------
+# DNS
+# -----------------------------------------------------------------------------
+
+EXPECTED_FALLBACK_DNS = (
+    "1.1.1.1",
+    "1.0.0.1",
+)
+
+
+def test_systemd_resolved_is_active_and_enabled(host):
+    service = host.service("systemd-resolved")
+
+    assert service.exists
+    assert service.is_running
+    assert service.is_enabled
+
+
+def test_resolv_conf_uses_systemd_stub(host):
+    resolv = host.file("/etc/resolv.conf")
+
+    assert resolv.is_symlink
+    assert resolv.linked_to == "/run/systemd/resolve/stub-resolv.conf"
+
+
+@pytest.mark.parametrize("address", EXPECTED_FALLBACK_DNS)
+def test_fallback_dns_is_configured(host, address):
+    dropin = host.file(
+        "/etc/systemd/resolved.conf.d/60-ubuntu-2604-fallback-dns.conf"
+    )
+
+    assert dropin.exists
+    assert dropin.contains(
+        rf"^FallbackDNS=.*\b{re.escape(address)}\b.*$"
+    )

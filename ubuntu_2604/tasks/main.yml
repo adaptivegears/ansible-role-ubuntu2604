@@ -565,3 +565,50 @@
     state: started
     enabled: true
   tags: time
+
+# -----------------------------------------------------------------------------
+# DNS
+# -----------------------------------------------------------------------------
+# Ubuntu 26.04 resolves through systemd-resolved.  DHCP-supplied DNS must stay
+# primary because the VM may live in a network with internal zones, but if the
+# lease expires or the interface is down the host still needs a working path.
+# FallbackDNS is only consulted when no per-link servers are known, so setting
+# it here does not interfere with DHCP-provided resolvers.
+# -----------------------------------------------------------------------------
+
+- name: DNS | Ensure systemd-resolved is enabled and running
+  become: true
+  ansible.builtin.systemd_service:
+    name: systemd-resolved
+    state: started
+    enabled: true
+  tags: dns
+
+- name: DNS | Ensure /etc/resolv.conf points to the systemd stub
+  become: true
+  ansible.builtin.file:
+    src: /run/systemd/resolve/stub-resolv.conf
+    dest: /etc/resolv.conf
+    state: link
+    force: true
+  tags: dns
+  notify: Restart systemd-resolved
+
+- name: DNS | Ensure resolved.conf.d directory exists
+  become: true
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    mode: "0755"
+  tags: dns
+
+- name: DNS | Configure fallback DNS servers
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/systemd/resolved.conf.d/60-ubuntu-2604-fallback-dns.conf
+    content: |
+      [Resolve]
+      FallbackDNS=1.1.1.1 1.0.0.1
+    mode: "0644"
+  tags: dns
+  notify: Restart systemd-resolved

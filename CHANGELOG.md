@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow [CalVer](https://calver.org/) (`YYYY.M.MICRO`).
 
+## [2026.5.4] - 2026-05-27
+
+### Highlights
+This release adds operational troubleshooting packages, UTC time synchronization, systemd-resolved DNS fallback, and quiet MOTD handling. AWS integration now requires explicit opt-in instead of automatic platform detection.
+
+### New Features
+- **Operational packages**: Installs a standard troubleshooting toolbox (`htop`, `iotop`, `jq`, `tcpdump`, `tmux`, `bind9-dnsutils`, and others) so incident response does not start by changing package state
+- **UTC timezone with chrony**: Pins the system timezone to UTC and ensures the `chrony` time synchronization service is active for predictable cross-region log correlation
+- **systemd-resolved fallback DNS**: Configures `systemd-resolved` with Cloudflare fallback resolvers (`1.1.1.1`, `1.0.0.1`) that are only consulted when DHCP-supplied DNS is unavailable, preserving internal zone resolution
+- **Quiet MOTD**: Removes dynamic MOTD entries, clears static `/etc/motd`, masks the `motd-news.timer`, and scrubs transient cache files for low-noise SSH logins on container workers
+
+### Breaking Changes
+- **AWS detection is now explicit**: The role no longer auto-detects EC2 via platform heuristics. Set `ubuntu_2604_cloud: "aws"` to enable AWS-aware behavior such as regional APT mirror selection
+
+### Improvements
+- **Concise sysctl comments**: Rationale comments for kernel tuning settings were tightened to reduce redundancy without losing intent
+- **Removed `overlay` module**: The `overlay` kernel module is no longer force-loaded by the role; modern Ubuntu kernels include it by default
+- **Expanded documentation**: Quickstart and configuration reference now cover task tag selectors and APT/unattended-upgrade behavior
+
+### Internal
+- New `aws` task tag for EC2 metadata gathering and regional mirror selection
+
 ## [2026.5.3] - 2026-05-26
 
 ### Highlights

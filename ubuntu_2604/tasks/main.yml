@@ -618,19 +618,68 @@
 # -----------------------------------------------------------------------------
 # Ubuntu cloud images ship a noisy dynamic MOTD (landscape stats, Canonical
 # ads, update counts, ESM upsells).  Container workers do not need a welcome
-# message on every SSH login; removing the source files suppresses it cleanly.
-# The cached /run/motd.dynamic is also removed so the effect is immediate
-# without waiting for a reboot (it lives on tmpfs and would disappear anyway).
+# message on every SSH login; the scripts are removed and the directory kept
+# empty so the dynamic framework remains intact but produces no output.
+# The static /etc/motd is cleared rather than removed because an empty file
+# is the conventional way to suppress a default vendor message.
+# The motd-news timer is masked so the host does not periodically phone home
+# to motd.ubuntu.com to fetch news that will never be displayed.
 # -----------------------------------------------------------------------------
 
-- name: MOTD | Remove MOTD source files
+- name: MOTD | Find dynamic MOTD entries
+  become: true
+  ansible.builtin.find:
+    paths: /etc/update-motd.d
+    file_type: any
+  tags: motd
+  register: ubuntu2604__motd
+
+- name: MOTD | Remove dynamic MOTD entries
+  become: true
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  tags: motd
+  loop: "{{ ubuntu2604__motd.files }}"
+  when:
+    - ubuntu2604__motd.files | length > 0
+    - not item.isdir
+
+- name: MOTD | Ensure update-motd.d directory exists
+  become: true
+  ansible.builtin.file:
+    path: /etc/update-motd.d
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+  tags: motd
+
+- name: MOTD | Clear static MOTD file
+  become: true
+  ansible.builtin.copy:
+    content: ""
+    dest: /etc/motd
+    mode: "0644"
+    owner: root
+    group: root
+  tags: motd
+
+- name: MOTD | Remove transient MOTD cache files
   become: true
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
   tags: motd
   loop:
-    - /etc/motd
-    - /etc/motd.d
-    - /etc/update-motd.d
     - /run/motd.dynamic
+    - /var/cache/motd-news
+
+- name: MOTD | Disable motd-news timer
+  become: true
+  ansible.builtin.systemd_service:
+    name: motd-news.timer
+    state: stopped
+    enabled: false
+    masked: true
+  tags: motd

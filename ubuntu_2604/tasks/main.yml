@@ -489,6 +489,12 @@
       - exip
       # Inspect live CPU, memory, and process behavior during incidents.
       - htop
+      # Attribute disk I/O pressure to specific processes when the instance becomes storage-bound.
+      - iotop
+      # Parse JSON from cloud metadata, APIs, logs, and CLI output without copying data elsewhere.
+      - jq
+      # Page long logs and command output without flooding the terminal or losing searchability.
+      - less
       # Map open files, sockets, and deleted-but-open files back to owning processes.
       - lsof
       # Capture packets when routing, firewall, or application-level traces are insufficient.
@@ -499,6 +505,8 @@
       - traceroute
       # Display directory structure quickly when inspecting mounted volumes or config trees.
       - tree
+      # Unpack common vendor bundles, support artifacts, and release downloads.
+      - unzip
       # Fetch files and artifacts with a simple noninteractive downloader.
       - wget
     state: present

@@ -282,11 +282,15 @@ EXPECTED_OPERATION_PACKAGES = (
     "curl",
     "exip",
     "htop",
+    "iotop",
+    "jq",
+    "less",
     "lsof",
     "tcpdump",
     "tmux",
     "traceroute",
     "tree",
+    "unzip",
     "wget",
 )
 

@@ -1,5 +1,33 @@
 # ansible-role-ubuntu-2604
 
+## IMPORTANT behavioral guardrails
+
+These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+### Think before coding
+
+- State material assumptions explicitly.
+- If multiple reasonable interpretations exist, present them instead of choosing silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If the request is materially unclear, stop, name the ambiguity, and ask.
+
+### Simplicity first
+
+- Implement the minimum code that solves the request.
+- Do not add speculative features, abstractions, configurability, or future-proofing.
+- Do not add error handling for hypothetical scenarios outside the role contract.
+- If the solution is much larger than necessary, simplify before finalizing.
+
+### Surgical changes
+
+- Touch only what the request requires.
+- Do not refactor, reformat, or "improve" adjacent unrelated code.
+- Match existing style, even when another style would be preferable.
+- Remove only imports, variables, functions, or files made unused by your own change.
+- Mention unrelated dead code or issues instead of changing them.
+
+Every changed line should trace directly to the user request or to keeping that change correct, tested, and lint-clean.
+
 ## Role target
 
 - This role configures Ubuntu 26.04 VMs that are expected to actively run container workloads.

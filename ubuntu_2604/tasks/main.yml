@@ -20,8 +20,6 @@
     - br_netfilter
     # Preload connection tracking so NAT capacity tuning applies before runtimes start.
     - nf_conntrack
-    # OverlayFS is the common writable layer for container images; load it early
-    # for predictable startup.
     - overlay
 
 - name: Kernel | Configure sysctls
@@ -34,13 +32,11 @@
     reload: true
   tags: kernel
   loop:
-    # Send bridged ARP packets through arptables so host bridge policy can see L2 container traffic.
+    # Expose bridged container packets to host firewall policy instead of bypassing it at L2.
     - name: net.bridge.bridge-nf-call-arptables
       value: "1"
-    # Send bridged IPv6 packets through ip6tables so host policy can see container traffic.
     - name: net.bridge.bridge-nf-call-ip6tables
       value: "1"
-    # Send bridged IPv4 packets through iptables so host policy can see container traffic.
     - name: net.bridge.bridge-nf-call-iptables
       value: "1"
 
@@ -48,16 +44,11 @@
     # containers do not exhaust kernel descriptors.
     - name: fs.file-max
       value: "2097152"
-    # Absorb file-watch bursts from build and reload tools so change
-    # notifications are not dropped under load.
+    # Raise inotify capacity for recursive source-tree watchers and reload bursts.
     - name: fs.inotify.max_queued_events
       value: "32768"
-    # Allow agents, editors, and runtimes to maintain independent watchers under
-    # the same user without competing for a tiny default.
     - name: fs.inotify.max_user_instances
       value: "512"
-    # Cover large source trees and mounted volumes that reloaders and build tools
-    # watch recursively.
     - name: fs.inotify.max_user_watches
       value: "524288"
     # Align the per-process descriptor ceiling with the host pool so raised PAM
@@ -89,7 +80,7 @@
     - name: net.core.somaxconn
       value: "65536"
 
-    # Allow the host kernel to route IPv4 packets for container bridges and gateways.
+    # Container bridge gateways need IPv4 routing even when the VM is not a router.
     - name: net.ipv4.ip_forward
       value: "1"
     # Widen ephemeral ports so NATed containers do not exhaust outbound source ports.
@@ -99,28 +90,22 @@
     # CAP_NET_BIND_SERVICE just to listen on privileged ports such as 80/443.
     - name: net.ipv4.ip_unprivileged_port_start
       value: "0"
-    # Delay neighbor-cache cleanup until ordinary container ARP churn exceeds the
-    # expected baseline for a dense bridge host.
+    # Treat thousands of bridge peers as normal so ARP cache cleanup does not
+    # break reachability during container scale-up.
     - name: net.ipv4.neigh.default.gc_thresh1
       value: "2048"
-    # Treat thousands of bridge peers as normal pressure so transient scale-ups
-    # do not purge healthy ARP entries.
     - name: net.ipv4.neigh.default.gc_thresh2
       value: "4096"
-    # Leave a higher hard cap so dense container networks do not lose reachability
-    # when ARP tables fill.
     - name: net.ipv4.neigh.default.gc_thresh3
       value: "8192"
     # Free FIN-WAIT-2 sockets faster so high-churn services do not pin dead connections.
     - name: net.ipv4.tcp_fin_timeout
       value: "15"
-    # Probe idle TCP connections sooner so dead peers release resources quickly.
+    # Detect dead long-lived TCP peers within minutes so stale sockets release quickly.
     - name: net.ipv4.tcp_keepalive_intvl
       value: "30"
-    # Limit keepalive retries so dead connections fail within operational health windows.
     - name: net.ipv4.tcp_keepalive_probes
       value: "5"
-    # Start TCP keepalive after minutes instead of hours for long-lived container connections.
     - name: net.ipv4.tcp_keepalive_time
       value: "600"
     # Give proxies and edge services deeper half-open queues so SYN bursts do not
@@ -134,17 +119,14 @@
     - name: net.ipv4.tcp_tw_reuse
       value: "1"
 
-    # Accept IPv6 router advertisements even while forwarding, preserving provider SLAAC.
+    # Keep provider SLAAC working while allowing IPv6 routing for container
+    # bridges, including interfaces created after boot.
     - name: net.ipv6.conf.all.accept_ra
       value: "2"
-    # Allow the host kernel to route IPv6 packets for container bridges and gateways.
     - name: net.ipv6.conf.all.forwarding
       value: "1"
-    # Make future IPv6 interfaces keep SLAAC even when container forwarding is enabled.
     - name: net.ipv6.conf.default.accept_ra
       value: "2"
-    # Apply routing behavior to interfaces created after boot, including container
-    # bridge and gateway devices.
     - name: net.ipv6.conf.default.forwarding
       value: "1"
 
@@ -423,14 +405,10 @@
   ansible.builtin.copy:
     dest: /etc/apt/apt.conf.d/52ubuntu-2604-unattended-upgrades
     content: |
-      // Production container hosts must not reboot themselves outside the
-      // maintenance process, even after kernel or libc security updates.
+      // Reboots and shutdown-time installs belong to maintenance automation,
+      // not background APT jobs that could interrupt colocated workloads.
       Unattended-Upgrade::Automatic-Reboot "false";
-      // Keep the no-reboot policy explicit for hosts with active or inactive
-      // login sessions; maintenance automation owns reboot decisions.
       Unattended-Upgrade::Automatic-Reboot-WithUsers "false";
-      // Shutdown-time installs make controlled stops unpredictable and can
-      // extend replacement or recovery workflows.
       Unattended-Upgrade::InstallOnShutdown "false";
     mode: "0644"
   tags: unattended_upgrades
@@ -468,43 +446,28 @@
 # -----------------------------------------------------------------------------
 # Packages
 # -----------------------------------------------------------------------------
-# Minimal cloud images often omit day-two troubleshooting tools. Install a small
-# operator toolbox explicitly so admins can inspect processes, filesystems, DNS,
-# HTTP endpoints, and network paths without changing the host's boot, kernel, or
-# package-management policy.
+# Minimal cloud images often omit day-two troubleshooting tools. Keep a small
+# operator toolbox on the host so incident response does not start by changing
+# package state.
 # -----------------------------------------------------------------------------
 
 - name: Packages | Install operational tools
   become: true
   ansible.builtin.apt:
     name:
-      # Provide dig, host, and nslookup for diagnosing resolver and authoritative DNS issues.
       - bind9-dnsutils
-      # Exercise HTTP APIs, metadata endpoints, and service health checks from the host.
       - curl
-      # Report the instance's public IP through several external and STUN-based methods.
       - exip
-      # Inspect live CPU, memory, and process behavior during incidents.
       - htop
-      # Attribute disk I/O pressure to specific processes when the instance becomes storage-bound.
       - iotop
-      # Parse JSON from cloud metadata, APIs, logs, and CLI output without copying data elsewhere.
       - jq
-      # Page long logs and command output without flooding the terminal or losing searchability.
       - less
-      # Map open files, sockets, and deleted-but-open files back to owning processes.
       - lsof
-      # Capture packets when routing, firewall, or application-level traces are insufficient.
       - tcpdump
-      # Keep long-running maintenance sessions resilient to SSH disconnects.
       - tmux
-      # Show network hop paths so operators can localize reachability and routing failures.
       - traceroute
-      # Display directory structure quickly when inspecting mounted volumes or config trees.
       - tree
-      # Unpack common vendor bundles, support artifacts, and release downloads.
       - unzip
-      # Fetch files and artifacts with a simple noninteractive downloader.
       - wget
     state: present
     install_recommends: false
@@ -513,8 +476,8 @@
 # -----------------------------------------------------------------------------
 # Locale
 # -----------------------------------------------------------------------------
-# Container tools and editors expect a consistent UTF-8 environment; ensure the
-# locale is generated and set as the system default.
+# Pin a UTF-8 host locale so noninteractive tools from minimal images do not
+# inherit the C/POSIX defaults that break Unicode paths and logs.
 # -----------------------------------------------------------------------------
 
 # Minimal and cloud images (including AWS) do not ship the locales package by
@@ -546,10 +509,8 @@
 # -----------------------------------------------------------------------------
 # Time
 # -----------------------------------------------------------------------------
-# Container hosts must log in UTC so timestamps are consistent across regions
-# and correlate cleanly between orchestrators, runtimes, and remote collectors.
-# Ubuntu 26.04 uses chrony as its default NTP client with NTS enabled; the role
-# leaves the NTP configuration untouched and only enforces the timezone.
+# Use UTC everywhere so logs from regional workers correlate without timezone
+# translation. Chrony remains on Ubuntu's default NTP configuration.
 # -----------------------------------------------------------------------------
 
 - name: Time | Set timezone to UTC
@@ -616,14 +577,8 @@
 # -----------------------------------------------------------------------------
 # MOTD
 # -----------------------------------------------------------------------------
-# Ubuntu cloud images ship a noisy dynamic MOTD (landscape stats, Canonical
-# ads, update counts, ESM upsells).  Container workers do not need a welcome
-# message on every SSH login; the scripts are removed and the directory kept
-# empty so the dynamic framework remains intact but produces no output.
-# The static /etc/motd is cleared rather than removed because an empty file
-# is the conventional way to suppress a default vendor message.
-# The motd-news timer is masked so the host does not periodically phone home
-# to motd.ubuntu.com to fetch news that will never be displayed.
+# Keep SSH logins quiet on container workers and stop the unused vendor news
+# poller. The dynamic framework remains installed, but produces no output.
 # -----------------------------------------------------------------------------
 
 - name: MOTD | Find dynamic MOTD entries

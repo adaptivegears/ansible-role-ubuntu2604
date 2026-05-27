@@ -10,7 +10,7 @@ ANSIBLE_ROLE_DIR ?= ubuntu_2604
 # Testinfra
 TESTINFRA_HOSTS ?= ansible://all?controlpersist=300&timeout=30
 TESTINFRA_PYTEST ?= uvx --from pytest --with pytest-testinfra --with pytest-xdist --with ansible-core pytest
-TESTINFRA_WORKERS ?= 8
+TESTINFRA_WORKERS ?= 2
 
 .PHONY: help
 help: ## Show this help message

@@ -645,16 +645,6 @@
     group: root
   tags: motd
 
-- name: MOTD | Remove transient MOTD cache files
-  become: true
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: absent
-  tags: motd
-  loop:
-    - /run/motd.dynamic
-    - /var/cache/motd-news
-
 - name: MOTD | Disable motd-news timer
   become: true
   ansible.builtin.systemd_service:

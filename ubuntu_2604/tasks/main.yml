@@ -264,39 +264,26 @@
   tags: swap
 
 # -----------------------------------------------------------------------------
-# APT
+# AWS
 # -----------------------------------------------------------------------------
-# Ubuntu cloud images normally let cloud-init choose the archive. The role takes
-# ownership after boot so package resolution is deterministic, avoids runtime
-# fastest-mirror probing, and keeps EC2 hosts close to their regional archive
-# while preserving Canonical-operated endpoints as outage fallbacks.
+# The role does not attempt to detect the cloud platform automatically. The
+# operator must set ubuntu_2604_cloud to "aws" to enable AWS-specific tuning.
+# When enabled, the role reads EC2 instance metadata to discover the region
+# for regional APT mirror selection and any future AWS-aware behavior.
 # -----------------------------------------------------------------------------
 
-# Probe local platform facts before calling IMDS so non-AWS hosts do not pay a
-# metadata timeout or accidentally query another cloud's link-local service.
-- name: APT | Detect EC2 platform hint
-  ansible.builtin.set_fact:
-    ubuntu_2604__maybe_ec2: >-
-      {{
-        ansible_facts.get('system_vendor', '') == 'Amazon EC2'
-        or ansible_facts.get('chassis_vendor', '') == 'Amazon EC2'
-        or ansible_facts.get('product_uuid', '') is match('(?i)^ec2')
-        or ansible_facts.get('product_name', '') is search('(?i)amazon')
-      }}
-  tags: apt
-
-- name: APT | Gather EC2 metadata facts
+- name: AWS | Gather EC2 metadata facts
   amazon.aws.ec2_metadata_facts:
     # A larger token lifetime avoids intermittent failures while the module
     # walks metadata on hosts with several network interfaces or tags enabled.
     metadata_token_ttl_seconds: 240
   register: ubuntu_2604__ec2_metadata_facts
-  when: ubuntu_2604__maybe_ec2
+  when: ubuntu_2604_cloud == "aws"
   failed_when: false
   changed_when: false
-  tags: apt
+  tags: aws
 
-- name: APT | Select AWS region
+- name: AWS | Select region
   ansible.builtin.set_fact:
     ubuntu_2604__aws_region: >-
       {{
@@ -307,7 +294,17 @@
         )
         else ''
       }}
-  tags: apt
+  when: ubuntu_2604_cloud == "aws"
+  tags: aws
+
+# -----------------------------------------------------------------------------
+# APT
+# -----------------------------------------------------------------------------
+# Ubuntu cloud images normally let cloud-init choose the archive. The role takes
+# ownership after boot so package resolution is deterministic, avoids runtime
+# fastest-mirror probing, and keeps EC2 hosts close to their regional archive
+# while preserving Canonical-operated endpoints as outage fallbacks.
+# -----------------------------------------------------------------------------
 
 # Prefer AWS's regional Ubuntu mirror when the instance region is known because
 # it is the image-default path on EC2; keep the official archive second so a
@@ -317,7 +314,7 @@
   ansible.builtin.copy:
     dest: /etc/apt/ubuntu-mirrors.txt
     content: |
-      {% if ubuntu_2604__aws_region | length > 0 %}
+      {% if ubuntu_2604__aws_region | default('') | length > 0 %}
       http://{{ ubuntu_2604__aws_region }}.ec2.archive.ubuntu.com/ubuntu/	priority:1
       http://archive.ubuntu.com/ubuntu/	priority:2
       {% else %}
@@ -335,7 +332,7 @@
   ansible.builtin.copy:
     dest: /etc/apt/ubuntu-security-mirrors.txt
     content: |
-      {% if ubuntu_2604__aws_region | length > 0 %}
+      {% if ubuntu_2604__aws_region | default('') | length > 0 %}
       http://{{ ubuntu_2604__aws_region }}.ec2.archive.ubuntu.com/ubuntu/	priority:1
       http://security.ubuntu.com/ubuntu/	priority:2
       http://archive.ubuntu.com/ubuntu/	priority:3

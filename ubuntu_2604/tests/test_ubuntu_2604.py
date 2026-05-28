@@ -288,6 +288,51 @@ def test_apt_maintenance_timer_is_enabled(host, timer):
 
 
 # -----------------------------------------------------------------------------
+# Logs
+# -----------------------------------------------------------------------------
+
+
+JOURNALD_CONFIG = "/etc/systemd/journald.conf.d/60-ubuntu-2604-log-pressure.conf"
+EXPECTED_JOURNALD_SETTINGS = {
+    "Storage": "persistent",
+    "Compress": "yes",
+    "SystemMaxUse": "1G",
+    "SystemMaxFileSize": "128M",
+    "MaxRetentionSec": "30day",
+    "MaxFileSec": "1week",
+    "SystemKeepFree": "2G",
+    "RuntimeMaxUse": "256M",
+    "RuntimeKeepFree": "512M",
+}
+
+
+@pytest.mark.parametrize("name, expected", EXPECTED_JOURNALD_SETTINGS.items())
+def test_journald_pressure_setting_is_persistent(host, name, expected):
+    pattern = (
+        f"^{grep_literal(name)}[[:space:]]*="
+        f"[[:space:]]*{grep_literal(expected)}[[:space:]]*$"
+    )
+
+    assert host.file(JOURNALD_CONFIG).contains(pattern)
+
+
+def test_persistent_journal_directory_is_configured(host):
+    journal_dir = host.file("/var/log/journal")
+
+    assert journal_dir.is_directory
+    assert journal_dir.user == "root"
+    assert journal_dir.group == "systemd-journal"
+    assert journal_dir.mode == 0o2755
+
+
+def test_systemd_journald_service_is_running(host):
+    service = host.service("systemd-journald")
+
+    assert service.exists
+    assert service.is_running
+
+
+# -----------------------------------------------------------------------------
 # Firewall
 # -----------------------------------------------------------------------------
 

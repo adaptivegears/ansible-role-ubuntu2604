@@ -69,7 +69,7 @@ Run the included test suite against your inventory:
 make test
 ```
 
-This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks in parallel across all hosts to confirm kernel modules, sysctl persistence, PAM limits, systemd manager defaults, transparent hugepages, swap removal, APT source and mirror configuration, unattended-upgrade policy, and locale configuration.
+This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks in parallel across all hosts to confirm kernel modules, sysctl persistence, PAM limits, systemd manager defaults, transparent hugepages, swap removal, APT source and mirror configuration, unattended-upgrade policy, log pressure controls, and locale configuration.
 
 You can also spot-check individual settings with ad-hoc Ansible commands:
 
@@ -90,8 +90,9 @@ ansible workers -i inventory.ini -m ansible.builtin.shell -a "resolvectl status"
 - Transparent hugepages set to `madvise` via systemd service
 - Swap disabled and removed from `/etc/fstab`
 - APT sources configured with AWS-aware regional mirror selection (when `ubuntu_2604_cloud: "aws"`) and official-archive fallback
-- Safe package upgrades, autoremove, and autoclean applied during the run
+- Safe package upgrades, autoremove, and autoclean applied during the run, with reboot-required markers reported
 - Unattended security upgrades enabled with automatic reboots, shutdown-time installs, and needrestart service restarts blocked
+- Journald persistence, retention, and `/var/log` free-space pressure limits configured
 - `nftables` owns host firewall state, `ufw` is masked, and iptables compatibility commands use the nft backend
 - UTF-8 locale generated and set as system default
 - Operational troubleshooting toolbox installed (`htop`, `iotop`, `jq`, `tcpdump`, `tmux`, `bind9-dnsutils`, and others)
@@ -116,6 +117,7 @@ Available tags:
 | `upgrade` | Safe package upgrade, autoremove, and autoclean |
 | `packages` | Package installs and removals across all sections |
 | `unattended_upgrades` | Unattended security upgrades, reboot policy, and needrestart |
+| `logs` | Journald persistence, retention, and `/var/log` pressure controls |
 | `firewall` | nftables service ownership, UFW masking, and iptables compatibility tools |
 | `locale` | Locale generation and default locale setting |
 | `time` | Timezone and chrony time synchronization |

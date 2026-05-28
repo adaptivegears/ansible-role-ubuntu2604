@@ -129,7 +129,7 @@ Sources are configured in DEB822 format at `/etc/apt/sources.list.d/ubuntu.sourc
 
 **Safe upgrades**
 
-During each role run the role applies `upgrade: safe`, `autoremove`, and `autoclean`. This keeps fresh VMs current without accepting disruptive dependency changes or leaving orphaned packages on small disks.
+During each role run the role applies `upgrade: safe`, `autoremove`, and `autoclean`. This keeps fresh VMs current without accepting disruptive dependency changes or leaving orphaned packages on small disks. If upgraded packages create `/var/run/reboot-required`, the role reports the marker and package list but does not reboot the host.
 
 **Unattended security upgrades**
 
@@ -141,6 +141,24 @@ The role explicitly installs `unattended-upgrades` and enables periodic security
 - `needrestart` is set to list-only mode so stale processes are reported but not restarted automatically
 
 The APT daily and daily-upgrade timers are enabled so metadata and security patches are fetched on schedule.
+
+### Logs
+
+The role keeps journald persistent for post-reboot recovery while bounding disk usage on container workers that can emit large runtime and workload log bursts. The managed drop-in is `/etc/systemd/journald.conf.d/60-ubuntu-2604-log-pressure.conf`.
+
+| Setting | Value | Rationale |
+|---------|-------|-----------|
+| `Storage` | `persistent` | Preserve host logs across VM reboots and kernel panic recovery |
+| `Compress` | `yes` | Reduce disk pressure from older journal files without losing recent context |
+| `SystemMaxUse` | `1G` | Cap persistent journal growth on small worker disks |
+| `SystemMaxFileSize` | `128M` | Rotate journal files before individual files become expensive to inspect or vacuum |
+| `MaxRetentionSec` | `30day` | Keep enough local history for incident review without indefinite retention |
+| `MaxFileSec` | `1week` | Ensure time-based rotation happens even during low-volume periods |
+| `SystemKeepFree` | `2G` | Preserve free space on the filesystem that backs `/var/log` so log bursts do not crowd out package operations or workload state |
+| `RuntimeMaxUse` | `256M` | Bound volatile journal growth before persistent storage is available |
+| `RuntimeKeepFree` | `512M` | Preserve free space on `/run` during early boot or degraded storage states |
+
+The role also ensures `/var/log/journal` exists with the standard `systemd-journal` group and vacuums existing journal files to the configured size/time limits during convergence. It does not manage application-specific logrotate policy.
 
 ### Firewall
 
@@ -176,6 +194,7 @@ All tasks carry semantic tags so you can run or skip sections with `ansible-play
 | `upgrade` | Safe package upgrade, autoremove, and autoclean |
 | `packages` | Package installs and removals across all sections |
 | `unattended_upgrades` | Unattended upgrades config, reboot policy, needrestart, and timers |
+| `logs` | Journald persistence, retention, and `/var/log` pressure controls |
 | `firewall` | nftables service ownership, UFW masking, and iptables compatibility tools |
 | `locale` | Locale generation and default locale setting |
 | `time` | Timezone and chrony time synchronization |

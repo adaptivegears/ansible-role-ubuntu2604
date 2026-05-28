@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # Prerequisite
 # -----------------------------------------------------------------------------
-# Fail fast on unsupported OS or architecture.
+# Fail before mutation so unsupported images do not get partial policy.
 # -----------------------------------------------------------------------------
 
 - name: Prerequisite | Assert OS is Ubuntu 26.04
@@ -27,10 +27,8 @@
 # -----------------------------------------------------------------------------
 # Kernel
 # -----------------------------------------------------------------------------
-# Ubuntu defaults are conservative for general-purpose hosts, while these VMs
-# are treated as disposable container workers. The role chooses host-level
-# defaults that favor routing, density, observability, and automatic recovery so
-# container behavior is consistent across fresh cloud images and rebuilds.
+# Container-worker VMs need routing, density, observability, and auto-recovery
+# defaults instead of general-purpose Ubuntu conservatism.
 # -----------------------------------------------------------------------------
 
 - name: Kernel | Load container kernel modules
@@ -41,11 +39,11 @@
     state: present
   tags: kernel
   loop:
-    # Bridge netfilter must be loaded before bridge sysctls exist on minimal images.
+    # Load bridge netfilter early so bridge sysctls exist on minimal images.
     - br_netfilter
-    # Preload connection tracking so NAT capacity tuning applies before runtimes start.
+    # Load conntrack before runtimes so NAT sizing takes effect.
     - nf_conntrack
-    # Make OverlayFS readiness explicit for runtimes that use overlay snapshotters.
+    # Require OverlayFS explicitly for overlay snapshotters.
     - overlay
 
 - name: Kernel | Configure sysctls
@@ -58,7 +56,7 @@
     reload: true
   tags: kernel
   loop:
-    # Expose bridged container packets to host firewall policy instead of bypassing it at L2.
+    # Route bridged container traffic through host firewall policy.
     - name: net.bridge.bridge-nf-call-arptables
       value: "1"
     - name: net.bridge.bridge-nf-call-ip6tables
@@ -66,65 +64,57 @@
     - name: net.bridge.bridge-nf-call-iptables
       value: "1"
 
-    # Size the host-wide file-descriptor pool for dense workers so colocated
-    # containers do not exhaust kernel descriptors.
+    # Size the host FD pool so dense containers do not exhaust descriptors.
     - name: fs.file-max
       value: "2097152"
-    # Raise inotify capacity for recursive source-tree watchers and reload bursts.
+    # Raise inotify for source-tree watchers and reload bursts.
     - name: fs.inotify.max_queued_events
       value: "32768"
     - name: fs.inotify.max_user_instances
       value: "512"
     - name: fs.inotify.max_user_watches
       value: "524288"
-    # Align the per-process descriptor ceiling with the host pool so raised PAM
-    # and systemd limits can actually take effect.
+    # Let PAM/systemd FD raises reach the host descriptor ceiling.
     - name: fs.nr_open
       value: "2097152"
 
-    # Reboot 10 seconds after kernel panic so cattle VMs recover without console access.
+    # Reboot 10s after panic so cattle VMs recover without console access.
     - name: kernel.panic
       value: "10"
-    # Fail fast after kernel faults because continuing can leave container
-    # networking or storage in an unreliable state.
+    # Panic on kernel faults rather than keep unreliable network/storage state.
     - name: kernel.panic_on_oops
       value: "1"
-    # Expand global PID space for dense process trees so host-level PID limits are
-    # not reached before cgroup limits.
+    # Raise global PID space so cgroups, not host PID max, bound dense workers.
     - name: kernel.pid_max
       value: "4194304"
-    # Track per-task CPU, I/O, and memory-delay time for diagnosing noisy containers.
+    # Account per-task delay so noisy containers can be diagnosed.
     - name: kernel.task_delayacct
       value: "1"
 
-    # Queue ingress bursts from container veth pairs instead of dropping packets
-    # before sockets can drain them.
+    # Buffer veth ingress bursts instead of dropping before sockets drain.
     - name: net.core.netdev_max_backlog
       value: "65536"
-    # Let many colocated services use deeper accept queues during deploy and
-    # restart spikes.
+    # Deepen accept queues for deploy/restart spikes across colocated services.
     - name: net.core.somaxconn
       value: "65536"
 
-    # Container bridge gateways need IPv4 routing even when the VM is not a router.
+    # Let container bridges route IPv4 even when the VM is otherwise not a router.
     - name: net.ipv4.ip_forward
       value: "1"
     # Widen ephemeral ports so NATed containers do not exhaust outbound source ports.
     - name: net.ipv4.ip_local_port_range
       value: "1024 65535"
-    # Trust local rootless workloads to claim service ports so they do not need
-    # CAP_NET_BIND_SERVICE just to listen on privileged ports such as 80/443.
+    # Let rootless services bind 80/443 without CAP_NET_BIND_SERVICE.
     - name: net.ipv4.ip_unprivileged_port_start
       value: "0"
-    # Treat thousands of bridge peers as normal so ARP cache cleanup does not
-    # break reachability during container scale-up.
+    # Raise neighbor cache for bridge scale-up without ARP eviction.
     - name: net.ipv4.neigh.default.gc_thresh1
       value: "2048"
     - name: net.ipv4.neigh.default.gc_thresh2
       value: "4096"
     - name: net.ipv4.neigh.default.gc_thresh3
       value: "8192"
-    # Free FIN-WAIT-2 sockets faster so high-churn services do not pin dead connections.
+    # Expire FIN-WAIT-2 faster so churn does not pin dead connections.
     - name: net.ipv4.tcp_fin_timeout
       value: "15"
     # Detect dead long-lived TCP peers within minutes so stale sockets release quickly.
@@ -134,8 +124,7 @@
       value: "5"
     - name: net.ipv4.tcp_keepalive_time
       value: "600"
-    # Give proxies and edge services deeper half-open queues so SYN bursts do not
-    # fail during short traffic spikes.
+    # Deepen SYN queues so short bursts do not fail proxies/edge services.
     - name: net.ipv4.tcp_max_syn_backlog
       value: "65536"
     # Enable SYN cookies on backlog overflow so internet-facing services resist SYN floods.
@@ -145,8 +134,7 @@
     - name: net.ipv4.tcp_tw_reuse
       value: "1"
 
-    # Keep provider SLAAC working while allowing IPv6 routing for container
-    # bridges, including interfaces created after boot.
+    # Keep provider SLAAC while routing IPv6 for present and future bridges.
     - name: net.ipv6.conf.all.accept_ra
       value: "2"
     - name: net.ipv6.conf.all.forwarding
@@ -156,13 +144,11 @@
     - name: net.ipv6.conf.default.forwarding
       value: "1"
 
-    # Hold more NAT flow state so high-fan-out container egress does not start
-    # dropping new connections.
+    # Hold more NAT flows so high-fan-out egress does not drop new connections.
     - name: net.netfilter.nf_conntrack_max
       value: "1048576"
 
-    # Permit rootless containers and build sandboxes to isolate users without
-    # falling back to privileged runtime mode.
+    # Allow rootless containers/build sandboxes without privileged runtime mode.
     - name: user.max_user_namespaces
       value: "15000"
 
@@ -170,11 +156,10 @@
     # in containers without hitting host VMA ceilings.
     - name: vm.max_map_count
       value: "262144"
-    # Keep a small free-memory reserve so the VM avoids reclaim deadlocks under pressure.
+    # Reserve free memory to avoid reclaim deadlocks under pressure.
     - name: vm.min_free_kbytes
       value: "131072"
-    # Favor container-style optimistic reservations; actual pressure is handled
-    # later by cgroups and OOM policy.
+    # Use optimistic reservations because cgroups/OOM policy handle real pressure.
     - name: vm.overcommit_memory
       value: "1"
     # Do not panic the VM on OOM; let cgroup and userspace OOM handling run first.

@@ -197,10 +197,8 @@
   loop_control:
     label: "{{ item.type }} {{ item.name }}"
 
-# Keep THP opt-in rather than globally disabled: runtimes that benefit can
-# request huge pages with madvise, while databases and low-latency services avoid
-# surprise page compaction. A systemd one-shot owns this policy because the
-# kernel exposes THP through sysfs rather than sysctl.
+# Keep THP opt-in: runtimes can request it, while databases and low-latency
+# services avoid surprise compaction. Use a one-shot because THP is sysfs-only.
 - name: Kernel | Create transparent hugepages policy service
   become: true
   ansible.builtin.copy:
@@ -213,8 +211,7 @@
       [Service]
       Type=oneshot
       ExecStart=/bin/sh -c 'echo madvise | tee /sys/kernel/mm/transparent_hugepage/enabled'
-      # Stay active after the sysfs write so systemd and Ansible treat the policy
-      # as converged instead of rerunning the one-shot on every converge.
+      # Stay active so Ansible sees the sysfs policy as converged.
       RemainAfterExit=yes
 
       [Install]
@@ -228,8 +225,7 @@
   ansible.builtin.systemd_service:
     name: transparent-hugepages-madvise
     enabled: true
-    # Reload units only after the generated policy changes so idempotent runs
-    # avoid needless systemd work.
+    # Reload units only when the generated policy changes.
     daemon_reload: "{{ ubuntu_2604__thp_service.changed }}"
     state: started
   tags: kernel
@@ -237,10 +233,8 @@
 # -----------------------------------------------------------------------------
 # Systemd
 # -----------------------------------------------------------------------------
-# PAM limits cover login sessions, but container runtimes, agents, and workload
-# services usually start under the system manager. Set manager defaults so those
-# services inherit the same descriptor and process headroom while cgroup
-# accounting remains available for diagnosing noisy containers.
+# PAM misses system-manager services; manager defaults give runtimes density
+# headroom while cgroup accounting stays useful for noisy-container diagnosis.
 # -----------------------------------------------------------------------------
 
 - name: Systemd | Ensure system manager drop-in directory exists
@@ -276,8 +270,7 @@
   tags: systemd
   notify: Reexec systemd manager
 
-# Re-exec before later roles or tasks start container runtimes so services
-# launched in the same play do not inherit the old manager defaults.
+# Re-exec before runtimes start so same-play services inherit new defaults.
 - name: Systemd | Apply manager default changes
   ansible.builtin.meta: flush_handlers
   tags: systemd
@@ -285,8 +278,7 @@
 # -----------------------------------------------------------------------------
 # Swap
 # -----------------------------------------------------------------------------
-# Swap causes unpredictable latency for container workloads and defeats OOM
-# behavior expectations; disable it at runtime and persist the change.
+# Disable swap because host paging undermines container latency and OOM policy.
 # -----------------------------------------------------------------------------
 
 - name: Swap | Disable active swap
@@ -307,16 +299,13 @@
 # -----------------------------------------------------------------------------
 # AWS
 # -----------------------------------------------------------------------------
-# The role does not attempt to detect the cloud platform automatically. The
-# operator must set ubuntu_2604_cloud to "aws" to enable AWS-specific tuning.
-# When enabled, the role reads EC2 instance metadata to discover the region
-# for regional APT mirror selection and any future AWS-aware behavior.
+# AWS tuning is opt-in; metadata supplies region only after the operator declares
+# the platform.
 # -----------------------------------------------------------------------------
 
 - name: AWS | Gather EC2 metadata facts
   amazon.aws.ec2_metadata_facts:
-    # A larger token lifetime avoids intermittent failures while the module
-    # walks metadata on hosts with several network interfaces or tags enabled.
+    # Longer IMDS token TTL prevents multi-interface/tag walks from expiring.
     metadata_token_ttl_seconds: 240
   register: ubuntu_2604__ec2_metadata_facts
   when: ubuntu_2604_cloud == "aws"
@@ -341,19 +330,14 @@
 # -----------------------------------------------------------------------------
 # APT
 # -----------------------------------------------------------------------------
-# Ubuntu cloud images normally let cloud-init choose the archive. The role takes
-# ownership after boot so package resolution is deterministic and avoids runtime
-# fastest-mirror probing. Ubuntu 26.04 publishes arm64 through the normal
-# archive/security endpoints, so aarch64 hosts intentionally use the same mirror
-# lists as amd64 instead of switching to ports.ubuntu.com as older releases did.
-# Canonical-operated endpoints stay first because APT's mirror method can recover
-# from a missing package file, but not from a regional mirror serving stale
-# package indexes that reference files already removed from the archive pool.
+# Own mirrors after cloud-init for deterministic APT without runtime probing.
+# Ubuntu 26.04 serves arm64 from normal archive/security endpoints. Keep
+# Canonical endpoints first because stale regional indexes can reference files
+# already removed from the pool.
 # -----------------------------------------------------------------------------
 
-# Keep the EC2 regional mirror only as a fallback. If it is primary, its package
-# indexes become authoritative for the run, and a mirror sync race can make
-# provisioning fail even when the official archive already has newer metadata.
+# Keep EC2 mirrors fallback-only; stale regional indexes can make a good archive
+# look broken.
 - name: APT | Configure mirror list
   become: true
   ansible.builtin.copy:
@@ -369,10 +353,8 @@
   tags: apt
   register: ubuntu_2604__apt_primary_mirrors
 
-# Security uses its own list so the dedicated security endpoint provides the
-# authoritative indexes. The main archive is the first fallback because it also
-# carries security suites and is less likely than regional mirrors to lag behind
-# package pool cleanup.
+# Make security.ubuntu.com authoritative; archive.ubuntu.com is a safer fallback
+# than lagging regional mirrors.
 - name: APT | Configure security mirror list
   become: true
   ansible.builtin.copy:
@@ -403,9 +385,7 @@
   become: true
   ansible.builtin.apt:
     update_cache: true
-    # Source changes need a forced refresh because the previous cache may still
-    # be fresh for the old mirror set; otherwise reuse metadata briefly so
-    # repeated role runs do not hammer mirrors during routine provisioning.
+    # Force refresh after source changes; otherwise reuse recent metadata to spare mirrors.
     cache_valid_time: >-
       {{
         0
@@ -416,22 +396,18 @@
         )
         else 3600
       }}
-  # Cache refreshes are preconditions, not managed host state, so they should
-  # not make every converge look like configuration drift.
+  # Cache refreshes are preconditions, not configuration drift.
   changed_when: false
   tags: apt
 
 - name: APT | Upgrade packages and clean unused package data
   become: true
   ansible.builtin.apt:
-    # Apply upgrades that do not remove installed packages, keeping rebuilt VMs
-    # current without accepting disruptive dependency changes during role runs.
+    # Use safe upgrades to keep rebuilt VMs current without removals.
     upgrade: safe
-    # Remove orphaned dependencies so image defaults and prior provisioning do
-    # not leave packages that compete with container workloads for disk space.
+    # Remove orphans so old image/provisioning packages stop consuming disk.
     autoremove: true
-    # Drop obsolete package files while keeping reusable cache entries, which
-    # protects small VM disks without forcing every later install to redownload.
+    # Drop obsolete downloads while preserving cache entries useful later.
     autoclean: true
   tags: [apt, upgrade, packages]
 
@@ -463,11 +439,8 @@
 # -----------------------------------------------------------------------------
 # Unattended upgrades
 # -----------------------------------------------------------------------------
-# Fresh Ubuntu servers normally enable security updates, but image pipelines and
-# derivative images can remove the package or periodic APT switches. Make the
-# security-update path explicit while blocking unattended reboots and daemon
-# restarts; workload disruption should happen only inside an orchestrated
-# maintenance window.
+# Image pipelines may strip security timers; restore them but keep reboots/restarts
+# inside maintenance windows.
 # -----------------------------------------------------------------------------
 
 - name: Unattended upgrades | Install unattended upgrades package
@@ -494,8 +467,7 @@
   ansible.builtin.copy:
     dest: /etc/apt/apt.conf.d/52ubuntu-2604-unattended-upgrades
     content: |
-      // Reboots and shutdown-time installs belong to maintenance automation,
-      // not background APT jobs that could interrupt colocated workloads.
+      // Reserve reboots/shutdown installs for maintenance automation, not background APT.
       Unattended-Upgrade::Automatic-Reboot "false";
       Unattended-Upgrade::Automatic-Reboot-WithUsers "false";
       Unattended-Upgrade::InstallOnShutdown "false";
@@ -515,9 +487,7 @@
   ansible.builtin.copy:
     dest: /etc/needrestart/conf.d/99-ubuntu-2604-no-auto-restarts.conf
     content: |
-      # Keep needrestart in list-only mode so unattended-upgrades can report
-      # stale processes without restarting container runtimes, databases, or
-      # workload services outside an operator-controlled maintenance window.
+      # List stale processes without restarting runtimes or workload services.
       $nrconf{restart} = 'l';
     mode: "0644"
   tags: unattended_upgrades
@@ -535,10 +505,8 @@
 # -----------------------------------------------------------------------------
 # Logs
 # -----------------------------------------------------------------------------
-# Container hosts can generate large bursts from runtimes, agents, and colocated
-# services. Keep journals persistent enough for post-reboot diagnosis, but cap
-# their growth and preserve free space on the /var/log filesystem so logging
-# cannot crowd out package operations or workload state.
+# Container hosts burst logs; keep reboot history but cap journals/free space so
+# logs cannot crowd out packages or workload state.
 # -----------------------------------------------------------------------------
 
 - name: Logs | Ensure journald drop-in directory exists
@@ -567,8 +535,7 @@
     dest: /etc/systemd/journald.conf.d/60-ubuntu-2604-log-pressure.conf
     content: |
       [Journal]
-      # Keep enough host-local history for recovery after VM panics and runtime
-      # restarts without letting journal files grow unbounded on small disks.
+      # Keep recovery history without unbounded journal growth on small disks.
       Storage=persistent
       Compress=yes
       SystemMaxUse=1G
@@ -576,8 +543,7 @@
       MaxRetentionSec=30day
       MaxFileSec=1week
 
-      # Reserve space on the filesystems that back /var/log and /run so log
-      # storms fail by dropping old journal data instead of filling the VM.
+      # Reserve /var/log and /run space so log storms age out instead of filling the VM.
       SystemKeepFree=2G
       RuntimeMaxUse=256M
       RuntimeKeepFree=512M
@@ -594,10 +560,8 @@
 # -----------------------------------------------------------------------------
 # Firewall
 # -----------------------------------------------------------------------------
-# Ubuntu 26.04 uses nftables-capable tooling by default, but leaving UFW enabled
-# gives the host two firewall managers that can rewrite the same Netfilter state.
-# This role selects nftables as the manager without owning the ruleset; firewall
-# policy belongs in a dedicated hardening change or a site-specific override.
+# Use nftables as the sole host firewall manager; ruleset ownership belongs to
+# hardening or site policy.
 # -----------------------------------------------------------------------------
 
 - name: Firewall | Install netfilter tools
@@ -655,9 +619,8 @@
 # -----------------------------------------------------------------------------
 # Packages
 # -----------------------------------------------------------------------------
-# Minimal cloud images often omit day-two troubleshooting tools. Keep a small
-# operator toolbox on the host so incident response does not start by changing
-# package state.
+# Install a small day-two toolbox so incident response does not start with
+# package changes.
 # -----------------------------------------------------------------------------
 
 - name: Packages | Install operational tools
@@ -685,10 +648,8 @@
 # -----------------------------------------------------------------------------
 # SSH
 # -----------------------------------------------------------------------------
-# SSH is the recovery path for these VMs, so hardening lives in Ubuntu's
-# sshd_config.d include directory. The 00- prefix makes this policy sort before
-# cloud-init or package snippets in the same directory without rewriting the
-# packaged sshd_config body.
+# Put recovery-path hardening in a 00-* drop-in so it precedes cloud-init/package
+# snippets without rewriting sshd_config.
 # -----------------------------------------------------------------------------
 
 - name: SSH | Install OpenSSH server
@@ -774,15 +735,11 @@
   ansible.builtin.copy:
     dest: /etc/ssh/sshd_config.d/00-ubuntu-2604-hardening.conf
     content: |
-      # Managed by Ansible role ubuntu_2604.
-      # 00-* loads before cloud-init/package snippets.
-
-      # Protocol and logging
-      # Protocol 2 is implicit in modern OpenSSH.
+      # 00-* wins over later cloud-init/package snippets.
+      # Verbose auth logs aid SSH recovery without debug noise.
       LogLevel VERBOSE
 
-      # Authentication
-      # Public keys only; PAM stays enabled for session policy.
+      # Use keys only while preserving PAM session policy.
       LoginGraceTime 60
       MaxAuthTries 3
       PasswordAuthentication no
@@ -791,27 +748,23 @@
       PubkeyAuthentication yes
       UsePAM yes
 
-      # Legacy trust paths
-      # Disable rhosts, host trust, and user-controlled environment injection.
+      # Disable legacy trust paths and user-controlled environment injection.
       HostbasedAuthentication no
       IgnoreRhosts yes
       PermitUserEnvironment no
 
-      # Cryptography
       # Pin a small audited algorithm set.
       Ciphers aes256-ctr,aes192-ctr,aes128-ctr
       HostKeyAlgorithms ecdsa-sha2-nistp521,ecdsa-sha2-nistp384,ecdsa-sha2-nistp256
       KexAlgorithms ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256
       MACs hmac-sha2-512,hmac-sha2-256
 
-      # Sessions
-      # Limit idle sessions and unauthenticated connection bursts.
+      # Bound idle sessions and unauthenticated bursts to limit brute-force cost.
       ClientAliveCountMax 0
       ClientAliveInterval 300
       MaxSessions 3
       MaxStartups 10:30:60
 
-      # Forwarding and extras
       # Avoid unaudited tunnels and desktop forwarding on workers.
       AllowTcpForwarding {{ ubuntu_2604_ssh_allow_tcp_forwarding | bool | ternary('yes', 'no') }}
       Banner none
@@ -840,12 +793,10 @@
 # -----------------------------------------------------------------------------
 # Locale
 # -----------------------------------------------------------------------------
-# Pin a UTF-8 host locale so noninteractive tools from minimal images do not
-# inherit the C/POSIX defaults that break Unicode paths and logs.
+# Set a UTF-8 locale so minimal images do not leak C/POSIX into Unicode paths/logs.
 # -----------------------------------------------------------------------------
 
-# Minimal and cloud images (including AWS) do not ship the locales package by
-# default, so locale-gen would fail silently without it.
+# Minimal/cloud images may omit locales; install it before locale_gen.
 - name: Locale | Install locales package
   become: true
   ansible.builtin.apt:
@@ -873,9 +824,7 @@
 # -----------------------------------------------------------------------------
 # Time
 # -----------------------------------------------------------------------------
-# Use UTC everywhere so logs from regional workers correlate without timezone
-# translation. Stock Ubuntu 26.04 images include chrony as the default time-sync
-# service, so the role enforces service state without replacing that stack.
+# Use UTC for cross-region log correlation; keep Ubuntu's chrony stack.
 # -----------------------------------------------------------------------------
 
 - name: Time | Set timezone to UTC
@@ -895,11 +844,8 @@
 # -----------------------------------------------------------------------------
 # DNS
 # -----------------------------------------------------------------------------
-# Ubuntu 26.04 resolves through systemd-resolved.  DHCP-supplied DNS must stay
-# primary because the VM may live in a network with internal zones, but if the
-# lease expires or the interface is down the host still needs a working path.
-# FallbackDNS is only consulted when no per-link servers are known, so setting
-# it here does not interfere with DHCP-provided resolvers.
+# Keep DHCP DNS primary for internal zones; FallbackDNS only covers links with
+# no known servers.
 # -----------------------------------------------------------------------------
 
 - name: DNS | Ensure systemd-resolved is enabled and running
@@ -942,8 +888,7 @@
 # -----------------------------------------------------------------------------
 # MOTD
 # -----------------------------------------------------------------------------
-# Keep SSH logins quiet on container workers and stop the unused vendor news
-# poller. The dynamic framework remains installed, but produces no output.
+# Keep worker SSH logins quiet; disable vendor news while leaving MOTD installed.
 # -----------------------------------------------------------------------------
 
 - name: MOTD | Find dynamic MOTD entries

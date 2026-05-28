@@ -291,6 +291,12 @@
   tags: systemd
   notify: Reexec systemd manager
 
+# Re-exec before later roles or tasks start container runtimes so services
+# launched in the same play do not inherit the old manager defaults.
+- name: Systemd | Apply manager default changes
+  ansible.builtin.meta: flush_handlers
+  tags: systemd
+
 # -----------------------------------------------------------------------------
 # Swap
 # -----------------------------------------------------------------------------

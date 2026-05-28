@@ -308,22 +308,24 @@
 # APT
 # -----------------------------------------------------------------------------
 # Ubuntu cloud images normally let cloud-init choose the archive. The role takes
-# ownership after boot so package resolution is deterministic, avoids runtime
-# fastest-mirror probing, and keeps EC2 hosts close to their regional archive
-# while preserving Canonical-operated endpoints as outage fallbacks.
+# ownership after boot so package resolution is deterministic and avoids runtime
+# fastest-mirror probing. Canonical-operated endpoints stay first because APT's
+# mirror method can recover from a missing package file, but not from a regional
+# mirror serving stale package indexes that reference files already removed from
+# the archive pool.
 # -----------------------------------------------------------------------------
 
-# Prefer AWS's regional Ubuntu mirror when the instance region is known because
-# it is the image-default path on EC2; keep the official archive second so a
-# regional DNS, sync, or reachability issue does not block provisioning.
+# Keep the EC2 regional mirror only as a fallback. If it is primary, its package
+# indexes become authoritative for the run, and a mirror sync race can make
+# provisioning fail even when the official archive already has newer metadata.
 - name: APT | Configure mirror list
   become: true
   ansible.builtin.copy:
     dest: /etc/apt/ubuntu-mirrors.txt
     content: |
       {% if ubuntu_2604__aws_region | default('') | length > 0 %}
-      http://{{ ubuntu_2604__aws_region }}.ec2.archive.ubuntu.com/ubuntu/	priority:1
-      http://archive.ubuntu.com/ubuntu/	priority:2
+      http://archive.ubuntu.com/ubuntu/	priority:1
+      http://{{ ubuntu_2604__aws_region }}.ec2.archive.ubuntu.com/ubuntu/	priority:2
       {% else %}
       http://archive.ubuntu.com/ubuntu/	priority:1
       {% endif %}
@@ -331,18 +333,19 @@
   tags: apt
   register: ubuntu_2604__apt_primary_mirrors
 
-# Security uses its own list so fallback preserves Ubuntu's dedicated security
-# endpoint. The main archive remains last because it currently carries security
-# suites too, but should only be used after the preferred security paths fail.
+# Security uses its own list so the dedicated security endpoint provides the
+# authoritative indexes. The main archive is the first fallback because it also
+# carries security suites and is less likely than regional mirrors to lag behind
+# package pool cleanup.
 - name: APT | Configure security mirror list
   become: true
   ansible.builtin.copy:
     dest: /etc/apt/ubuntu-security-mirrors.txt
     content: |
       {% if ubuntu_2604__aws_region | default('') | length > 0 %}
-      http://{{ ubuntu_2604__aws_region }}.ec2.archive.ubuntu.com/ubuntu/	priority:1
-      http://security.ubuntu.com/ubuntu/	priority:2
-      http://archive.ubuntu.com/ubuntu/	priority:3
+      http://security.ubuntu.com/ubuntu/	priority:1
+      http://archive.ubuntu.com/ubuntu/	priority:2
+      http://{{ ubuntu_2604__aws_region }}.ec2.archive.ubuntu.com/ubuntu/	priority:3
       {% else %}
       http://security.ubuntu.com/ubuntu/	priority:1
       http://archive.ubuntu.com/ubuntu/	priority:2

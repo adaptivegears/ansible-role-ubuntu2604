@@ -167,19 +167,25 @@ def test_apt_sources_use_managed_mirror_lists(host):
     )
 
 
-def test_apt_mirrors_keep_official_archive_fallback(host):
+def test_apt_mirrors_prefer_official_archive(host):
     mirrors = host.file(APT_MIRRORS)
 
     assert mirrors.exists
-    assert mirrors.contains(r"^http://archive\.ubuntu\.com/ubuntu/[[:space:]][[:space:]]*priority:[0-9][0-9]*$")
+    assert mirrors.contains(
+        r"^http://archive\.ubuntu\.com/ubuntu/[[:space:]][[:space:]]*priority:1$"
+    )
 
 
-def test_apt_security_mirrors_keep_official_fallbacks(host):
+def test_apt_security_mirrors_prefer_official_security_endpoint(host):
     mirrors = host.file(APT_SECURITY_MIRRORS)
 
     assert mirrors.exists
-    assert mirrors.contains(r"^http://security\.ubuntu\.com/ubuntu/[[:space:]][[:space:]]*priority:[0-9][0-9]*$")
-    assert mirrors.contains(r"^http://archive\.ubuntu\.com/ubuntu/[[:space:]][[:space:]]*priority:[0-9][0-9]*$")
+    assert mirrors.contains(
+        r"^http://security\.ubuntu\.com/ubuntu/[[:space:]][[:space:]]*priority:1$"
+    )
+    assert mirrors.contains(
+        r"^http://archive\.ubuntu\.com/ubuntu/[[:space:]][[:space:]]*priority:[0-9][0-9]*$"
+    )
 
 
 # -----------------------------------------------------------------------------

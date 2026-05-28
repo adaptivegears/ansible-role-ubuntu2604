@@ -140,7 +140,7 @@ The role ensures `systemd-resolved` is enabled and running, links `/etc/resolv.c
 
 ### MOTD
 
-Dynamic MOTD entries under `/etc/update-motd.d` are removed, the static `/etc/motd` file is cleared, transient cache files (`/run/motd.dynamic`, `/var/cache/motd-news`) are removed, and the `motd-news.timer` is stopped, disabled, and masked. The dynamic MOTD framework remains installed but produces no output, keeping SSH logins quiet on container workers.
+Dynamic MOTD entries under `/etc/update-motd.d` are removed, the static `/etc/motd` file is cleared, and the `motd-news.timer` is stopped, disabled, and masked. The dynamic MOTD framework remains installed but produces no output, keeping SSH logins quiet on container workers.
 
 ## Task tags
 

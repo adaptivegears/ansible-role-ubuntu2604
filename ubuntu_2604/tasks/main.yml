@@ -693,7 +693,8 @@
 # Time
 # -----------------------------------------------------------------------------
 # Use UTC everywhere so logs from regional workers correlate without timezone
-# translation. Chrony remains on Ubuntu's default NTP configuration.
+# translation. Stock Ubuntu 26.04 images include chrony as the default time-sync
+# service, so the role enforces service state without replacing that stack.
 # -----------------------------------------------------------------------------
 
 - name: Time | Set timezone to UTC

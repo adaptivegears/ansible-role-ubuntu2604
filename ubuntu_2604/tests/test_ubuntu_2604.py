@@ -450,6 +450,10 @@ def test_timezone_is_utc(host):
     assert host.check_output("timedatectl show --property=Timezone --value").strip() == EXPECTED_TIMEZONE
 
 
+def test_chrony_package_is_installed(host):
+    assert host.package("chrony").is_installed
+
+
 def test_chrony_service_is_active_and_enabled(host):
     service = host.service("chrony")
 

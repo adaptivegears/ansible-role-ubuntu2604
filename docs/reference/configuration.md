@@ -131,7 +131,7 @@ The role installs a standard troubleshooting toolbox so incident response does n
 
 ### Time
 
-The timezone is pinned to `UTC` and the `chrony` NTP service is enabled and started. UTC everywhere keeps logs from regional workers correlating without timezone translation.
+The timezone is pinned to `UTC` and the `chrony` NTP service is enabled and started. UTC everywhere keeps logs from regional workers correlating without timezone translation. The role expects stock Ubuntu 26.04 images where `chrony` is the default time synchronization service; it does not install or replace the time-sync stack.
 
 ### DNS
 

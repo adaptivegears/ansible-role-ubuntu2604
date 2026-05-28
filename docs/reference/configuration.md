@@ -88,6 +88,20 @@ Applied for all users (`*` domain):
 | `nproc` | soft | `65536` |
 | `nproc` | hard | `65536` |
 
+### Systemd manager defaults
+
+System services inherit density-oriented defaults from `/etc/systemd/system.conf.d/60-ubuntu-2604-density.conf` so container runtimes and agents launched by systemd do not fall back to lower manager defaults than PAM-launched sessions.
+
+| Setting | Value | Rationale |
+|---------|-------|-----------|
+| `DefaultLimitNOFILE` | `65536` | Align service file-descriptor limits with the role's kernel and PAM ceilings |
+| `DefaultLimitNPROC` | `65536` | Keep service process trees from hitting systemd defaults before explicit cgroup or runtime policy |
+| `DefaultTasksMax` | `65536` | Give dense units headroom for colocated service and container process trees |
+| `DefaultMemoryAccounting` | `yes` | Attribute memory pressure to service units during incidents |
+| `DefaultTasksAccounting` | `yes` | Track per-unit task counts so PID pressure is visible before exhaustion |
+
+Ubuntu 26.04 uses systemd on the unified cgroup hierarchy, where CPU usage accounting is always available and `DefaultCPUAccounting` is deprecated. The role therefore does not set that no-op option. Changing the managed defaults requires a systemd manager re-exec, so the role notifies a handler to apply that re-exec when the drop-in changes.
+
 ### Swap
 
 Swap is disabled at runtime and all swap entries are removed from `/etc/fstab`.
@@ -155,6 +169,7 @@ All tasks carry semantic tags so you can run or skip sections with `ansible-play
 | Tag | Covers |
 |-----|--------|
 | `kernel` | Kernel modules, sysctls, PAM limits, transparent hugepages service |
+| `systemd` | System manager resource limits and cgroup accounting defaults |
 | `swap` | Swap disable and `/etc/fstab` cleanup |
 | `aws` | EC2 metadata gathering and regional APT mirror selection |
 | `apt` | Mirror lists, sources list, and cache update |

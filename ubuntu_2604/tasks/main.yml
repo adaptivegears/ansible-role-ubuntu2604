@@ -250,6 +250,48 @@
   tags: kernel
 
 # -----------------------------------------------------------------------------
+# Systemd
+# -----------------------------------------------------------------------------
+# PAM limits cover login sessions, but container runtimes, agents, and workload
+# services usually start under the system manager. Set manager defaults so those
+# services inherit the same descriptor and process headroom while cgroup
+# accounting remains available for diagnosing noisy containers.
+# -----------------------------------------------------------------------------
+
+- name: Systemd | Ensure system manager drop-in directory exists
+  become: true
+  ansible.builtin.file:
+    path: /etc/systemd/system.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: systemd
+
+- name: Systemd | Configure container density defaults
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/systemd/system.conf.d/60-ubuntu-2604-density.conf
+    content: |
+      [Manager]
+      # Keep service-launched workloads aligned with the kernel and PAM file
+      # descriptor ceilings instead of inheriting low package defaults.
+      DefaultLimitNOFILE=65536
+      # Give service process trees the same headroom as login sessions so dense
+      # workers hit explicit cgroup policy before systemd's manager default.
+      DefaultLimitNPROC=65536
+      DefaultTasksMax=65536
+
+      # CPU usage is always accounted on Ubuntu 26.04's unified cgroup stack;
+      # keep memory and task accounting explicit so runtime-agnostic host tools
+      # can attribute pressure to service units.
+      DefaultMemoryAccounting=yes
+      DefaultTasksAccounting=yes
+    mode: "0644"
+  tags: systemd
+  notify: Reexec systemd manager
+
+# -----------------------------------------------------------------------------
 # Swap
 # -----------------------------------------------------------------------------
 # Swap causes unpredictable latency for container workloads and defeats OOM

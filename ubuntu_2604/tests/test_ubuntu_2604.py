@@ -123,6 +123,42 @@ def test_transparent_hugepages_mode_is_madvise(host):
 
 
 # -----------------------------------------------------------------------------
+# Systemd
+# -----------------------------------------------------------------------------
+
+
+SYSTEMD_DENSITY_CONFIG = "/etc/systemd/system.conf.d/60-ubuntu-2604-density.conf"
+EXPECTED_SYSTEMD_MANAGER_SETTINGS = {
+    "DefaultLimitNOFILE": "65536",
+    "DefaultLimitNPROC": "65536",
+    "DefaultTasksMax": "65536",
+    "DefaultMemoryAccounting": "yes",
+    "DefaultTasksAccounting": "yes",
+}
+
+
+@pytest.mark.parametrize("name, expected", EXPECTED_SYSTEMD_MANAGER_SETTINGS.items())
+def test_systemd_manager_density_setting_is_persistent(host, name, expected):
+    pattern = (
+        f"^{grep_literal(name)}[[:space:]]*="
+        f"[[:space:]]*{grep_literal(expected)}[[:space:]]*$"
+    )
+
+    assert host.file(SYSTEMD_DENSITY_CONFIG).contains(pattern)
+
+
+@pytest.mark.parametrize("name, expected", EXPECTED_SYSTEMD_MANAGER_SETTINGS.items())
+def test_systemd_manager_density_setting_is_effective(host, name, expected):
+    assert host.check_output(f"systemctl show --property={name} --value") == expected
+
+
+def test_systemd_density_config_avoids_deprecated_cpu_accounting_default(host):
+    assert not host.file(SYSTEMD_DENSITY_CONFIG).contains(
+        r"^[[:space:]]*DefaultCPUAccounting[[:space:]]="
+    )
+
+
+# -----------------------------------------------------------------------------
 # Swap
 # -----------------------------------------------------------------------------
 

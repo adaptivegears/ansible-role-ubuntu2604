@@ -18,7 +18,7 @@ This release adds operational troubleshooting packages, UTC time synchronization
 
 ### Improvements
 - **Concise sysctl comments**: Rationale comments for kernel tuning settings were tightened to reduce redundancy without losing intent
-- **Removed `overlay` module**: The `overlay` kernel module is no longer force-loaded by the role; modern Ubuntu kernels include it by default
+- **Retained `overlay` module preload**: The role continues to force-load `overlay` so OverlayFS readiness is explicit for container runtimes that use overlay snapshotters
 - **Expanded documentation**: Quickstart and configuration reference now cover task tag selectors and APT/unattended-upgrade behavior
 
 ### Internal

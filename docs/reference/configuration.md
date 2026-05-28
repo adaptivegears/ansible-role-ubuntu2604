@@ -56,6 +56,7 @@ Loaded and persisted on every boot:
 
 - `br_netfilter` — enables bridge netfilter for container bridge policy
 - `nf_conntrack` — supports NAT capacity tuning before runtimes start
+- `overlay` — makes OverlayFS readiness explicit for runtimes that use overlay snapshotters
 
 ### Sysctl parameters
 

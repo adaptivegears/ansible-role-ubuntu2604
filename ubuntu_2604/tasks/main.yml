@@ -45,6 +45,7 @@
     - br_netfilter
     # Preload connection tracking so NAT capacity tuning applies before runtimes start.
     - nf_conntrack
+    # Make OverlayFS readiness explicit for runtimes that use overlay snapshotters.
     - overlay
 
 - name: Kernel | Configure sysctls

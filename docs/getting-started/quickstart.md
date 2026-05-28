@@ -83,7 +83,7 @@ ansible workers -i inventory.ini -m ansible.builtin.shell -a "resolvectl status"
 
 ## What changed on the host
 
-- Kernel modules `br_netfilter` and `nf_conntrack` are loaded and persisted
+- Kernel modules `br_netfilter`, `nf_conntrack`, and `overlay` are loaded and persisted
 - 30+ sysctl parameters tuned for container networking, density, and recovery
 - PAM soft and hard limits for `nofile` and `nproc` raised to `65536`
 - Transparent hugepages set to `madvise` via systemd service

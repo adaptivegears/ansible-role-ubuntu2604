@@ -102,7 +102,9 @@ The role manages APT deterministically so package resolution is consistent acros
 
 **Mirror selection**
 
-When `ubuntu_2604_cloud` is set to `"aws"`, the role gathers EC2 metadata via IMDS to discover the region and prefers the regional `ec2.archive.ubuntu.com` mirror with `priority:1`. The official Canonical archives are kept as fallback so a regional outage does not block provisioning. When the cloud variable is empty or set to another value, the role uses the official archive directly.
+When `ubuntu_2604_cloud` is set to `"aws"`, the role gathers EC2 metadata via IMDS to discover the region and keeps the regional `ec2.archive.ubuntu.com` mirror as a fallback after Canonical-operated archive endpoints. When the cloud variable is empty or set to another value, the role uses the official archive directly.
+
+Ubuntu 26.04 publishes arm64 packages through the normal archive and security endpoints, including EC2 regional mirrors. Aarch64 hosts therefore intentionally use the same mirror lists as amd64 instead of switching to `ports.ubuntu.com`, which older Ubuntu releases commonly required.
 
 Mirror lists are written to:
 

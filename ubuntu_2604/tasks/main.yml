@@ -310,10 +310,12 @@
 # -----------------------------------------------------------------------------
 # Ubuntu cloud images normally let cloud-init choose the archive. The role takes
 # ownership after boot so package resolution is deterministic and avoids runtime
-# fastest-mirror probing. Canonical-operated endpoints stay first because APT's
-# mirror method can recover from a missing package file, but not from a regional
-# mirror serving stale package indexes that reference files already removed from
-# the archive pool.
+# fastest-mirror probing. Ubuntu 26.04 publishes arm64 through the normal
+# archive/security endpoints, so aarch64 hosts intentionally use the same mirror
+# lists as amd64 instead of switching to ports.ubuntu.com as older releases did.
+# Canonical-operated endpoints stay first because APT's mirror method can recover
+# from a missing package file, but not from a regional mirror serving stale
+# package indexes that reference files already removed from the archive pool.
 # -----------------------------------------------------------------------------
 
 # Keep the EC2 regional mirror only as a fallback. If it is primary, its package

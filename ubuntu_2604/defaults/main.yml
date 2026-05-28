@@ -1,4 +1,6 @@
 ---
 ubuntu_2604_cloud: ""
+ubuntu_2604_locale: en_US.UTF-8
+ubuntu_2604_timezone: UTC
 ubuntu_2604_ssh_hardening_allow_root_login: false
 ubuntu_2604_ssh_hardening_allow_tcp_forwarding: false

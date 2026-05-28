@@ -83,7 +83,7 @@ This release adds a comprehensive pytest-testinfra verification suite, user-faci
 ## [2026.5.1] - 2026-05-26
 
 ### Highlights
-Initial release of the `ubuntu_2604` role for provisioning Ubuntu 26.04 VMs as disposable container workers. The role favors predictable networking, dense process scheduling, and automatic recovery over general-purpose desktop defaults.
+Initial release of the `ubuntu_2604` role for provisioning Ubuntu 26.04 VMs for container workloads. The role favors predictable networking, dense process scheduling, and automatic recovery over general-purpose desktop defaults.
 
 ### New Features
 - **Container-optimized kernel tuning**: Loads `br_netfilter`, `nf_conntrack`, and `overlay` modules; applies 30+ sysctl parameters for bridge netfilter, IPv4/IPv6 forwarding, connection tracking, file descriptor limits, and VMA mapping

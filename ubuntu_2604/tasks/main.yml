@@ -607,7 +607,7 @@
       MaxAuthTries 3
       PasswordAuthentication no
       PermitEmptyPasswords no
-      PermitRootLogin {{ ubuntu_2604_ssh_hardening_allow_root_login | bool | ternary('yes', 'no') }}
+      PermitRootLogin {{ ubuntu_2604_ssh_allow_root_login | bool | ternary('yes', 'no') }}
       PubkeyAuthentication yes
       UsePAM yes
 
@@ -633,7 +633,7 @@
 
       # Forwarding and extras
       # Avoid unaudited tunnels and desktop forwarding on workers.
-      AllowTcpForwarding {{ ubuntu_2604_ssh_hardening_allow_tcp_forwarding | bool | ternary('yes', 'no') }}
+      AllowTcpForwarding {{ ubuntu_2604_ssh_allow_tcp_forwarding | bool | ternary('yes', 'no') }}
       Banner none
       X11Forwarding no
     owner: root

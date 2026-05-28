@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow [CalVer](https://calver.org/) (`YYYY.M.MICRO`).
 
+## [2026.5.5] - 2026-05-28
+
+### Highlights
+This release adds SSH hardening, systemd manager density defaults, journald log pressure controls, nftables firewall ownership, and prerequisite assertions. APT mirror selection is safer, and more settings are exposed as user-configurable defaults.
+
+### New Features
+- **SSH hardening**: Priority drop-in (`00-ubuntu-2604-hardening.conf`) pins a restricted algorithm set, disables password authentication, and limits forwarding; root login and TCP forwarding are configurable via `ubuntu_2604_ssh_allow_root_login` and `ubuntu_2604_ssh_allow_tcp_forwarding`
+- **Systemd density defaults**: Manager drop-in sets `DefaultLimitNOFILE`, `DefaultLimitNPROC`, and `DefaultTasksMax` to `65536`, plus enables memory and task cgroup accounting so service-launched workloads inherit the same headroom as login sessions
+- **Journald log pressure controls**: Persistent journals capped at 1 GB total, 128 MB per file, 30-day retention, with reserved free space on `/var/log` and `/run` so log bursts cannot crowd out packages or workload state
+- **Firewall manager selection**: `nftables` is enabled as the host firewall manager, `ufw` is masked, and iptables-family compatibility commands are switched to the nft backend
+- **Reboot-required reporting**: After safe upgrades, the role surfaces `/var/run/reboot-required` and the list of triggering packages without rebooting the host
+- **Prerequisite assertions**: Role fails fast with a clear message when run on a non-Ubuntu 26.04 host or an unsupported architecture
+
+### Improvements
+- **APT mirror safety**: Canonical archives are now primary, with EC2 regional mirrors as fallback, avoiding stale-index sync races; arm64 hosts use the standard archive instead of `ports.ubuntu.com`
+- **User-configurable defaults**: `ubuntu_2604_locale`, `ubuntu_2604_timezone`, and the new SSH toggles are now defined in `defaults/main.yml` instead of `vars/main.yml`
+- **Expanded testinfra coverage**: New parametrized tests verify systemd manager settings, journald persistence, firewall state, SSH hardening, reboot markers, and APT mirror priorities
+
+### Internal
+- Added `ansible.cfg` with SSH connection multiplexing, pipelining, and retry tuning for faster playbook runs
+- New task tags: `systemd`, `logs`, `firewall`, and `ssh`
+
 ## [2026.5.4] - 2026-05-27
 
 ### Highlights

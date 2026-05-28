@@ -252,6 +252,49 @@ def test_apt_maintenance_timer_is_enabled(host, timer):
 
 
 # -----------------------------------------------------------------------------
+# Firewall
+# -----------------------------------------------------------------------------
+
+
+EXPECTED_FIREWALL_PACKAGES = (
+    "conntrack",
+    "iptables",
+    "nftables",
+)
+EXPECTED_NFT_COMPAT_COMMANDS = (
+    ("iptables", "nf_tables"),
+    ("ip6tables", "nf_tables"),
+    ("arptables", "nf_tables"),
+    ("ebtables", "nf_tables"),
+)
+
+
+@pytest.mark.parametrize("package", EXPECTED_FIREWALL_PACKAGES)
+def test_firewall_package_is_installed(host, package):
+    assert host.package(package).is_installed
+
+
+def test_nftables_service_is_active_and_enabled(host):
+    service = host.service("nftables")
+
+    assert service.exists
+    assert service.is_running
+    assert service.is_enabled
+
+
+def test_ufw_service_is_masked(host):
+    link = host.file("/etc/systemd/system/ufw.service")
+
+    assert link.is_symlink
+    assert link.linked_to == "/dev/null"
+
+
+@pytest.mark.parametrize("command, expected_backend", EXPECTED_NFT_COMPAT_COMMANDS)
+def test_iptables_compatibility_command_uses_nft_backend(host, command, expected_backend):
+    assert expected_backend in host.check_output(f"{command} --version")
+
+
+# -----------------------------------------------------------------------------
 # Packages
 # -----------------------------------------------------------------------------
 

@@ -128,6 +128,10 @@ The role explicitly installs `unattended-upgrades` and enables periodic security
 
 The APT daily and daily-upgrade timers are enabled so metadata and security patches are fetched on schedule.
 
+### Firewall
+
+The role makes `nftables` the host firewall manager on Ubuntu 26.04. It installs `conntrack`, `iptables`, and `nftables`, enables the `nftables` service, masks `ufw`, and pins the iptables-family compatibility commands to the nft backend. The role does not manage `/etc/nftables.conf` or define filtering policy; site-specific firewall rules can own that file without fighting this role.
+
 ### Operational packages
 
 The role installs a standard troubleshooting toolbox so incident response does not start by changing package state. Installed packages include `bind9-dnsutils`, `curl`, `exip`, `htop`, `iotop`, `jq`, `less`, `lsof`, `tcpdump`, `tmux`, `traceroute`, `tree`, `unzip`, and `wget`.
@@ -157,6 +161,7 @@ All tasks carry semantic tags so you can run or skip sections with `ansible-play
 | `upgrade` | Safe package upgrade, autoremove, and autoclean |
 | `packages` | Package installs and removals across all sections |
 | `unattended_upgrades` | Unattended upgrades config, reboot policy, needrestart, and timers |
+| `firewall` | nftables service ownership, UFW masking, and iptables compatibility tools |
 | `locale` | Locale generation and default locale setting |
 | `time` | Timezone and chrony time synchronization |
 | `dns` | systemd-resolved stub and fallback DNS configuration |

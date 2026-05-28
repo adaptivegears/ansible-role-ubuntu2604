@@ -475,6 +475,67 @@
     - apt-daily-upgrade.timer
 
 # -----------------------------------------------------------------------------
+# Firewall
+# -----------------------------------------------------------------------------
+# Ubuntu 26.04 uses nftables-capable tooling by default, but leaving UFW enabled
+# gives the host two firewall managers that can rewrite the same Netfilter state.
+# This role selects nftables as the manager without owning the ruleset; firewall
+# policy belongs in a dedicated hardening change or a site-specific override.
+# -----------------------------------------------------------------------------
+
+- name: Firewall | Install netfilter tools
+  become: true
+  ansible.builtin.apt:
+    name:
+      - conntrack
+      - iptables
+      - nftables
+    state: present
+    install_recommends: false
+  tags: [firewall, packages]
+
+- name: Firewall | Use nftables-backed compatibility commands
+  become: true
+  community.general.alternatives:
+    name: "{{ item.name }}"
+    path: "{{ item.path }}"
+  tags: firewall
+  loop:
+    - name: iptables
+      path: /usr/sbin/iptables-nft
+    - name: ip6tables
+      path: /usr/sbin/ip6tables-nft
+    - name: arptables
+      path: /usr/sbin/arptables-nft
+    - name: ebtables
+      path: /usr/sbin/ebtables-nft
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Firewall | Enable nftables service
+  become: true
+  ansible.builtin.systemd_service:
+    name: nftables
+    state: started
+    enabled: true
+  tags: firewall
+
+- name: Firewall | Stop and disable UFW service
+  become: true
+  ansible.builtin.systemd_service:
+    name: ufw
+    state: stopped
+    enabled: false
+  tags: firewall
+
+- name: Firewall | Mask UFW service
+  become: true
+  ansible.builtin.systemd_service:
+    name: ufw
+    masked: true
+  tags: firewall
+
+# -----------------------------------------------------------------------------
 # Packages
 # -----------------------------------------------------------------------------
 # Minimal cloud images often omit day-two troubleshooting tools. Keep a small

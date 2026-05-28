@@ -91,6 +91,7 @@ ansible workers -i inventory.ini -m ansible.builtin.shell -a "resolvectl status"
 - APT sources configured with AWS-aware regional mirror selection (when `ubuntu_2604_cloud: "aws"`) and official-archive fallback
 - Safe package upgrades, autoremove, and autoclean applied during the run
 - Unattended security upgrades enabled with automatic reboots, shutdown-time installs, and needrestart service restarts blocked
+- `nftables` owns host firewall state, `ufw` is masked, and iptables compatibility commands use the nft backend
 - UTF-8 locale generated and set as system default
 - Operational troubleshooting toolbox installed (`htop`, `iotop`, `jq`, `tcpdump`, `tmux`, `bind9-dnsutils`, and others)
 - Timezone pinned to UTC with `chrony` time synchronization active
@@ -113,6 +114,7 @@ Available tags:
 | `upgrade` | Safe package upgrade, autoremove, and autoclean |
 | `packages` | Package installs and removals across all sections |
 | `unattended_upgrades` | Unattended security upgrades, reboot policy, and needrestart |
+| `firewall` | nftables service ownership, UFW masking, and iptables compatibility tools |
 | `locale` | Locale generation and default locale setting |
 | `time` | Timezone and chrony time synchronization |
 | `dns` | systemd-resolved stub and fallback DNS configuration |

@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow [CalVer](https://calver.org/) (`YYYY.M.MICRO`).
 
+## [2026.5.6] - 2026-05-30
+
+### Highlights
+This release makes SSH hardening safer and sequencing more robust by adding guardrails and a cloud-init wait barrier.
+
+### New Features
+- **SSH lockout guardrails**: Before disabling password authentication or root login, the role asserts that the Ansible user has an authorized_keys file and that root SSH remains reachable when connected as root
+- **cloud-init wait barrier**: The role waits up to 30 minutes for cloud-init to complete before mutating the host, accepting completion-with-errors and warning when boot-time initialization issues remain
+
+### Improvements
+- **APT lock timeout**: Safe upgrades now wait up to 10 minutes for dpkg locks instead of failing when cloud-init or unattended upgrades hold the lock at boot
+
+### Internal
+- **Concise comments**: Rationale comments throughout tasks, ansible.cfg, and docs were tightened to reduce verbosity without losing intent
+- **Role description**: Rephrased from "disposable container workers" to "container workloads"
+
 ## [2026.5.5] - 2026-05-28
 
 ### Highlights

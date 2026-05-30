@@ -5,7 +5,7 @@ ANSIBLE_COLLECTIONS_PATH ?= $(CURDIR)/.ansible/collections
 ANSIBLE_GALAXY ?= uvx --from ansible-core ansible-galaxy
 ANSIBLE_INVENTORY ?= inventory.ini
 ANSIBLE_LINT ?= uvx --from ansible-lint ansible-lint
-ANSIBLE_ROLE_DIR ?= ubuntu_2604
+ANSIBLE_ROLE_DIR ?= ubuntu2604
 
 # Testinfra
 TESTINFRA_HOSTS ?= ansible://all?controlpersist=300&timeout=30

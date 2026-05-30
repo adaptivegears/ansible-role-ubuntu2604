@@ -1,10 +1,10 @@
 # Configuration
 
-The `ubuntu_2604` role exposes five user-configurable variables. All other settings are applied as fixed defaults tuned for container-worker VMs.
+The `ubuntu2604` role exposes five user-configurable variables. All other settings are applied as fixed defaults tuned for container-worker VMs.
 
 ## Variables
 
-### `ubuntu_2604_cloud`
+### `ubuntu2604_cloud`
 
 The cloud platform the VM runs on. This enables platform-specific behavior such as regional APT mirror selection.
 
@@ -21,12 +21,12 @@ Example: enable AWS-aware behavior.
 ```yaml
 - hosts: workers
   vars:
-    ubuntu_2604_cloud: "aws"
+    ubuntu2604_cloud: "aws"
   roles:
-    - role: ubuntu_2604
+    - role: ubuntu2604
 ```
 
-### `ubuntu_2604_locale`
+### `ubuntu2604_locale`
 
 The system locale to generate and set as the default.
 
@@ -41,12 +41,12 @@ Example: set a different locale in your playbook or inventory.
 ```yaml
 - hosts: workers
   vars:
-    ubuntu_2604_locale: C.UTF-8
+    ubuntu2604_locale: C.UTF-8
   roles:
-    - role: ubuntu_2604
+    - role: ubuntu2604
 ```
 
-### `ubuntu_2604_timezone`
+### `ubuntu2604_timezone`
 
 The system timezone to set and persist.
 
@@ -61,12 +61,12 @@ Example: set a different timezone.
 ```yaml
 - hosts: workers
   vars:
-    ubuntu_2604_timezone: America/New_York
+    ubuntu2604_timezone: America/New_York
   roles:
-    - role: ubuntu_2604
+    - role: ubuntu2604
 ```
 
-### `ubuntu_2604_ssh_allow_root_login`
+### `ubuntu2604_ssh_allow_root_login`
 
 Whether to permit root login over SSH.
 
@@ -83,12 +83,12 @@ Example: allow root SSH for recovery paths.
 ```yaml
 - hosts: workers
   vars:
-    ubuntu_2604_ssh_allow_root_login: true
+    ubuntu2604_ssh_allow_root_login: true
   roles:
-    - role: ubuntu_2604
+    - role: ubuntu2604
 ```
 
-### `ubuntu_2604_ssh_allow_tcp_forwarding`
+### `ubuntu2604_ssh_allow_tcp_forwarding`
 
 Whether to allow SSH TCP forwarding (tunnels).
 
@@ -105,9 +105,9 @@ Example: allow TCP forwarding.
 ```yaml
 - hosts: workers
   vars:
-    ubuntu_2604_ssh_allow_tcp_forwarding: true
+    ubuntu2604_ssh_allow_tcp_forwarding: true
   roles:
-    - role: ubuntu_2604
+    - role: ubuntu2604
 ```
 
 ## Fixed defaults
@@ -124,7 +124,7 @@ Loaded and persisted on every boot:
 
 ### Sysctl parameters
 
-Applied via `/etc/sysctl.d/99-ubuntu-2604.conf`:
+Applied via `/etc/sysctl.d/99-ubuntu2604.conf`:
 
 | Category | Parameters | Rationale |
 |----------|------------|-----------|
@@ -154,7 +154,7 @@ Applied for all users (`*` domain):
 
 ### Systemd manager defaults
 
-System services inherit density-oriented defaults from `/etc/systemd/system.conf.d/60-ubuntu-2604-density.conf` so container runtimes and agents launched by systemd do not fall back to lower manager defaults than PAM-launched sessions.
+System services inherit density-oriented defaults from `/etc/systemd/system.conf.d/60-ubuntu2604-density.conf` so container runtimes and agents launched by systemd do not fall back to lower manager defaults than PAM-launched sessions.
 
 | Setting | Value | Rationale |
 |---------|-------|-----------|
@@ -176,9 +176,9 @@ A systemd one-shot service (`transparent-hugepages-madvise`) sets THP to `madvis
 
 ### SSH
 
-The role hardens SSH through a priority drop-in at `/etc/ssh/sshd_config.d/00-ubuntu-2604-hardening.conf` so site-specific or cloud-init snippets in later drop-ins do not silently override the policy. Before applying hardening, the role runs guardrails that prevent accidental lockout:
+The role hardens SSH through a priority drop-in at `/etc/ssh/sshd_config.d/00-ubuntu2604-hardening.conf` so site-specific or cloud-init snippets in later drop-ins do not silently override the policy. Before applying hardening, the role runs guardrails that prevent accidental lockout:
 
-- If Ansible is connected as `root`, the role refuses to continue unless `ubuntu_2604_ssh_allow_root_login` is `true`.
+- If Ansible is connected as `root`, the role refuses to continue unless `ubuntu2604_ssh_allow_root_login` is `true`.
 - If the current Ansible user has no `~/.ssh/authorized_keys` file, the role refuses to continue because disabling password authentication would lock you out.
 
 The drop-in enforces the following settings:
@@ -214,7 +214,7 @@ The role manages APT deterministically so package resolution is consistent acros
 
 **Mirror selection**
 
-When `ubuntu_2604_cloud` is set to `"aws"`, the role gathers EC2 metadata via IMDS to discover the region and keeps the regional `ec2.archive.ubuntu.com` mirror as a fallback after Canonical-operated archive endpoints. When the cloud variable is empty or set to another value, the role uses the official archive directly.
+When `ubuntu2604_cloud` is set to `"aws"`, the role gathers EC2 metadata via IMDS to discover the region and keeps the regional `ec2.archive.ubuntu.com` mirror as a fallback after Canonical-operated archive endpoints. When the cloud variable is empty or set to another value, the role uses the official archive directly.
 
 Ubuntu 26.04 publishes arm64 packages through the normal archive and security endpoints, including EC2 regional mirrors. Aarch64 hosts therefore intentionally use the same mirror lists as amd64 instead of switching to `ports.ubuntu.com`, which older Ubuntu releases commonly required.
 
@@ -246,7 +246,7 @@ The APT daily and daily-upgrade timers are enabled so metadata and security patc
 
 ### Logs
 
-The role keeps journald persistent for post-reboot recovery while bounding disk usage on container workers that can emit large runtime and workload log bursts. The managed drop-in is `/etc/systemd/journald.conf.d/60-ubuntu-2604-log-pressure.conf`.
+The role keeps journald persistent for post-reboot recovery while bounding disk usage on container workers that can emit large runtime and workload log bursts. The managed drop-in is `/etc/systemd/journald.conf.d/60-ubuntu2604-log-pressure.conf`.
 
 | Setting | Value | Rationale |
 |---------|-------|-----------|
@@ -276,7 +276,7 @@ The timezone is pinned to `UTC` and the `chrony` NTP service is enabled and star
 
 ### DNS
 
-The role ensures `systemd-resolved` is enabled and running, links `/etc/resolv.conf` to the systemd stub resolver, and configures fallback DNS servers (`1.1.1.1` and `1.0.0.1`) in a drop-in file at `/etc/systemd/resolved.conf.d/60-ubuntu-2604-fallback-dns.conf`. Fallback DNS is only consulted when no per-link servers are known, so DHCP-provided resolvers remain primary and internal zone resolution is preserved.
+The role ensures `systemd-resolved` is enabled and running, links `/etc/resolv.conf` to the systemd stub resolver, and configures fallback DNS servers (`1.1.1.1` and `1.0.0.1`) in a drop-in file at `/etc/systemd/resolved.conf.d/60-ubuntu2604-fallback-dns.conf`. Fallback DNS is only consulted when no per-link servers are known, so DHCP-provided resolvers remain primary and internal zone resolution is preserved.
 
 ### MOTD
 

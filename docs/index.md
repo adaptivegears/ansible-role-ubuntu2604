@@ -1,6 +1,6 @@
-# ubuntu_2604
+# ubuntu2604
 
-Documentation for the `ubuntu_2604` Ansible role, which provisions Ubuntu 26.04 VMs for container workloads.
+Documentation for the `ubuntu2604` Ansible role, which provisions Ubuntu 26.04 VMs for container workloads.
 
 ## What this role does
 

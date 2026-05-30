@@ -25,10 +25,10 @@
       (detected {{ ansible_facts['architecture'] }})
     success_msg: "Architecture check passed: {{ ansible_facts['architecture'] }}"
 
-- name: Prerequisite | Check cloud-init command
+- name: Prerequisite | Get cloud-init
   ansible.builtin.stat:
     path: /usr/bin/cloud-init
-  register: ubuntu_2604__cloud_init_command
+  register: ubuntu_2604__cloud_init
 
 - name: Prerequisite | Wait for cloud-init to finish
   ansible.builtin.command:
@@ -38,11 +38,11 @@
       - /usr/bin/cloud-init
       - status
       - --wait
-  register: ubuntu_2604__cloud_init_wait
+  register: ubuntu_2604__cloud_init_timeout
   # Exit code 2 means cloud-init finished with recoverable errors; it is no longer holding boot-time APT work.
-  failed_when: ubuntu_2604__cloud_init_wait.rc not in [0, 2]
+  failed_when: ubuntu_2604__cloud_init_timeout.rc not in [0, 2]
   changed_when: false
-  when: ubuntu_2604__cloud_init_command.stat.exists
+  when: ubuntu_2604__cloud_init.stat.exists
 
 # -----------------------------------------------------------------------------
 # Kernel

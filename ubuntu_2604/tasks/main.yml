@@ -403,6 +403,8 @@
 - name: APT | Upgrade packages and clean unused package data
   become: true
   ansible.builtin.apt:
+    # Wait out cloud-init/unattended APT startup work instead of failing on dpkg locks.
+    lock_timeout: 600
     # Use safe upgrades to keep rebuilt VMs current without removals.
     upgrade: safe
     # Remove orphans so old image/provisioning packages stop consuming disk.

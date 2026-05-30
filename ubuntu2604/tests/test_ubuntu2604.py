@@ -235,6 +235,9 @@ APT_VPS_REMOVED_PACKAGES = (
     "multipath-tools",
     "open-iscsi",
     "open-vm-tools",
+    "software-properties-common",
+    "packagekit",
+    "polkitd",
 )
 
 

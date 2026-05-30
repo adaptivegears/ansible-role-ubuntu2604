@@ -564,19 +564,27 @@
   changed_when: false
   tags: [snap, apt]
 
-- name: APT | Remove VPS-irrelevant hardware packages
+- name: APT | Remove VPS-irrelevant packages
   become: true
   ansible.builtin.apt:
     name:
-      # Cellular, firmware, removable-media, SAN, iSCSI, and VMware agents are
-      # useful on broad server images but wasteful/noisy on this role's VPS target.
+      # Cellular modem support probes hardware that does not exist in a KVM VPS.
       - modemmanager
+      # Firmware, removable-disk, and Thunderbolt daemons are for physical or
+      # desktop-style hosts; in this VPS role they only add idle services and deps.
       - fwupd
       - udisks2
       - bolt
+      # Multipath, iSCSI, and VMware agents belong to broad server images, but
+      # this target uses provider-attached virtual disks on KVM/QEMU.
       - multipath-tools
       - open-iscsi
       - open-vm-tools
+      # GUI/package-management authorization helpers keep PackageKit and polkit
+      # daemons alive; repositories and packages are managed directly by Ansible.
+      - software-properties-common
+      - packagekit
+      - polkitd
     state: absent
     purge: true
     lock_timeout: 600

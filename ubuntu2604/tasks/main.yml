@@ -564,6 +564,24 @@
   changed_when: false
   tags: [snap, apt]
 
+- name: APT | Remove VPS-irrelevant hardware packages
+  become: true
+  ansible.builtin.apt:
+    name:
+      # Cellular, firmware, removable-media, SAN, iSCSI, and VMware agents are
+      # useful on broad server images but wasteful/noisy on this role's VPS target.
+      - modemmanager
+      - fwupd
+      - udisks2
+      - bolt
+      - multipath-tools
+      - open-iscsi
+      - open-vm-tools
+    state: absent
+    purge: true
+    lock_timeout: 600
+  tags: [apt, packages]
+
 - name: APT | Upgrade packages and clean unused package data
   become: true
   ansible.builtin.apt:

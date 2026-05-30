@@ -227,6 +227,15 @@ APT_MIRRORS = "/etc/apt/ubuntu-mirrors.txt"
 APT_SECURITY_MIRRORS = "/etc/apt/ubuntu-security-mirrors.txt"
 APT_SOURCES = "/etc/apt/sources.list.d/ubuntu.sources"
 APT_NOSNAP_PREF = "/etc/apt/preferences.d/99-ubuntu2604-nosnap.pref"
+APT_VPS_REMOVED_PACKAGES = (
+    "modemmanager",
+    "fwupd",
+    "udisks2",
+    "bolt",
+    "multipath-tools",
+    "open-iscsi",
+    "open-vm-tools",
+)
 
 
 def test_apt_sources_use_managed_mirror_lists(host):
@@ -265,6 +274,11 @@ def test_apt_security_mirrors_prefer_official_security_endpoint(host):
     assert mirrors.contains(
         r"^http://archive\.ubuntu\.com/ubuntu/[[:space:]][[:space:]]*priority:[0-9][0-9]*$"
     )
+
+
+@pytest.mark.parametrize("package", APT_VPS_REMOVED_PACKAGES)
+def test_vps_irrelevant_hardware_package_is_removed(host, package):
+    assert not host.package(package).is_installed
 
 
 # -----------------------------------------------------------------------------

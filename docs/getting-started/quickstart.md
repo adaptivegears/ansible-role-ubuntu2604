@@ -56,6 +56,16 @@ If your VMs run on AWS, enable AWS-aware behavior such as regional APT mirror se
     - role: ubuntu2604
 ```
 
+If a host is intentionally IPv4-only, disable IPv6 with sysctl settings. Leave this off for Kubernetes or container hosts that require IPv6 or dual-stack networking.
+
+```yaml
+- hosts: workers
+  vars:
+    ubuntu2604_disable_ipv6: true
+  roles:
+    - role: ubuntu2604
+```
+
 Or reference the role directly:
 
 ```yaml
@@ -72,7 +82,7 @@ Run the included test suite against your inventory:
 make test
 ```
 
-This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks in parallel across all hosts to confirm kernel modules, sysctl persistence, PAM limits, systemd manager defaults, transparent hugepages, swap removal, APT source and mirror configuration, snapd removal and reinstallation block, VPS package cleanup, unattended-upgrade policy, log pressure controls, locale configuration, and SSH hardening.
+This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks in parallel across all hosts to confirm kernel modules, sysctl persistence, IPv6 policy, PAM limits, systemd manager defaults, transparent hugepages, swap removal, APT source and mirror configuration, snapd removal and reinstallation block, VPS package cleanup, unattended-upgrade policy, log pressure controls, locale configuration, and SSH hardening.
 
 You can also spot-check individual settings with ad-hoc Ansible commands:
 
@@ -87,7 +97,7 @@ ansible workers -i inventory.ini -m ansible.builtin.shell -a "resolvectl status"
 ## What changed on the host
 
 - Kernel modules `br_netfilter`, `nf_conntrack`, and `overlay` are loaded and persisted
-- 30+ sysctl parameters tuned for container networking, density, and recovery
+- 30+ sysctl parameters tuned for container networking, density, recovery, and optional IPv6 disablement
 - PAM soft and hard limits for `nofile` and `nproc` raised to `65536`
 - Systemd service defaults align file descriptor, process, task, and memory accounting behavior with dense container workloads
 - Transparent hugepages set to `madvise` via systemd service
@@ -116,7 +126,7 @@ Available tags:
 | Tag | Section |
 |-----|---------|
 | `kernel` | Kernel modules, sysctls, PAM limits, and transparent hugepages |
-| `network` | (reserved) |
+| `network` | IPv6 sysctl policy |
 | `ssh` | SSH hardening, drop-in config, and guardrails |
 | `systemd` | System manager resource limits and cgroup accounting defaults |
 | `swap` | Swap disable and fstab cleanup |

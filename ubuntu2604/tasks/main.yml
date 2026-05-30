@@ -188,11 +188,21 @@
       # Reuse safe TIME-WAIT sockets so high-outbound workloads avoid ephemeral-port starvation.
       net.ipv4.tcp_tw_reuse = 1
 
-      # Keep provider SLAAC while routing IPv6 for present and future bridges.
+      {% if ubuntu2604_disable_ipv6 | bool %}
+      # Disable IPv6 when the environment is intentionally IPv4-only.
+      net.ipv6.conf.all.disable_ipv6 = 1
+      net.ipv6.conf.default.disable_ipv6 = 1
+      net.ipv6.conf.lo.disable_ipv6 = 1
+      {% else %}
+      # Keep IPv6 available while routing it for present and future bridges.
+      net.ipv6.conf.all.disable_ipv6 = 0
+      net.ipv6.conf.default.disable_ipv6 = 0
+      net.ipv6.conf.lo.disable_ipv6 = 0
       net.ipv6.conf.all.accept_ra = 2
       net.ipv6.conf.all.forwarding = 1
       net.ipv6.conf.default.accept_ra = 2
       net.ipv6.conf.default.forwarding = 1
+      {% endif %}
 
       # Hold more NAT flows so high-fan-out egress does not drop new connections.
       net.netfilter.nf_conntrack_max = 1048576
@@ -214,13 +224,13 @@
     owner: root
     group: root
     mode: "0644"
-  tags: kernel
+  tags: [kernel, network]
 
 - name: Kernel | Apply sysctls
   become: true
   ansible.builtin.command: sysctl --load /etc/sysctl.d/99-ubuntu2604.conf
   changed_when: false
-  tags: kernel
+  tags: [kernel, network]
 
 - name: Kernel | Configure PAM limits
   become: true

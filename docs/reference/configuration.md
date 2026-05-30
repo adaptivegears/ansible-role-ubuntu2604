@@ -26,6 +26,28 @@ Example: enable AWS-aware behavior.
     - role: ubuntu2604
 ```
 
+### `ubuntu2604_disable_ipv6`
+
+Whether to disable IPv6 with persistent sysctl settings.
+
+| Attribute     | Value          |
+|---------------|----------------|
+| Type          | Boolean        |
+| Default       | `false`        |
+| Required      | No             |
+
+When `true`, the role sets `net.ipv6.conf.all.disable_ipv6`, `net.ipv6.conf.default.disable_ipv6`, and `net.ipv6.conf.lo.disable_ipv6` to `1` in `/etc/sysctl.d/99-ubuntu2604.conf` and applies the settings immediately. Leave this disabled for Kubernetes or container hosts that need IPv6 or dual-stack networking; OS-level IPv6 disablement can interfere with container networking.
+
+Example: disable IPv6 on an intentionally IPv4-only host.
+
+```yaml
+- hosts: workers
+  vars:
+    ubuntu2604_disable_ipv6: true
+  roles:
+    - role: ubuntu2604
+```
+
 ### `ubuntu2604_locale`
 
 The system locale to generate and set as the default.
@@ -136,7 +158,7 @@ Applied via `/etc/sysctl.d/99-ubuntu2604.conf`:
 | Observability | `kernel.task_delayacct` | Track per-task CPU, I/O, and memory delays |
 | Networking core | `net.core.netdev_max_backlog`, `net.core.somaxconn` | Queue ingress bursts and deeper accept queues |
 | IPv4 | `net.ipv4.ip_forward`, `ip_local_port_range`, `ip_unprivileged_port_start`, `neigh.default.gc_thresh*`, `tcp_*` | Routing, NAT, ARP, and TCP tuning for containers |
-| IPv6 | `net.ipv6.conf.all.accept_ra`, `all.forwarding`, `default.accept_ra`, `default.forwarding` | Enable IPv6 routing while preserving SLAAC |
+| IPv6 | `all.disable_ipv6`, `default.disable_ipv6`, `lo.disable_ipv6`, `all.accept_ra`, `all.forwarding`, `default.accept_ra`, `default.forwarding` | Keep IPv6 enabled by default for container networking, or disable it when `ubuntu2604_disable_ipv6` is true |
 | Connection tracking | `net.netfilter.nf_conntrack_max` | Hold more NAT flow state |
 | User namespaces | `user.max_user_namespaces` | Permit rootless containers and build sandboxes |
 | Memory | `vm.max_map_count`, `vm.min_free_kbytes`, `vm.overcommit_memory`, `vm.panic_on_oom`, `vm.swappiness` | Support mmap-heavy services and predictable OOM behavior |
@@ -315,7 +337,7 @@ All tasks carry semantic tags so you can run or skip sections with `ansible-play
 | Tag | Covers |
 |-----|--------|
 | `kernel` | Kernel modules, sysctls, PAM limits, transparent hugepages service |
-| `network` | (reserved) |
+| `network` | IPv6 sysctl policy |
 | `ssh` | SSH hardening, drop-in config, and guardrails |
 | `systemd` | System manager resource limits and cgroup accounting defaults |
 | `swap` | Swap disable and `/etc/fstab` cleanup |

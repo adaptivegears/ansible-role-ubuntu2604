@@ -1,6 +1,6 @@
 # Configuration
 
-The `ubuntu_2604` role exposes two user-configurable variables. All other settings are applied as fixed defaults tuned for container-worker VMs.
+The `ubuntu_2604` role exposes five user-configurable variables. All other settings are applied as fixed defaults tuned for container-worker VMs.
 
 ## Variables
 
@@ -42,6 +42,70 @@ Example: set a different locale in your playbook or inventory.
 - hosts: workers
   vars:
     ubuntu_2604_locale: C.UTF-8
+  roles:
+    - role: ubuntu_2604
+```
+
+### `ubuntu_2604_timezone`
+
+The system timezone to set and persist.
+
+| Attribute     | Value          |
+|---------------|----------------|
+| Type          | String         |
+| Default       | `UTC`          |
+| Required      | No             |
+
+Example: set a different timezone.
+
+```yaml
+- hosts: workers
+  vars:
+    ubuntu_2604_timezone: America/New_York
+  roles:
+    - role: ubuntu_2604
+```
+
+### `ubuntu_2604_ssh_allow_root_login`
+
+Whether to permit root login over SSH.
+
+| Attribute     | Value          |
+|---------------|----------------|
+| Type          | Boolean        |
+| Default       | `false`        |
+| Required      | No             |
+
+When `false`, the role sets `PermitRootLogin no` in the SSH hardening drop-in. If you run Ansible as `root`, the role fails before mutating the host unless you explicitly set this to `true`.
+
+Example: allow root SSH for recovery paths.
+
+```yaml
+- hosts: workers
+  vars:
+    ubuntu_2604_ssh_allow_root_login: true
+  roles:
+    - role: ubuntu_2604
+```
+
+### `ubuntu_2604_ssh_allow_tcp_forwarding`
+
+Whether to allow SSH TCP forwarding (tunnels).
+
+| Attribute     | Value          |
+|---------------|----------------|
+| Type          | Boolean        |
+| Default       | `false`        |
+| Required      | No             |
+
+When `false`, the role sets `AllowTcpForwarding no` in the SSH hardening drop-in.
+
+Example: allow TCP forwarding.
+
+```yaml
+- hosts: workers
+  vars:
+    ubuntu_2604_ssh_allow_tcp_forwarding: true
   roles:
     - role: ubuntu_2604
 ```
@@ -110,6 +174,40 @@ Swap is disabled at runtime and all swap entries are removed from `/etc/fstab`.
 
 A systemd one-shot service (`transparent-hugepages-madvise`) sets THP to `madvise` on boot, letting runtimes opt in without forcing global hugepages.
 
+### SSH
+
+The role hardens SSH through a priority drop-in at `/etc/ssh/sshd_config.d/00-ubuntu-2604-hardening.conf` so site-specific or cloud-init snippets in later drop-ins do not silently override the policy. Before applying hardening, the role runs guardrails that prevent accidental lockout:
+
+- If Ansible is connected as `root`, the role refuses to continue unless `ubuntu_2604_ssh_allow_root_login` is `true`.
+- If the current Ansible user has no `~/.ssh/authorized_keys` file, the role refuses to continue because disabling password authentication would lock you out.
+
+The drop-in enforces the following settings:
+
+| Setting | Value | Rationale |
+|---------|-------|-----------|
+| `PasswordAuthentication` | `no` | Require key-based authentication |
+| `PermitRootLogin` | `no` (unless opted in) | Reduce root attack surface |
+| `PubkeyAuthentication` | `yes` | Ensure key access works |
+| `PermitEmptyPasswords` | `no` | Block empty password logins |
+| `HostbasedAuthentication` | `no` | Disable legacy trust |
+| `IgnoreRhosts` | `yes` | Disable `.rhosts` trust |
+| `PermitUserEnvironment` | `no` | Prevent user-controlled environment injection |
+| `AllowTcpForwarding` | `no` (unless opted in) | Avoid unaudited tunnels on workers |
+| `X11Forwarding` | `no` | Disable desktop forwarding |
+| `ClientAliveInterval` | `300` | Bound idle sessions |
+| `ClientAliveCountMax` | `0` | Terminate unresponsive sessions |
+| `LoginGraceTime` | `60` | Limit unauthenticated window |
+| `MaxAuthTries` | `3` | Slow brute-force attempts |
+| `MaxSessions` | `3` | Limit concurrent sessions per connection |
+| `MaxStartups` | `10:30:60` | Rate-limit unauthenticated connections |
+| `LogLevel` | `VERBOSE` | Aid recovery without debug noise |
+| Ciphers | `aes256-ctr,aes192-ctr,aes128-ctr` | Small audited set |
+| MACs | `hmac-sha2-512,hmac-sha2-256` | Small audited set |
+| KexAlgorithms | `ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256` | Small audited set |
+| HostKeyAlgorithms | `ecdsa-sha2-nistp521,ecdsa-sha2-nistp384,ecdsa-sha2-nistp256` | Small audited set |
+
+The role also tightens permissions on `/etc/ssh/sshd_config` and host keys, validates the configuration with `sshd -t`, and ensures the `ssh` service is enabled and running.
+
 ### APT and unattended upgrades
 
 The role manages APT deterministically so package resolution is consistent across rebuilds and does not rely on cloud-init defaults.
@@ -127,9 +225,13 @@ Mirror lists are written to:
 
 Sources are configured in DEB822 format at `/etc/apt/sources.list.d/ubuntu.sources` and use the `mirror+file` URI scheme so APT respects the priority lists.
 
+**cloud-init wait**
+
+On cloud images, the role waits up to 30 minutes for cloud-init to complete before mutating the host. This prevents failures from dpkg locks held by boot-time package operations. If cloud-init exits with errors, the role warns and continues because the sequencing barrier is satisfied; inspect `cloud-init status --long` if you need details.
+
 **Safe upgrades**
 
-During each role run the role applies `upgrade: safe`, `autoremove`, and `autoclean`. This keeps fresh VMs current without accepting disruptive dependency changes or leaving orphaned packages on small disks. If upgraded packages create `/var/run/reboot-required`, the role reports the marker and package list but does not reboot the host.
+During each role run the role applies `upgrade: safe`, `autoremove`, and `autoclean`. The `apt` task uses a 10-minute lock timeout so cloud-init or unattended upgrades at boot do not cause immediate failure. This keeps fresh VMs current without accepting disruptive dependency changes or leaving orphaned packages on small disks. If upgraded packages create `/var/run/reboot-required`, the role reports the marker and package list but does not reboot the host.
 
 **Unattended security upgrades**
 
@@ -187,6 +289,7 @@ All tasks carry semantic tags so you can run or skip sections with `ansible-play
 | Tag | Covers |
 |-----|--------|
 | `kernel` | Kernel modules, sysctls, PAM limits, transparent hugepages service |
+| `ssh` | SSH hardening, drop-in config, and guardrails |
 | `systemd` | System manager resource limits and cgroup accounting defaults |
 | `swap` | Swap disable and `/etc/fstab` cleanup |
 | `aws` | EC2 metadata gathering and regional APT mirror selection |

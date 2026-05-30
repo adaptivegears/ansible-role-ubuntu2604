@@ -11,6 +11,7 @@ Apply the `ubuntu_2604` role to a target host and verify that container-optimize
 - A target host running **Ubuntu 26.04**
 - **Ansible 2.15** or newer on your control node
 - SSH access to the target host as a user with `sudo` privileges
+- **SSH key-based access** for the Ansible user. The role disables password authentication and will fail if the current Ansible user has no `~/.ssh/authorized_keys` file.
 
 ## Step 1 — Install dependencies
 
@@ -43,6 +44,8 @@ Use the included playbook or add the role to your own:
 ansible-playbook -i inventory.ini playbook.yml
 ```
 
+The role waits up to 30 minutes for cloud-init to complete before mutating the host, so fresh cloud VMs do not fail on dpkg locks or partial boot-time state.
+
 If your VMs run on AWS, enable AWS-aware behavior such as regional APT mirror selection:
 
 ```yaml
@@ -69,7 +72,7 @@ Run the included test suite against your inventory:
 make test
 ```
 
-This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks in parallel across all hosts to confirm kernel modules, sysctl persistence, PAM limits, systemd manager defaults, transparent hugepages, swap removal, APT source and mirror configuration, unattended-upgrade policy, log pressure controls, and locale configuration.
+This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks in parallel across all hosts to confirm kernel modules, sysctl persistence, PAM limits, systemd manager defaults, transparent hugepages, swap removal, APT source and mirror configuration, unattended-upgrade policy, log pressure controls, locale configuration, and SSH hardening.
 
 You can also spot-check individual settings with ad-hoc Ansible commands:
 
@@ -98,6 +101,7 @@ ansible workers -i inventory.ini -m ansible.builtin.shell -a "resolvectl status"
 - Operational troubleshooting toolbox installed (`htop`, `iotop`, `jq`, `tcpdump`, `tmux`, `bind9-dnsutils`, and others)
 - Timezone pinned to UTC with `chrony` time synchronization active
 - `systemd-resolved` enabled with Cloudflare fallback DNS (`1.1.1.1`, `1.0.0.1`) for when DHCP resolvers are unavailable
+- SSH hardened with a priority drop-in (`PasswordAuthentication no`, key-only algorithms, idle timeouts, TCP forwarding disabled) and guardrails that prevent applying the role without key-based access
 - Dynamic and static MOTD cleared and `motd-news.timer` masked for quiet SSH logins
 - Tasks tagged for selective execution
 
@@ -110,6 +114,7 @@ Available tags:
 | Tag | Section |
 |-----|---------|
 | `kernel` | Kernel modules, sysctls, PAM limits, and transparent hugepages |
+| `ssh` | SSH hardening, drop-in config, and guardrails |
 | `systemd` | System manager resource limits and cgroup accounting defaults |
 | `swap` | Swap disable and fstab cleanup |
 | `aws` | EC2 metadata gathering and regional APT mirror selection |

@@ -72,7 +72,7 @@ Run the included test suite against your inventory:
 make test
 ```
 
-This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks in parallel across all hosts to confirm kernel modules, sysctl persistence, PAM limits, systemd manager defaults, transparent hugepages, address-selection policy, swap removal, APT source and mirror configuration, snapd removal and reinstallation block, VPS package cleanup, unattended-upgrade policy, log pressure controls, locale configuration, and SSH hardening.
+This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks in parallel across all hosts to confirm kernel modules, sysctl persistence, PAM limits, systemd manager defaults, transparent hugepages, swap removal, APT source and mirror configuration, snapd removal and reinstallation block, VPS package cleanup, unattended-upgrade policy, log pressure controls, locale configuration, and SSH hardening.
 
 You can also spot-check individual settings with ad-hoc Ansible commands:
 
@@ -91,7 +91,6 @@ ansible workers -i inventory.ini -m ansible.builtin.shell -a "resolvectl status"
 - PAM soft and hard limits for `nofile` and `nproc` raised to `65536`
 - Systemd service defaults align file descriptor, process, task, and memory accounting behavior with dense container workloads
 - Transparent hugepages set to `madvise` via systemd service
-- IPv4 preferred for dual-stack destinations without disabling IPv6
 - Swap disabled and removed from `/etc/fstab`
 - APT sources configured with AWS-aware regional mirror selection (when `ubuntu2604_cloud: "aws"`) and official-archive fallback
 - Safe package upgrades, autoremove, and autoclean applied during the run, with reboot-required markers reported
@@ -117,7 +116,7 @@ Available tags:
 | Tag | Section |
 |-----|---------|
 | `kernel` | Kernel modules, sysctls, PAM limits, and transparent hugepages |
-| `network` | Dual-stack address-selection policy |
+| `network` | (reserved) |
 | `ssh` | SSH hardening, drop-in config, and guardrails |
 | `systemd` | System manager resource limits and cgroup accounting defaults |
 | `swap` | Swap disable and fstab cleanup |

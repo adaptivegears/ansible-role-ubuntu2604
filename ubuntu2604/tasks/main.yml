@@ -281,37 +281,6 @@
   tags: kernel
 
 # -----------------------------------------------------------------------------
-# Address selection
-# -----------------------------------------------------------------------------
-# Keep IPv6 configured but prefer IPv4 when both families are available; some
-# providers have IPv6 paths that connect quickly yet stall on large egress.
-# -----------------------------------------------------------------------------
-
-- name: Address selection | Prefer IPv4 for dual-stack destinations
-  become: true
-  ansible.builtin.blockinfile:
-    path: /etc/gai.conf
-    create: true
-    owner: root
-    group: root
-    mode: "0644"
-    marker: >-
-      # {mark} ansible-role-ubuntu2604 -
-      https://github.com/adaptivegears/ansible-role-ubuntu2604
-    block: |
-      # Preserve the documented precedence table because glibc replaces the
-      # default table as soon as any precedence line is configured.
-      precedence ::1/128       50
-      precedence ::/0          40
-      precedence 2002::/16     30
-      precedence ::/96         20
-      # Prefer IPv4-mapped destinations without disabling IPv6; this avoids
-      # slow-but-connectable IPv6 egress paths pinning long-lived downloads.
-      precedence ::ffff:0:0/96 100
-    state: "{{ ubuntu2604_prefer_ipv4 | bool | ternary('present', 'absent') }}"
-  tags: network
-
-# -----------------------------------------------------------------------------
 # Systemd
 # -----------------------------------------------------------------------------
 # PAM misses system-manager services; manager defaults give runtimes density

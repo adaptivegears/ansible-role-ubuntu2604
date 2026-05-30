@@ -56,12 +56,12 @@ If your VMs run on AWS, enable AWS-aware behavior such as regional APT mirror se
     - role: ubuntu2604
 ```
 
-If a host is intentionally IPv4-only, disable IPv6 with sysctl settings. Leave this off for Kubernetes or container hosts that require IPv6 or dual-stack networking.
+IPv6 is disabled by default with sysctl settings. If a host requires IPv6 or dual-stack networking, keep IPv6 enabled explicitly.
 
 ```yaml
 - hosts: workers
   vars:
-    ubuntu2604_disable_ipv6: true
+    ubuntu2604_disable_ipv6: false
   roles:
     - role: ubuntu2604
 ```
@@ -97,7 +97,7 @@ ansible workers -i inventory.ini -m ansible.builtin.shell -a "resolvectl status"
 ## What changed on the host
 
 - Kernel modules `br_netfilter`, `nf_conntrack`, and `overlay` are loaded and persisted
-- 30+ sysctl parameters tuned for container networking, density, recovery, and optional IPv6 disablement
+- 30+ sysctl parameters tuned for container networking, density, recovery, and IPv6 policy
 - PAM soft and hard limits for `nofile` and `nproc` raised to `65536`
 - Systemd service defaults align file descriptor, process, task, and memory accounting behavior with dense container workloads
 - Transparent hugepages set to `madvise` via systemd service

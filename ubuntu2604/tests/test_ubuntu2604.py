@@ -17,10 +17,46 @@ def locale_a_name(locale: str) -> str:
 
 
 # -----------------------------------------------------------------------------
+# Breadcrumbs
+# -----------------------------------------------------------------------------
+
+
+ROLE_SOURCE_URL = "https://github.com/adaptivegears/ansible-role-ubuntu2604"
+EXPECTED_BREADCRUMBED_FILES = (
+    "/etc/modules-load.d/99-ubuntu2604-container.conf",
+    "/etc/sysctl.d/99-ubuntu2604.conf",
+    "/etc/security/limits.d/60-ubuntu2604-container.conf",
+    "/etc/systemd/system/transparent-hugepages-madvise.service",
+    "/etc/systemd/system.conf.d/60-ubuntu2604-density.conf",
+    "/etc/apt/ubuntu-mirrors.txt",
+    "/etc/apt/ubuntu-security-mirrors.txt",
+    "/etc/apt/sources.list.d/ubuntu.sources",
+    "/etc/apt/apt.conf.d/20auto-upgrades",
+    "/etc/apt/apt.conf.d/52ubuntu2604-unattended-upgrades",
+    "/etc/needrestart/conf.d/99-ubuntu2604-no-auto-restarts.conf",
+    "/etc/systemd/journald.conf.d/60-ubuntu2604-log-pressure.conf",
+    "/etc/ssh/sshd_config.d/00-ubuntu2604-hardening.conf",
+    "/etc/default/locale",
+    "/etc/systemd/resolved.conf.d/60-ubuntu2604-fallback-dns.conf",
+)
+
+
+@pytest.mark.parametrize("path", EXPECTED_BREADCRUMBED_FILES)
+def test_role_owned_text_file_has_source_breadcrumb(host, path):
+    config = host.file(path)
+
+    assert config.exists
+    assert config.contains(grep_literal(ROLE_SOURCE_URL))
+
+
+# -----------------------------------------------------------------------------
 # Kernel
 # -----------------------------------------------------------------------------
 
 
+KERNEL_MODULES_CONFIG = "/etc/modules-load.d/99-ubuntu2604-container.conf"
+SYSCTL_CONFIG = "/etc/sysctl.d/99-ubuntu2604.conf"
+PAM_LIMITS_CONFIG = "/etc/security/limits.d/60-ubuntu2604-container.conf"
 EXPECTED_KERNEL_MODULES = (
     "br_netfilter",
     "nf_conntrack",
@@ -31,6 +67,11 @@ EXPECTED_KERNEL_MODULES = (
 @pytest.mark.parametrize("module", EXPECTED_KERNEL_MODULES)
 def test_container_kernel_module_is_loaded(host, module):
     assert host.file(f"/sys/module/{module}").is_directory
+
+
+@pytest.mark.parametrize("module", EXPECTED_KERNEL_MODULES)
+def test_container_kernel_module_is_persistent(host, module):
+    assert host.file(KERNEL_MODULES_CONFIG).contains(rf"^{module}$")
 
 
 EXPECTED_SYSCTLS = {
@@ -87,7 +128,7 @@ def test_sysctl_value_is_persistent(host, name, expected):
         f"[[:space:]]*{grep_literal(expected)}[[:space:]]*$"
     )
 
-    assert host.file("/etc/sysctl.d/99-ubuntu2604.conf").contains(pattern)
+    assert host.file(SYSCTL_CONFIG).contains(pattern)
 
 
 EXPECTED_PAM_LIMITS = (
@@ -105,7 +146,7 @@ def test_pam_limit_is_configured(host, limit_type, name, expected):
         rf"[[:space:]][[:space:]]*{expected}[[:space:]]*$"
     )
 
-    assert host.file("/etc/security/limits.conf").contains(pattern)
+    assert host.file(PAM_LIMITS_CONFIG).contains(pattern)
 
 
 def test_transparent_hugepages_service_is_active_and_enabled(host):

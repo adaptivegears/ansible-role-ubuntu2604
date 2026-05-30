@@ -39,10 +39,20 @@
       - status
       - --wait
   register: ubuntu_2604__cloud_init_timeout
-  # Exit code 2 means cloud-init finished with recoverable errors; it is no longer holding boot-time APT work.
-  failed_when: ubuntu_2604__cloud_init_timeout.rc not in [0, 2]
+  # This is a sequencing barrier, not cloud-init validation; rc=1 can mean cloud-init is done but recorded errors.
+  failed_when: ubuntu_2604__cloud_init_timeout.rc not in [0, 1, 2]
   changed_when: false
   when: ubuntu_2604__cloud_init.stat.exists
+
+- name: Prerequisite | Report cloud-init completed with errors
+  ansible.builtin.debug:
+    msg: >-
+      cloud-init completed with errors before this role started. Continuing
+      because boot-time cloud-init APT work is no longer running; inspect
+      'cloud-init status --long' and /var/log/cloud-init.log for root cause.
+  when:
+    - ubuntu_2604__cloud_init.stat.exists
+    - ubuntu_2604__cloud_init_timeout.rc == 1
 
 - name: Prerequisite | Select SSH login user
   ansible.builtin.set_fact:

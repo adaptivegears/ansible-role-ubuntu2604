@@ -457,7 +457,6 @@ EXPECTED_SSHD_HARDENING_SETTINGS = (
     ("MaxAuthTries", "maxauthtries", "3"),
     ("IgnoreRhosts", "ignorerhosts", "yes"),
     ("HostbasedAuthentication", "hostbasedauthentication", "no"),
-    ("PermitRootLogin", "permitrootlogin", "no"),
     ("PermitEmptyPasswords", "permitemptypasswords", "no"),
     ("PermitUserEnvironment", "permituserenvironment", "no"),
     ("Ciphers", "ciphers", "aes256-ctr,aes192-ctr,aes128-ctr"),

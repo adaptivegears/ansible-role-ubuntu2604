@@ -238,6 +238,16 @@ APT_VPS_REMOVED_PACKAGES = (
     "software-properties-common",
     "packagekit",
     "polkitd",
+    "apport",
+    "apport-core-dump-handler",
+    "pollinate",
+    "networkd-dispatcher",
+    "ubuntu-pro-client",
+    "ubuntu-pro-client-l10n",
+    "update-manager-core",
+    "update-notifier-common",
+    "ubuntu-minimal",
+    "sysstat",
 )
 
 

@@ -585,6 +585,23 @@
       - software-properties-common
       - packagekit
       - polkitd
+      # Crash-reporting packages are for interactive Ubuntu bug reporting, not
+      # production VPS recovery where logs and core policies are managed separately.
+      - apport
+      - apport-core-dump-handler
+      # One-shot cloud entropy and network event hook helpers have no steady-state
+      # role here, so keeping their enabled units only adds boot/runtime noise.
+      - pollinate
+      - networkd-dispatcher
+      # Ubuntu Pro and desktop-style update notification plumbing are not used on
+      # this self-managed VPS image and otherwise preserve unrelated dependencies.
+      - ubuntu-pro-client
+      - ubuntu-pro-client-l10n
+      - update-manager-core
+      - update-notifier-common
+      - ubuntu-minimal
+      # The role favors on-demand incident tools over periodic sar collection.
+      - sysstat
     state: absent
     purge: true
     lock_timeout: 600

@@ -72,7 +72,7 @@ Run the included test suite against your inventory:
 make test
 ```
 
-This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks in parallel across all hosts to confirm kernel modules, sysctl persistence, PAM limits, systemd manager defaults, transparent hugepages, address-selection policy, swap removal, APT source and mirror configuration, unattended-upgrade policy, log pressure controls, locale configuration, and SSH hardening.
+This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks in parallel across all hosts to confirm kernel modules, sysctl persistence, PAM limits, systemd manager defaults, transparent hugepages, address-selection policy, swap removal, APT source and mirror configuration, snapd removal and reinstallation block, VPS package cleanup, unattended-upgrade policy, log pressure controls, locale configuration, and SSH hardening.
 
 You can also spot-check individual settings with ad-hoc Ansible commands:
 
@@ -103,6 +103,8 @@ ansible workers -i inventory.ini -m ansible.builtin.shell -a "resolvectl status"
 - Timezone pinned to UTC with `chrony` time synchronization active
 - `systemd-resolved` enabled with Cloudflare fallback DNS (`1.1.1.1`, `1.0.0.1`) for when DHCP resolvers are unavailable
 - SSH hardened with a priority drop-in (`PasswordAuthentication no`, key-only algorithms, idle timeouts, TCP forwarding disabled) and guardrails that prevent applying the role without key-based access
+- `snapd` removed and residual directories cleaned when no snaps are installed, with reinstallation blocked via APT preferences
+- ~20 VPS-irrelevant packages purged, including desktop helpers, hardware daemons, cloud agents, and interactive tooling
 - Dynamic and static MOTD cleared and `motd-news.timer` masked for quiet SSH logins
 - Tasks tagged for selective execution
 
@@ -129,6 +131,7 @@ Available tags:
 | `locale` | Locale generation and default locale setting |
 | `time` | Timezone and chrony time synchronization |
 | `dns` | systemd-resolved stub and fallback DNS configuration |
+| `snap` | Snapd removal, guardrails, and reinstallation block |
 | `motd` | MOTD cleanup and motd-news timer masking |
 
 Example: apply only kernel and swap tuning:

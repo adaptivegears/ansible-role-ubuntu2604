@@ -292,6 +292,32 @@ The role also ensures `/var/log/journal` exists with the standard `systemd-journ
 
 The role makes `nftables` the host firewall manager on Ubuntu 26.04. It installs `conntrack`, `iptables`, and `nftables`, enables the `nftables` service, masks `ufw`, and pins the iptables-family compatibility commands to the nft backend. The role does not manage `/etc/nftables.conf` or define filtering policy; site-specific firewall rules can own that file without fighting this role.
 
+### Snap
+
+The role removes `snapd` from server images when no snap packages are installed. Before removal, it checks for installed snaps and fails with a clear message if any are present, so workload ownership is not accidentally destroyed.
+
+When safe to proceed, the role:
+
+- Stops `snapd.service`, `snapd.socket`, and `snapd.seeded.service`
+- Purges the `snapd` package
+- Blocks reinstallation by pinning `snapd` at negative priority in `/etc/apt/preferences.d/99-ubuntu2604-nosnap.pref`
+- Removes residual directories: `/snap`, `/var/cache/snapd`, `/var/lib/snapd`, `/var/snap`
+- Reloads systemd units so stale mount and service references are dropped
+
+If your workload relies on snaps, either migrate them to another packaging format or skip the `snap` tag.
+
+### VPS package removal
+
+The role purges packages that are relevant to desktops, physical hardware, or broad server images but unnecessary on a KVM VPS running container workloads. Removed packages include:
+
+- **Hardware daemons**: `modemmanager`, `fwupd`, `udisks2`, `bolt`
+- **Storage agents**: `multipath-tools`, `open-iscsi`, `open-vm-tools`
+- **GUI/package helpers**: `software-properties-common`, `packagekit`, `polkitd`
+- **Crash reporting**: `apport`, `apport-core-dump-handler`
+- **Cloud/interactive tooling**: `pollinate`, `networkd-dispatcher`, `ubuntu-pro-client`, `ubuntu-pro-client-l10n`, `update-manager-core`, `update-notifier-common`, `ubuntu-minimal`, `sysstat`
+
+These removals reduce image size, idle services, and boot-time noise. The role does not purge arbitrary dependencies; only the listed packages are targeted.
+
 ### Operational packages
 
 The role installs a standard troubleshooting toolbox so incident response does not start by changing package state. Installed packages include `bind9-dnsutils`, `curl`, `exip`, `htop`, `iotop`, `jq`, `less`, `lsof`, `tcpdump`, `tmux`, `traceroute`, `tree`, `unzip`, and `wget`.
@@ -329,6 +355,7 @@ All tasks carry semantic tags so you can run or skip sections with `ansible-play
 | `locale` | Locale generation and default locale setting |
 | `time` | Timezone and chrony time synchronization |
 | `dns` | systemd-resolved stub and fallback DNS configuration |
+| `snap` | Snapd removal, guardrails, and reinstallation block |
 | `motd` | MOTD cleanup and motd-news timer masking |
 
 Example: run only APT and upgrade tasks:

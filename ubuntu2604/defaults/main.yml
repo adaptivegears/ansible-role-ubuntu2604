@@ -1,5 +1,6 @@
 ---
 ubuntu2604_cloud: ""
+ubuntu2604_prefer_ipv4: true
 ubuntu2604_locale: en_US.UTF-8
 ubuntu2604_timezone: UTC
 ubuntu2604_ssh_allow_root_login: false

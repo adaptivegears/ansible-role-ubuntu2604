@@ -28,6 +28,7 @@ EXPECTED_BREADCRUMBED_FILES = (
     "/etc/security/limits.d/60-ubuntu2604-container.conf",
     "/etc/systemd/system/transparent-hugepages-madvise.service",
     "/etc/systemd/system.conf.d/60-ubuntu2604-density.conf",
+    "/etc/gai.conf",
     "/etc/apt/ubuntu-mirrors.txt",
     "/etc/apt/ubuntu-security-mirrors.txt",
     "/etc/apt/sources.list.d/ubuntu.sources",
@@ -198,6 +199,31 @@ def test_systemd_density_config_avoids_deprecated_cpu_accounting_default(host):
     assert not host.file(SYSTEMD_DENSITY_CONFIG).contains(
         r"^[[:space:]]*DefaultCPUAccounting[[:space:]]="
     )
+
+
+# -----------------------------------------------------------------------------
+# Address selection
+# -----------------------------------------------------------------------------
+
+
+GAI_CONFIG = "/etc/gai.conf"
+EXPECTED_GAI_PRECEDENCE = {
+    "::1/128": "50",
+    "::/0": "40",
+    "2002::/16": "30",
+    "::/96": "20",
+    "::ffff:0:0/96": "100",
+}
+
+
+@pytest.mark.parametrize("prefix, precedence", EXPECTED_GAI_PRECEDENCE.items())
+def test_gai_precedence_is_configured(host, prefix, precedence):
+    pattern = (
+        f"^precedence[[:space:]][[:space:]]*{grep_literal(prefix)}"
+        f"[[:space:]][[:space:]]*{precedence}$"
+    )
+
+    assert host.file(GAI_CONFIG).contains(pattern)
 
 
 # -----------------------------------------------------------------------------

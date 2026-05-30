@@ -1,6 +1,6 @@
 # Configuration
 
-The `ubuntu2604` role exposes five user-configurable variables. All other settings are applied as fixed defaults tuned for container-worker VMs.
+The `ubuntu2604` role exposes six user-configurable variables. All other settings are applied as fixed defaults tuned for container-worker VMs.
 
 ## Variables
 
@@ -22,6 +22,28 @@ Example: enable AWS-aware behavior.
 - hosts: workers
   vars:
     ubuntu2604_cloud: "aws"
+  roles:
+    - role: ubuntu2604
+```
+
+### `ubuntu2604_prefer_ipv4`
+
+Whether to prefer IPv4 when a hostname resolves to both IPv4 and IPv6 addresses.
+
+| Attribute     | Value          |
+|---------------|----------------|
+| Type          | Boolean        |
+| Default       | `true`         |
+| Required      | No             |
+
+When `true`, the role manages an `/etc/gai.conf` block that raises the precedence of IPv4-mapped addresses while leaving IPv6 configured and usable. This avoids long downloads and registry pulls being pinned to IPv6 paths that connect successfully but perform poorly. The setting applies to clients that follow glibc `getaddrinfo(3)` address selection; runtimes with custom resolvers may need application-specific address-family configuration.
+
+Example: keep the distribution address-selection policy.
+
+```yaml
+- hosts: workers
+  vars:
+    ubuntu2604_prefer_ipv4: false
   roles:
     - role: ubuntu2604
 ```
@@ -174,6 +196,10 @@ Swap is disabled at runtime and all swap entries are removed from `/etc/fstab`.
 
 A systemd one-shot service (`transparent-hugepages-madvise`) sets THP to `madvise` on boot, letting runtimes opt in without forcing global hugepages.
 
+### Address selection
+
+By default the role manages an `/etc/gai.conf` block that preserves glibc's documented precedence table and raises `::ffff:0:0/96` to `100`. This prefers IPv4 for dual-stack destinations without disabling IPv6, reducing exposure to provider or transit IPv6 paths that complete TCP handshakes but stall during bulk egress. Set `ubuntu2604_prefer_ipv4: false` to remove the managed block and use the distribution policy.
+
 ### SSH
 
 The role hardens SSH through a priority drop-in at `/etc/ssh/sshd_config.d/00-ubuntu2604-hardening.conf` so site-specific or cloud-init snippets in later drop-ins do not silently override the policy. Before applying hardening, the role runs guardrails that prevent accidental lockout:
@@ -289,6 +315,7 @@ All tasks carry semantic tags so you can run or skip sections with `ansible-play
 | Tag | Covers |
 |-----|--------|
 | `kernel` | Kernel modules, sysctls, PAM limits, transparent hugepages service |
+| `network` | Dual-stack address-selection policy |
 | `ssh` | SSH hardening, drop-in config, and guardrails |
 | `systemd` | System manager resource limits and cgroup accounting defaults |
 | `swap` | Swap disable and `/etc/fstab` cleanup |

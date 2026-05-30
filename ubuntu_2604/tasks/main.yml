@@ -34,7 +34,7 @@
   ansible.builtin.command:
     argv:
       - timeout
-      - "600"
+      - "1800"
       - /usr/bin/cloud-init
       - status
       - --wait

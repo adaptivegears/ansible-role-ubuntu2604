@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow [CalVer](https://calver.org/) (`YYYY.M.MICRO`).
 
+## [2026.5.7] - 2026-05-30
+
+### Highlights
+This release slims VPS images by removing snapd and desktop-style packages, renames the role and its variables for consistency, and adds tunable IPv4 preference for dual-stack hosts.
+
+### New Features
+- **IPv4 preference on dual-stack**: Configures `/etc/gai.conf` so IPv4 is preferred when both families are available without disabling IPv6; controlled by `ubuntu2604_prefer_ipv4` (default `true`)
+- **Snapd removal with guardrails**: Removes `snapd` and residual directories when no snaps are installed, and pins the package at negative priority so it cannot be reinstalled accidentally
+- **VPS image slimming**: Purges ~20 VPS-irrelevant packages including desktop helpers (`packagekit`, `polkitd`), hardware daemons (`fwupd`, `modemmanager`, `bolt`), cloud agents (`open-vm-tools`, `ubuntu-pro-client`), and interactive tooling (`apport`, `update-manager-core`, `sysstat`)
+
+### Breaking Changes
+- **Role renamed to `ubuntu2604`**: The role directory, variable prefix, and documentation references changed from `ubuntu_2604` to `ubuntu2604`. Update playbook imports, variable overrides, and any external references accordingly.
+
+### Improvements
+- **Removed `ansible.posix` dependency**: All configuration persistence now uses builtin `copy` and `command` modules, eliminating the external collection requirement
+- **SSH test alignment**: Testinfra no longer hardcodes `PermitRootLogin no`; it now follows the `ubuntu2604_ssh_allow_root_login` default
+
+### Internal
+- Reverted restrictive `.envrc` setup to allow `dotenv` loading and added `.env` to `.gitignore`
+
 ## [2026.5.6] - 2026-05-30
 
 ### Highlights

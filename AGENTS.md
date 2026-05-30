@@ -1,4 +1,4 @@
-# ansible-role-ubuntu-2604
+# ansible-role-ubuntu2604
 
 ## IMPORTANT behavioral guardrails
 
@@ -35,7 +35,7 @@ Every changed line should trace directly to the user request or to keeping that 
 
 ## Ansible style
 
-- Keep role tasks in `ubuntu_2604/tasks/main.yml` until the file becomes too large to navigate.
+- Keep role tasks in `ubuntu2604/tasks/main.yml` until the file becomes too large to navigate.
 - Group tasks with comment sections using full-width separators and a short rationale:
 
   ```yaml
@@ -57,7 +57,7 @@ Every changed line should trace directly to the user request or to keeping that 
 ## Testinfra verification
 
 - Use testinfra for production deployment verification.
-- Keep verification in `ubuntu_2604/tests/test_ubuntu_2604.py`.
+- Keep verification in `ubuntu2604/tests/test_ubuntu2604.py`.
 - Keep tests self-contained by hardcoding the expected role contract in the tests.
 - Use native testinfra modules such as `host.sysctl`, `host.file`, `host.service`, and `host.package`.
 - Place expected-value constants close to the tests that use them, grouped by semantic section.

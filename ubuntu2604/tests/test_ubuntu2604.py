@@ -1,4 +1,4 @@
-"""Production verification for the ubuntu_2604 role."""
+"""Production verification for the ubuntu2604 role."""
 
 from __future__ import annotations
 
@@ -87,7 +87,7 @@ def test_sysctl_value_is_persistent(host, name, expected):
         f"[[:space:]]*{grep_literal(expected)}[[:space:]]*$"
     )
 
-    assert host.file("/etc/sysctl.d/99-ubuntu-2604.conf").contains(pattern)
+    assert host.file("/etc/sysctl.d/99-ubuntu2604.conf").contains(pattern)
 
 
 EXPECTED_PAM_LIMITS = (
@@ -127,7 +127,7 @@ def test_transparent_hugepages_mode_is_madvise(host):
 # -----------------------------------------------------------------------------
 
 
-SYSTEMD_DENSITY_CONFIG = "/etc/systemd/system.conf.d/60-ubuntu-2604-density.conf"
+SYSTEMD_DENSITY_CONFIG = "/etc/systemd/system.conf.d/60-ubuntu2604-density.conf"
 EXPECTED_SYSTEMD_MANAGER_SETTINGS = {
     "DefaultLimitNOFILE": "65536",
     "DefaultLimitNPROC": "65536",
@@ -230,8 +230,8 @@ def test_apt_security_mirrors_prefer_official_security_endpoint(host):
 
 
 UNATTENDED_AUTO_UPGRADES = "/etc/apt/apt.conf.d/20auto-upgrades"
-UNATTENDED_REBOOT_POLICY = "/etc/apt/apt.conf.d/52ubuntu-2604-unattended-upgrades"
-NEEDRESTART_POLICY = "/etc/needrestart/conf.d/99-ubuntu-2604-no-auto-restarts.conf"
+UNATTENDED_REBOOT_POLICY = "/etc/apt/apt.conf.d/52ubuntu2604-unattended-upgrades"
+NEEDRESTART_POLICY = "/etc/needrestart/conf.d/99-ubuntu2604-no-auto-restarts.conf"
 EXPECTED_UNATTENDED_AUTO_UPGRADES = {
     "APT::Periodic::Update-Package-Lists": "1",
     "APT::Periodic::Unattended-Upgrade": "1",
@@ -292,7 +292,7 @@ def test_apt_maintenance_timer_is_enabled(host, timer):
 # -----------------------------------------------------------------------------
 
 
-JOURNALD_CONFIG = "/etc/systemd/journald.conf.d/60-ubuntu-2604-log-pressure.conf"
+JOURNALD_CONFIG = "/etc/systemd/journald.conf.d/60-ubuntu2604-log-pressure.conf"
 EXPECTED_JOURNALD_SETTINGS = {
     "Storage": "persistent",
     "Compress": "yes",
@@ -409,7 +409,7 @@ def test_operation_package_is_installed(host, package):
 
 
 SSHD_CONFIG = "/etc/ssh/sshd_config"
-SSHD_HARDENING_CONFIG = "/etc/ssh/sshd_config.d/00-ubuntu-2604-hardening.conf"
+SSHD_HARDENING_CONFIG = "/etc/ssh/sshd_config.d/00-ubuntu2604-hardening.conf"
 EXPECTED_SSHD_HARDENING_SETTINGS = (
     ("LogLevel", "loglevel", "VERBOSE"),
     ("X11Forwarding", "x11forwarding", "no"),
@@ -614,7 +614,7 @@ def test_resolv_conf_uses_systemd_stub(host):
 @pytest.mark.parametrize("address", EXPECTED_FALLBACK_DNS)
 def test_fallback_dns_is_configured(host, address):
     dropin = host.file(
-        "/etc/systemd/resolved.conf.d/60-ubuntu-2604-fallback-dns.conf"
+        "/etc/systemd/resolved.conf.d/60-ubuntu2604-fallback-dns.conf"
     )
 
     assert dropin.exists

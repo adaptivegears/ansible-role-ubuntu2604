@@ -4,7 +4,7 @@ Provision an Ubuntu 26.04 VM as a container worker in a few minutes.
 
 ## Goal
 
-Apply the `ubuntu_2604` role to a target host and verify that container-optimized settings are active.
+Apply the `ubuntu2604` role to a target host and verify that container-optimized settings are active.
 
 ## Prerequisites
 
@@ -51,9 +51,9 @@ If your VMs run on AWS, enable AWS-aware behavior such as regional APT mirror se
 ```yaml
 - hosts: workers
   vars:
-    ubuntu_2604_cloud: "aws"
+    ubuntu2604_cloud: "aws"
   roles:
-    - role: ubuntu_2604
+    - role: ubuntu2604
 ```
 
 Or reference the role directly:
@@ -61,7 +61,7 @@ Or reference the role directly:
 ```yaml
 - hosts: workers
   roles:
-    - role: ubuntu_2604
+    - role: ubuntu2604
 ```
 
 ## Step 4 — Verify the changes
@@ -92,7 +92,7 @@ ansible workers -i inventory.ini -m ansible.builtin.shell -a "resolvectl status"
 - Systemd service defaults align file descriptor, process, task, and memory accounting behavior with dense container workloads
 - Transparent hugepages set to `madvise` via systemd service
 - Swap disabled and removed from `/etc/fstab`
-- APT sources configured with AWS-aware regional mirror selection (when `ubuntu_2604_cloud: "aws"`) and official-archive fallback
+- APT sources configured with AWS-aware regional mirror selection (when `ubuntu2604_cloud: "aws"`) and official-archive fallback
 - Safe package upgrades, autoremove, and autoclean applied during the run, with reboot-required markers reported
 - Unattended security upgrades enabled with automatic reboots, shutdown-time installs, and needrestart service restarts blocked
 - Journald persistence, retention, and `/var/log` free-space pressure limits configured
@@ -144,4 +144,4 @@ ansible-playbook -i inventory.ini playbook.yml --skip-tags upgrade
 ## Next steps
 
 - [Configuration reference](../reference/configuration.md) — Customize role behavior.
-- Review `ubuntu_2604/tasks/main.yml` for the full list of applied settings.
+- Review `ubuntu2604/tasks/main.yml` for the full list of applied settings.

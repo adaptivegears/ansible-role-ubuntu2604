@@ -24,7 +24,7 @@ This release makes SSH hardening safer and sequencing more robust by adding guar
 This release adds SSH hardening, systemd manager density defaults, journald log pressure controls, nftables firewall ownership, and prerequisite assertions. APT mirror selection is safer, and more settings are exposed as user-configurable defaults.
 
 ### New Features
-- **SSH hardening**: Priority drop-in (`00-ubuntu-2604-hardening.conf`) pins a restricted algorithm set, disables password authentication, and limits forwarding; root login and TCP forwarding are configurable via `ubuntu_2604_ssh_allow_root_login` and `ubuntu_2604_ssh_allow_tcp_forwarding`
+- **SSH hardening**: Priority drop-in (`00-ubuntu2604-hardening.conf`) pins a restricted algorithm set, disables password authentication, and limits forwarding; root login and TCP forwarding are configurable via `ubuntu2604_ssh_allow_root_login` and `ubuntu2604_ssh_allow_tcp_forwarding`
 - **Systemd density defaults**: Manager drop-in sets `DefaultLimitNOFILE`, `DefaultLimitNPROC`, and `DefaultTasksMax` to `65536`, plus enables memory and task cgroup accounting so service-launched workloads inherit the same headroom as login sessions
 - **Journald log pressure controls**: Persistent journals capped at 1 GB total, 128 MB per file, 30-day retention, with reserved free space on `/var/log` and `/run` so log bursts cannot crowd out packages or workload state
 - **Firewall manager selection**: `nftables` is enabled as the host firewall manager, `ufw` is masked, and iptables-family compatibility commands are switched to the nft backend
@@ -33,7 +33,7 @@ This release adds SSH hardening, systemd manager density defaults, journald log 
 
 ### Improvements
 - **APT mirror safety**: Canonical archives are now primary, with EC2 regional mirrors as fallback, avoiding stale-index sync races; arm64 hosts use the standard archive instead of `ports.ubuntu.com`
-- **User-configurable defaults**: `ubuntu_2604_locale`, `ubuntu_2604_timezone`, and the new SSH toggles are now defined in `defaults/main.yml` instead of `vars/main.yml`
+- **User-configurable defaults**: `ubuntu2604_locale`, `ubuntu2604_timezone`, and the new SSH toggles are now defined in `defaults/main.yml` instead of `vars/main.yml`
 - **Expanded testinfra coverage**: New parametrized tests verify systemd manager settings, journald persistence, firewall state, SSH hardening, reboot markers, and APT mirror priorities
 
 ### Internal
@@ -52,7 +52,7 @@ This release adds operational troubleshooting packages, UTC time synchronization
 - **Quiet MOTD**: Removes dynamic MOTD entries, clears static `/etc/motd`, masks the `motd-news.timer`, and scrubs transient cache files for low-noise SSH logins on container workers
 
 ### Breaking Changes
-- **AWS detection is now explicit**: The role no longer auto-detects EC2 via platform heuristics. Set `ubuntu_2604_cloud: "aws"` to enable AWS-aware behavior such as regional APT mirror selection
+- **AWS detection is now explicit**: The role no longer auto-detects EC2 via platform heuristics. Set `ubuntu2604_cloud: "aws"` to enable AWS-aware behavior such as regional APT mirror selection
 
 ### Improvements
 - **Concise sysctl comments**: Rationale comments for kernel tuning settings were tightened to reduce redundancy without losing intent
@@ -86,7 +86,7 @@ This release adds deterministic APT source management with AWS regional mirror a
 This release adds a comprehensive pytest-testinfra verification suite, user-facing documentation, and faster parallel test execution.
 
 ### New Features
-- **Integration test suite**: `ubuntu_2604/tests/test_ubuntu_2604.py` verifies kernel modules, sysctl persistence, PAM limits, transparent hugepages, swap removal, and locale configuration using pytest-testinfra
+- **Integration test suite**: `ubuntu2604/tests/test_ubuntu2604.py` verifies kernel modules, sysctl persistence, PAM limits, transparent hugepages, swap removal, and locale configuration using pytest-testinfra
 - **Documentation site**: New `docs/` pages including a quickstart guide, configuration reference, and overview index
 
 ### Improvements
@@ -99,7 +99,7 @@ This release adds a comprehensive pytest-testinfra verification suite, user-faci
 ## [2026.5.1] - 2026-05-26
 
 ### Highlights
-Initial release of the `ubuntu_2604` role for provisioning Ubuntu 26.04 VMs for container workloads. The role favors predictable networking, dense process scheduling, and automatic recovery over general-purpose desktop defaults.
+Initial release of the `ubuntu2604` role for provisioning Ubuntu 26.04 VMs for container workloads. The role favors predictable networking, dense process scheduling, and automatic recovery over general-purpose desktop defaults.
 
 ### New Features
 - **Container-optimized kernel tuning**: Loads `br_netfilter`, `nf_conntrack`, and `overlay` modules; applies 30+ sysctl parameters for bridge netfilter, IPv4/IPv6 forwarding, connection tracking, file descriptor limits, and VMA mapping

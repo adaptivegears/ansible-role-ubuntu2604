@@ -1,6 +1,6 @@
 ---
 galaxy_info:
-  role_name: ubuntu_2604
+  role_name: ubuntu2604
   namespace: local
   author: local
   description: Ubuntu 26.04 server provisioning for container-worker VMs

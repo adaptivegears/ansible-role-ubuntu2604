@@ -27,38 +27,38 @@
 
 - name: Prerequisite | Read SSH user
   ansible.builtin.set_fact:
-    ubuntu_2604__ssh_user: >-
+    ubuntu2604__ssh_user: >-
       {{ ansible_user | default(ansible_ssh_user) }}
 
 - name: Prerequisite | Assert SSH hardening for root user
   ansible.builtin.assert:
     that:
-      - ubuntu_2604__ssh_user != "root" or ubuntu_2604_ssh_allow_root_login | bool
+      - ubuntu2604__ssh_user != "root" or ubuntu2604_ssh_allow_root_login | bool
     fail_msg: >-
       Refusing to disable root SSH while Ansible is connected as root. Connect as
       a non-root sudo user with SSH keys, or explicitly set
-      ubuntu_2604_ssh_allow_root_login=true after accepting that root key-based
+      ubuntu2604_ssh_allow_root_login=true after accepting that root key-based
       SSH remains part of the recovery path.
     success_msg: "SSH root access guardrail passed"
 
 - name: Prerequisite | Read SSH user account
   ansible.builtin.getent:
     database: passwd
-    key: "{{ ubuntu_2604__ssh_user }}"
+    key: "{{ ubuntu2604__ssh_user }}"
 
 - name: Prerequisite | Read SSH user authorized keys
   ansible.builtin.stat:
-    path: "{{ ansible_facts.getent_passwd[ubuntu_2604__ssh_user][4] }}/.ssh/authorized_keys"
-  register: ubuntu_2604__ssh_authorized_keys
+    path: "{{ ansible_facts.getent_passwd[ubuntu2604__ssh_user][4] }}/.ssh/authorized_keys"
+  register: ubuntu2604__ssh_authorized_keys
 
 - name: Prerequisite | Assert SSH hardening for password authentication
   ansible.builtin.assert:
     that:
-      - ubuntu_2604__ssh_authorized_keys.stat.exists
-      - ubuntu_2604__ssh_authorized_keys.stat.size | int > 0
+      - ubuntu2604__ssh_authorized_keys.stat.exists
+      - ubuntu2604__ssh_authorized_keys.stat.size | int > 0
     fail_msg: >-
       Refusing to disable SSH password authentication because the current Ansible
-      login user '{{ ubuntu_2604__ssh_user }}' has no authorized_keys file.
+      login user '{{ ubuntu2604__ssh_user }}' has no authorized_keys file.
       Provision SSH keys for this user, connect as a keyed sudo user, or import
       operator keys before applying this role.
     success_msg: "SSH key access guardrail passed"
@@ -66,7 +66,7 @@
 - name: Prerequisite | Get cloud-init
   ansible.builtin.stat:
     path: /usr/bin/cloud-init
-  register: ubuntu_2604__cloud_init
+  register: ubuntu2604__cloud_init
 
 - name: Prerequisite | Wait for cloud-init to finish
   ansible.builtin.command:
@@ -76,11 +76,11 @@
       - /usr/bin/cloud-init
       - status
       - --wait
-  register: ubuntu_2604__cloud_init_timeout
+  register: ubuntu2604__cloud_init_timeout
   # This is a sequencing barrier, not cloud-init validation; rc=1 can mean cloud-init is done but recorded errors.
-  failed_when: ubuntu_2604__cloud_init_timeout.rc not in [0, 1, 2]
+  failed_when: ubuntu2604__cloud_init_timeout.rc not in [0, 1, 2]
   changed_when: false
-  when: ubuntu_2604__cloud_init.stat.exists
+  when: ubuntu2604__cloud_init.stat.exists
 
 - name: Prerequisite | Report cloud-init completed with errors
   ansible.builtin.debug:
@@ -89,8 +89,8 @@
       because boot-time cloud-init APT work is no longer running; inspect
       'cloud-init status --long' and /var/log/cloud-init.log for root cause.
   when:
-    - ubuntu_2604__cloud_init.stat.exists
-    - ubuntu_2604__cloud_init_timeout.rc == 1
+    - ubuntu2604__cloud_init.stat.exists
+    - ubuntu2604__cloud_init_timeout.rc == 1
 
 # -----------------------------------------------------------------------------
 # Kernel
@@ -119,7 +119,7 @@
   ansible.posix.sysctl:
     name: "{{ item.name }}"
     value: "{{ item.value }}"
-    sysctl_file: /etc/sysctl.d/99-ubuntu-2604.conf
+    sysctl_file: /etc/sysctl.d/99-ubuntu2604.conf
     state: present
     reload: true
   tags: kernel
@@ -286,7 +286,7 @@
       WantedBy=multi-user.target
     mode: "0644"
   tags: kernel
-  register: ubuntu_2604__thp_service
+  register: ubuntu2604__thp_service
 
 - name: Kernel | Start transparent hugepages policy service
   become: true
@@ -294,7 +294,7 @@
     name: transparent-hugepages-madvise
     enabled: true
     # Reload units only when the generated policy changes.
-    daemon_reload: "{{ ubuntu_2604__thp_service.changed }}"
+    daemon_reload: "{{ ubuntu2604__thp_service.changed }}"
     state: started
   tags: kernel
 
@@ -318,7 +318,7 @@
 - name: Systemd | Configure container density defaults
   become: true
   ansible.builtin.copy:
-    dest: /etc/systemd/system.conf.d/60-ubuntu-2604-density.conf
+    dest: /etc/systemd/system.conf.d/60-ubuntu2604-density.conf
     content: |
       [Manager]
       # Keep service-launched workloads aligned with the kernel and PAM file
@@ -375,15 +375,15 @@
   amazon.aws.ec2_metadata_facts:
     # Longer IMDS token TTL prevents multi-interface/tag walks from expiring.
     metadata_token_ttl_seconds: 240
-  register: ubuntu_2604__ec2_metadata_facts
-  when: ubuntu_2604_cloud == "aws"
+  register: ubuntu2604__ec2_metadata_facts
+  when: ubuntu2604_cloud == "aws"
   failed_when: false
   changed_when: false
   tags: aws
 
 - name: AWS | Select region
   ansible.builtin.set_fact:
-    ubuntu_2604__aws_region: >-
+    ubuntu2604__aws_region: >-
       {{
         ansible_facts.get('ec2_instance_identity_document_region', '')
         if (
@@ -392,7 +392,7 @@
         )
         else ''
       }}
-  when: ubuntu_2604_cloud == "aws"
+  when: ubuntu2604_cloud == "aws"
   tags: aws
 
 # -----------------------------------------------------------------------------
@@ -411,15 +411,15 @@
   ansible.builtin.copy:
     dest: /etc/apt/ubuntu-mirrors.txt
     content: |
-      {% if ubuntu_2604__aws_region | default('') | length > 0 %}
+      {% if ubuntu2604__aws_region | default('') | length > 0 %}
       http://archive.ubuntu.com/ubuntu/	priority:1
-      http://{{ ubuntu_2604__aws_region }}.ec2.archive.ubuntu.com/ubuntu/	priority:2
+      http://{{ ubuntu2604__aws_region }}.ec2.archive.ubuntu.com/ubuntu/	priority:2
       {% else %}
       http://archive.ubuntu.com/ubuntu/	priority:1
       {% endif %}
     mode: "0644"
   tags: apt
-  register: ubuntu_2604__apt_primary_mirrors
+  register: ubuntu2604__apt_primary_mirrors
 
 # Make security.ubuntu.com authoritative; archive.ubuntu.com is a safer fallback
 # than lagging regional mirrors.
@@ -428,17 +428,17 @@
   ansible.builtin.copy:
     dest: /etc/apt/ubuntu-security-mirrors.txt
     content: |
-      {% if ubuntu_2604__aws_region | default('') | length > 0 %}
+      {% if ubuntu2604__aws_region | default('') | length > 0 %}
       http://security.ubuntu.com/ubuntu/	priority:1
       http://archive.ubuntu.com/ubuntu/	priority:2
-      http://{{ ubuntu_2604__aws_region }}.ec2.archive.ubuntu.com/ubuntu/	priority:3
+      http://{{ ubuntu2604__aws_region }}.ec2.archive.ubuntu.com/ubuntu/	priority:3
       {% else %}
       http://security.ubuntu.com/ubuntu/	priority:1
       http://archive.ubuntu.com/ubuntu/	priority:2
       {% endif %}
     mode: "0644"
   tags: apt
-  register: ubuntu_2604__apt_security_mirrors
+  register: ubuntu2604__apt_security_mirrors
 
 - name: APT | Configure Ubuntu archive sources
   become: true
@@ -447,7 +447,7 @@
     dest: /etc/apt/sources.list.d/ubuntu.sources
     mode: "0644"
   tags: apt
-  register: ubuntu_2604__apt_sources
+  register: ubuntu2604__apt_sources
 
 - name: APT | Update package cache
   become: true
@@ -458,9 +458,9 @@
       {{
         0
         if (
-          ubuntu_2604__apt_primary_mirrors is changed
-          or ubuntu_2604__apt_security_mirrors is changed
-          or ubuntu_2604__apt_sources is changed
+          ubuntu2604__apt_primary_mirrors is changed
+          or ubuntu2604__apt_security_mirrors is changed
+          or ubuntu2604__apt_sources is changed
         )
         else 3600
       }}
@@ -485,16 +485,16 @@
   become: true
   ansible.builtin.stat:
     path: /var/run/reboot-required
-  register: ubuntu_2604__reboot_required
+  register: ubuntu2604__reboot_required
   tags: [apt, upgrade]
 
 - name: APT | Read reboot requirement packages
   become: true
   ansible.builtin.command: cat /var/run/reboot-required.pkgs
-  register: ubuntu_2604__reboot_required_packages
+  register: ubuntu2604__reboot_required_packages
   failed_when: false
   changed_when: false
-  when: ubuntu_2604__reboot_required.stat.exists
+  when: ubuntu2604__reboot_required.stat.exists
   tags: [apt, upgrade]
 
 - name: APT | Report reboot requirement
@@ -502,8 +502,8 @@
     msg:
       - Host reboot is required after package upgrades.
       - >-
-        Packages: {{ ubuntu_2604__reboot_required_packages.stdout_lines | default([]) | join(', ') }}
-  when: ubuntu_2604__reboot_required.stat.exists
+        Packages: {{ ubuntu2604__reboot_required_packages.stdout_lines | default([]) | join(', ') }}
+  when: ubuntu2604__reboot_required.stat.exists
   tags: [apt, upgrade]
 
 # -----------------------------------------------------------------------------
@@ -535,7 +535,7 @@
 - name: Unattended upgrades | Disable unattended reboot behavior
   become: true
   ansible.builtin.copy:
-    dest: /etc/apt/apt.conf.d/52ubuntu-2604-unattended-upgrades
+    dest: /etc/apt/apt.conf.d/52ubuntu2604-unattended-upgrades
     content: |
       // Reserve reboots/shutdown installs for maintenance automation, not background APT.
       Unattended-Upgrade::Automatic-Reboot "false";
@@ -555,7 +555,7 @@
 - name: Unattended upgrades | Disable needrestart automatic service restarts
   become: true
   ansible.builtin.copy:
-    dest: /etc/needrestart/conf.d/99-ubuntu-2604-no-auto-restarts.conf
+    dest: /etc/needrestart/conf.d/99-ubuntu2604-no-auto-restarts.conf
     content: |
       # List stale processes without restarting runtimes or workload services.
       $nrconf{restart} = 'l';
@@ -602,7 +602,7 @@
 - name: Logs | Configure journald retention and pressure limits
   become: true
   ansible.builtin.copy:
-    dest: /etc/systemd/journald.conf.d/60-ubuntu-2604-log-pressure.conf
+    dest: /etc/systemd/journald.conf.d/60-ubuntu2604-log-pressure.conf
     content: |
       [Journal]
       # Keep recovery history without unbounded journal growth on small disks.
@@ -766,7 +766,7 @@
     patterns: "ssh_host_*_key"
     excludes: "*.pub"
   tags: ssh
-  register: ubuntu_2604__ssh_private_key_files
+  register: ubuntu2604__ssh_private_key_files
 
 - name: SSH | Hardening | Configure private host key permissions
   become: true
@@ -776,7 +776,7 @@
     group: root
     mode: "0600"
   tags: ssh
-  loop: "{{ ubuntu_2604__ssh_private_key_files.files }}"
+  loop: "{{ ubuntu2604__ssh_private_key_files.files }}"
   loop_control:
     label: "{{ item.path }}"
 
@@ -786,7 +786,7 @@
     paths: /etc/ssh
     patterns: "ssh_host_*.pub"
   tags: ssh
-  register: ubuntu_2604__ssh_public_key_files
+  register: ubuntu2604__ssh_public_key_files
 
 - name: SSH | Hardening | Configure public host key permissions
   become: true
@@ -796,14 +796,14 @@
     group: root
     mode: "0644"
   tags: ssh
-  loop: "{{ ubuntu_2604__ssh_public_key_files.files }}"
+  loop: "{{ ubuntu2604__ssh_public_key_files.files }}"
   loop_control:
     label: "{{ item.path }}"
 
 - name: SSH | Hardening | Configure priority drop-in
   become: true
   ansible.builtin.copy:
-    dest: /etc/ssh/sshd_config.d/00-ubuntu-2604-hardening.conf
+    dest: /etc/ssh/sshd_config.d/00-ubuntu2604-hardening.conf
     content: |
       # 00-* wins over later cloud-init/package snippets.
       # Verbose auth logs aid SSH recovery without debug noise.
@@ -814,7 +814,7 @@
       MaxAuthTries 3
       PasswordAuthentication no
       PermitEmptyPasswords no
-      PermitRootLogin {{ ubuntu_2604_ssh_allow_root_login | bool | ternary('yes', 'no') }}
+      PermitRootLogin {{ ubuntu2604_ssh_allow_root_login | bool | ternary('yes', 'no') }}
       PubkeyAuthentication yes
       UsePAM yes
 
@@ -836,7 +836,7 @@
       MaxStartups 10:30:60
 
       # Avoid unaudited tunnels and desktop forwarding on workers.
-      AllowTcpForwarding {{ ubuntu_2604_ssh_allow_tcp_forwarding | bool | ternary('yes', 'no') }}
+      AllowTcpForwarding {{ ubuntu2604_ssh_allow_tcp_forwarding | bool | ternary('yes', 'no') }}
       Banner none
       X11Forwarding no
     owner: root
@@ -877,7 +877,7 @@
 - name: Locale | Generate system locale
   become: true
   community.general.locale_gen:
-    name: "{{ ubuntu_2604_locale }}"
+    name: "{{ ubuntu2604_locale }}"
     state: present
   tags: locale
 
@@ -886,7 +886,7 @@
   ansible.builtin.lineinfile:
     path: /etc/default/locale
     regexp: "^LANG="
-    line: "LANG={{ ubuntu_2604_locale }}"
+    line: "LANG={{ ubuntu2604_locale }}"
     create: true
     mode: "0644"
   tags: locale
@@ -900,7 +900,7 @@
 - name: Time | Set timezone to UTC
   become: true
   community.general.timezone:
-    name: "{{ ubuntu_2604_timezone }}"
+    name: "{{ ubuntu2604_timezone }}"
   tags: time
 
 - name: Time | Ensure chrony time synchronization is active
@@ -947,7 +947,7 @@
 - name: DNS | Configure fallback DNS servers
   become: true
   ansible.builtin.copy:
-    dest: /etc/systemd/resolved.conf.d/60-ubuntu-2604-fallback-dns.conf
+    dest: /etc/systemd/resolved.conf.d/60-ubuntu2604-fallback-dns.conf
     content: |
       [Resolve]
       FallbackDNS=1.1.1.1 1.0.0.1

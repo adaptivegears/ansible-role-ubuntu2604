@@ -31,6 +31,7 @@ EXPECTED_BREADCRUMBED_FILES = (
     "/etc/apt/ubuntu-mirrors.txt",
     "/etc/apt/ubuntu-security-mirrors.txt",
     "/etc/apt/sources.list.d/ubuntu.sources",
+    "/etc/apt/preferences.d/99-ubuntu2604-nosnap.pref",
     "/etc/apt/apt.conf.d/20auto-upgrades",
     "/etc/apt/apt.conf.d/52ubuntu2604-unattended-upgrades",
     "/etc/needrestart/conf.d/99-ubuntu2604-no-auto-restarts.conf",
@@ -225,6 +226,7 @@ def test_fstab_has_no_active_swap_entries(host):
 APT_MIRRORS = "/etc/apt/ubuntu-mirrors.txt"
 APT_SECURITY_MIRRORS = "/etc/apt/ubuntu-security-mirrors.txt"
 APT_SOURCES = "/etc/apt/sources.list.d/ubuntu.sources"
+APT_NOSNAP_PREF = "/etc/apt/preferences.d/99-ubuntu2604-nosnap.pref"
 
 
 def test_apt_sources_use_managed_mirror_lists(host):
@@ -263,6 +265,28 @@ def test_apt_security_mirrors_prefer_official_security_endpoint(host):
     assert mirrors.contains(
         r"^http://archive\.ubuntu\.com/ubuntu/[[:space:]][[:space:]]*priority:[0-9][0-9]*$"
     )
+
+
+# -----------------------------------------------------------------------------
+# Snap
+# -----------------------------------------------------------------------------
+
+
+def test_snapd_package_is_removed(host):
+    assert not host.package("snapd").is_installed
+
+
+def test_snap_command_is_absent(host):
+    assert host.run("command -v snap").rc != 0
+
+
+def test_snapd_reinstallation_is_pinned(host):
+    policy = host.file(APT_NOSNAP_PREF)
+
+    assert policy.exists
+    assert policy.contains(r"^Package:[[:space:]][[:space:]]*snapd$")
+    assert policy.contains(r"^Pin:[[:space:]][[:space:]]*release \*$")
+    assert policy.contains(r"^Pin-Priority:[[:space:]][[:space:]]*-1$")
 
 
 # -----------------------------------------------------------------------------

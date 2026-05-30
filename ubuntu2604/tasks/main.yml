@@ -459,6 +459,111 @@
   changed_when: false
   tags: apt
 
+# -----------------------------------------------------------------------------
+# Snap
+# -----------------------------------------------------------------------------
+# Remove snapd from server images only when it is unused. Installed snaps are a
+# workload ownership signal, so the role fails before removing their package manager.
+# -----------------------------------------------------------------------------
+
+- name: Snap | Check for snap command
+  become: true
+  ansible.builtin.stat:
+    path: /usr/bin/snap
+  register: ubuntu2604__snap_command
+  tags: [snap, apt]
+
+- name: Snap | Read installed snap packages
+  become: true
+  ansible.builtin.command: timeout 30 snap list --all
+  register: ubuntu2604__snap_list
+  changed_when: false
+  when: ubuntu2604__snap_command.stat.exists
+  tags: [snap, apt]
+
+- name: Snap | Record installed snap package names
+  ansible.builtin.set_fact:
+    ubuntu2604__installed_snap_names: >-
+      {{
+        ubuntu2604__snap_list.stdout_lines | default([])
+        | reject('match', '^Name\\s+')
+        | reject('match', '^No snaps are installed')
+        | reject('equalto', '')
+        | map('regex_replace', '^([^\\s]+).*$', '\\1')
+        | list
+      }}
+  tags: [snap, apt]
+
+- name: Snap | Assert snapd can be removed safely
+  ansible.builtin.assert:
+    that:
+      - ubuntu2604__installed_snap_names | length == 0
+    fail_msg: >-
+      Refusing to remove snapd because snap packages are installed:
+      {{ ubuntu2604__installed_snap_names | join(', ') }}. Migrate or remove
+      these snaps first, then rerun the role.
+    success_msg: "No installed snap packages block snapd removal"
+  tags: [snap, apt]
+
+- name: Snap | Stop snapd services before removal
+  become: true
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    state: stopped
+  failed_when: false
+  when: ubuntu2604__snap_command.stat.exists
+  tags: [snap, apt]
+  loop:
+    - snapd.service
+    - snapd.socket
+    - snapd.seeded.service
+
+- name: Snap | Remove snapd package
+  become: true
+  ansible.builtin.apt:
+    name: snapd
+    state: absent
+    purge: true
+    autoremove: true
+    lock_timeout: 600
+  tags: [snap, apt, packages]
+
+- name: Snap | Block snapd reinstallation
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/apt/preferences.d/99-ubuntu2604-nosnap.pref
+    content: |
+      # Managed by ansible-role-ubuntu2604
+      # Source: https://github.com/adaptivegears/ansible-role-ubuntu2604
+
+      # Keep server images free of snapd unless an operator deliberately removes this policy.
+      Package: snapd
+      Pin: release *
+      Pin-Priority: -1
+    owner: root
+    group: root
+    mode: "0644"
+  tags: [snap, apt]
+
+- name: Snap | Remove residual system snap directories
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  tags: [snap, apt]
+  loop:
+    - /snap
+    - /var/cache/snapd
+    - /var/lib/snapd
+    - /var/snap
+
+- name: Snap | Reload systemd after snapd removal
+  become: true
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  changed_when: false
+  tags: [snap, apt]
+
 - name: APT | Upgrade packages and clean unused package data
   become: true
   ansible.builtin.apt:

@@ -226,14 +226,13 @@ APT_MIRRORS = "/etc/apt/ubuntu-mirrors.txt"
 APT_SECURITY_MIRRORS = "/etc/apt/ubuntu-security-mirrors.txt"
 APT_SOURCES = "/etc/apt/sources.list.d/ubuntu.sources"
 APT_NOSNAP_PREF = "/etc/apt/preferences.d/99-ubuntu2604-nosnap.pref"
-APT_VPS_REMOVED_PACKAGES = (
+APT_CONTAINER_WORKER_REMOVED_PACKAGES = (
     "modemmanager",
     "fwupd",
     "udisks2",
     "bolt",
     "multipath-tools",
     "open-iscsi",
-    "open-vm-tools",
     "software-properties-common",
     "packagekit",
     "polkitd",
@@ -267,29 +266,33 @@ def test_apt_sources_use_managed_mirror_lists(host):
     )
 
 
-def test_apt_mirrors_prefer_official_archive(host):
+def test_apt_mirrors_use_provider_neutral_official_archive(host):
     mirrors = host.file(APT_MIRRORS)
 
     assert mirrors.exists
-    assert mirrors.contains(
-        r"^http://archive\.ubuntu\.com/ubuntu/[[:space:]][[:space:]]*priority:1$"
-    )
+    assert [
+        line
+        for line in mirrors.content_string.splitlines()
+        if line and not line.startswith("#")
+    ] == ["http://archive.ubuntu.com/ubuntu/ priority:1"]
 
 
-def test_apt_security_mirrors_prefer_official_security_endpoint(host):
+def test_apt_security_mirrors_use_provider_neutral_official_endpoints(host):
     mirrors = host.file(APT_SECURITY_MIRRORS)
 
     assert mirrors.exists
-    assert mirrors.contains(
-        r"^http://security\.ubuntu\.com/ubuntu/[[:space:]][[:space:]]*priority:1$"
-    )
-    assert mirrors.contains(
-        r"^http://archive\.ubuntu\.com/ubuntu/[[:space:]][[:space:]]*priority:[0-9][0-9]*$"
-    )
+    assert [
+        line
+        for line in mirrors.content_string.splitlines()
+        if line and not line.startswith("#")
+    ] == [
+        "http://security.ubuntu.com/ubuntu/ priority:1",
+        "http://archive.ubuntu.com/ubuntu/ priority:2",
+    ]
 
 
-@pytest.mark.parametrize("package", APT_VPS_REMOVED_PACKAGES)
-def test_vps_irrelevant_hardware_package_is_removed(host, package):
+@pytest.mark.parametrize("package", APT_CONTAINER_WORKER_REMOVED_PACKAGES)
+def test_container_worker_irrelevant_package_is_removed(host, package):
     assert not host.package(package).is_installed
 
 

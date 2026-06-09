@@ -360,47 +360,13 @@
   tags: swap
 
 # -----------------------------------------------------------------------------
-# AWS
-# -----------------------------------------------------------------------------
-# AWS tuning is opt-in; metadata supplies region only after the operator declares
-# the platform.
-# -----------------------------------------------------------------------------
-
-- name: AWS | Gather EC2 metadata facts
-  amazon.aws.ec2_metadata_facts:
-    # Longer IMDS token TTL prevents multi-interface/tag walks from expiring.
-    metadata_token_ttl_seconds: 240
-  register: ubuntu2604__ec2_metadata_facts
-  when: ubuntu2604_cloud == "aws"
-  failed_when: false
-  changed_when: false
-  tags: aws
-
-- name: AWS | Select region
-  ansible.builtin.set_fact:
-    ubuntu2604__aws_region: >-
-      {{
-        ansible_facts.get('ec2_instance_identity_document_region', '')
-        if (
-          ansible_facts.get('ec2_instance_identity_document_region', '')
-          is match('^[a-z]{2}(?:-gov)?(?:-[a-z]+)+-[0-9]+$')
-        )
-        else ''
-      }}
-  when: ubuntu2604_cloud == "aws"
-  tags: aws
-
-# -----------------------------------------------------------------------------
 # APT
 # -----------------------------------------------------------------------------
-# Own mirrors after cloud-init for deterministic APT without runtime probing.
-# Ubuntu 26.04 serves arm64 from normal archive/security endpoints. Keep
-# Canonical endpoints first because stale regional indexes can reference files
-# already removed from the pool.
+# Own Canonical archive sources after cloud-init for deterministic APT without
+# cloud-provider probing. Ubuntu 26.04 serves arm64 from normal archive/security
+# endpoints, so amd64 and arm64 hosts share the same provider-neutral mirrors.
 # -----------------------------------------------------------------------------
 
-# Keep EC2 mirrors fallback-only; stale regional indexes can make a good archive
-# look broken.
 - name: APT | Configure mirror list
   become: true
   ansible.builtin.copy:
@@ -409,18 +375,12 @@
       # Managed by ansible-role-ubuntu2604
       # Source: https://github.com/adaptivegears/ansible-role-ubuntu2604
 
-      {% if ubuntu2604__aws_region | default('') | length > 0 %}
-      http://archive.ubuntu.com/ubuntu/	priority:1
-      http://{{ ubuntu2604__aws_region }}.ec2.archive.ubuntu.com/ubuntu/	priority:2
-      {% else %}
-      http://archive.ubuntu.com/ubuntu/	priority:1
-      {% endif %}
+      http://archive.ubuntu.com/ubuntu/ priority:1
     mode: "0644"
   tags: apt
   register: ubuntu2604__apt_primary_mirrors
 
-# Make security.ubuntu.com authoritative; archive.ubuntu.com is a safer fallback
-# than lagging regional mirrors.
+# Make security.ubuntu.com authoritative with archive.ubuntu.com as a Canonical fallback.
 - name: APT | Configure security mirror list
   become: true
   ansible.builtin.copy:
@@ -429,14 +389,8 @@
       # Managed by ansible-role-ubuntu2604
       # Source: https://github.com/adaptivegears/ansible-role-ubuntu2604
 
-      {% if ubuntu2604__aws_region | default('') | length > 0 %}
-      http://security.ubuntu.com/ubuntu/	priority:1
-      http://archive.ubuntu.com/ubuntu/	priority:2
-      http://{{ ubuntu2604__aws_region }}.ec2.archive.ubuntu.com/ubuntu/	priority:3
-      {% else %}
-      http://security.ubuntu.com/ubuntu/	priority:1
-      http://archive.ubuntu.com/ubuntu/	priority:2
-      {% endif %}
+      http://security.ubuntu.com/ubuntu/ priority:1
+      http://archive.ubuntu.com/ubuntu/ priority:2
     mode: "0644"
   tags: apt
   register: ubuntu2604__apt_security_mirrors
@@ -574,37 +528,36 @@
   changed_when: false
   tags: [snap, apt]
 
-- name: APT | Remove VPS-irrelevant packages
+- name: APT | Remove container-worker irrelevant packages
   become: true
   ansible.builtin.apt:
     name:
-      # Cellular modem support probes hardware that does not exist in a KVM VPS.
+      # Cellular modem support probes physical hardware absent from container-worker VMs.
       - modemmanager
       # Firmware, removable-disk, and Thunderbolt daemons are for physical or
-      # desktop-style hosts; in this VPS role they only add idle services and deps.
+      # desktop-style hosts; on container-worker VMs they add idle services and deps.
       - fwupd
       - udisks2
       - bolt
-      # Multipath, iSCSI, and VMware agents belong to broad server images, but
-      # this target uses provider-attached virtual disks on KVM/QEMU.
+      # Multipath and iSCSI belong to broad SAN-capable server images, not the
+      # local virtual disks expected by this role.
       - multipath-tools
       - open-iscsi
-      - open-vm-tools
       # GUI/package-management authorization helpers keep PackageKit and polkit
       # daemons alive; repositories and packages are managed directly by Ansible.
       - software-properties-common
       - packagekit
       - polkitd
       # Crash-reporting packages are for interactive Ubuntu bug reporting, not
-      # production VPS recovery where logs and core policies are managed separately.
+      # production VM recovery where logs and core policies are managed separately.
       - apport
       - apport-core-dump-handler
-      # One-shot cloud entropy and network event hook helpers have no steady-state
-      # role here, so keeping their enabled units only adds boot/runtime noise.
+      # One-shot entropy and network event hook helpers have no steady-state role
+      # here, so keeping their enabled units only adds boot/runtime noise.
       - pollinate
       - networkd-dispatcher
-      # Ubuntu Pro and desktop-style update notification plumbing are not used on
-      # this self-managed VPS image and otherwise preserve unrelated dependencies.
+      # Ubuntu Pro and desktop-style update notification plumbing are not used by
+      # this self-managed container-worker baseline.
       - ubuntu-pro-client
       - ubuntu-pro-client-l10n
       - update-manager-core

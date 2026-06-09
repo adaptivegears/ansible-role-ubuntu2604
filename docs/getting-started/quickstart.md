@@ -44,17 +44,7 @@ Use the included playbook or add the role to your own:
 ansible-playbook -i inventory.ini playbook.yml
 ```
 
-The role waits up to 30 minutes for cloud-init to complete before mutating the host, so fresh cloud VMs do not fail on dpkg locks or partial boot-time state.
-
-If your VMs run on AWS, enable AWS-aware behavior such as regional APT mirror selection:
-
-```yaml
-- hosts: workers
-  vars:
-    ubuntu2604_cloud: "aws"
-  roles:
-    - role: ubuntu2604
-```
+The role waits up to 30 minutes for cloud-init to complete before mutating the host, so fresh cloud or VPS images do not fail on dpkg locks or partial boot-time state. The role does not perform cloud-provider detection and uses provider-neutral Canonical APT mirrors.
 
 IPv6 is disabled by default with sysctl settings. If a host requires IPv6 or dual-stack networking, keep IPv6 enabled explicitly.
 
@@ -82,7 +72,7 @@ Run the included test suite against your inventory:
 make test
 ```
 
-This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks in parallel across all hosts to confirm kernel modules, sysctl persistence, IPv6 policy, PAM limits, systemd manager defaults, transparent hugepages, swap removal, APT source and mirror configuration, snapd removal and reinstallation block, VPS package cleanup, unattended-upgrade policy, log pressure controls, locale configuration, and SSH hardening.
+This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks in parallel across all hosts to confirm kernel modules, sysctl persistence, IPv6 policy, PAM limits, systemd manager defaults, transparent hugepages, swap removal, APT source and mirror configuration, snapd removal and reinstallation block, container-worker package cleanup, unattended-upgrade policy, log pressure controls, locale configuration, and SSH hardening.
 
 You can also spot-check individual settings with ad-hoc Ansible commands:
 
@@ -102,7 +92,7 @@ ansible workers -i inventory.ini -m ansible.builtin.shell -a "resolvectl status"
 - Systemd service defaults align file descriptor, process, task, and memory accounting behavior with dense container workloads
 - Transparent hugepages set to `madvise` via systemd service
 - Swap disabled and removed from `/etc/fstab`
-- APT sources configured with AWS-aware regional mirror selection (when `ubuntu2604_cloud: "aws"`) and official-archive fallback
+- APT sources configured with provider-neutral Canonical archive and security mirrors
 - Safe package upgrades, autoremove, and autoclean applied during the run, with reboot-required markers reported
 - Unattended security upgrades enabled with automatic reboots, shutdown-time installs, and needrestart service restarts blocked
 - Journald persistence, retention, and `/var/log` free-space pressure limits configured
@@ -113,7 +103,7 @@ ansible workers -i inventory.ini -m ansible.builtin.shell -a "resolvectl status"
 - `systemd-resolved` enabled with Cloudflare fallback DNS (`1.1.1.1`, `1.0.0.1`) for when DHCP resolvers are unavailable
 - SSH hardened with a priority drop-in (`PasswordAuthentication no`, key-only algorithms, idle timeouts, TCP forwarding disabled) and guardrails that prevent applying the role without key-based access
 - `snapd` removed and residual directories cleaned when no snaps are installed, with reinstallation blocked via APT preferences
-- ~20 VPS-irrelevant packages purged, including desktop helpers, hardware daemons, cloud agents, and interactive tooling
+- Container-worker irrelevant packages purged, including desktop helpers, hardware daemons, storage agents, and interactive tooling
 - Dynamic and static MOTD cleared and `motd-news.timer` masked for quiet SSH logins
 - Tasks tagged for selective execution
 
@@ -130,7 +120,6 @@ Available tags:
 | `ssh` | SSH hardening, drop-in config, and guardrails |
 | `systemd` | System manager resource limits and cgroup accounting defaults |
 | `swap` | Swap disable and fstab cleanup |
-| `aws` | EC2 metadata gathering and regional APT mirror selection |
 | `apt` | APT source configuration, mirror lists, and cache update |
 | `upgrade` | Safe package upgrade, autoremove, and autoclean |
 | `packages` | Package installs and removals across all sections |

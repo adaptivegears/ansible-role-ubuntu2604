@@ -6,7 +6,7 @@ Documentation for the `ubuntu2604` Ansible role, which provisions Ubuntu 26.04 V
 
 The role turns a fresh Ubuntu 26.04 VM into a host optimized for container workloads. It applies kernel and systemd tuning, disables swap and IPv6 by default, raises resource limits, ensures a consistent UTF-8 locale, and manages APT sources and upgrades so that container runtimes behave predictably across rebuilds.
 
-The role also takes ownership of APT source management with AWS-aware regional mirror selection (requires explicit opt-in), applies safe package upgrades during provisioning with reboot-required reporting, enables unattended security upgrades while blocking automatic reboots and unplanned service restarts, controls journald retention and `/var/log` pressure, makes `nftables` the host firewall manager, installs a standard troubleshooting toolbox, pins the timezone to UTC with active NTP sync, configures DNS fallback resolvers, suppresses login noise on container workers, and hardens SSH with guardrails that prevent accidental lockout.
+The role also takes ownership of APT source management with provider-neutral Canonical mirrors, applies safe package upgrades during provisioning with reboot-required reporting, enables unattended security upgrades while blocking automatic reboots and unplanned service restarts, controls journald retention and `/var/log` pressure, makes `nftables` the host firewall manager, installs a standard troubleshooting toolbox, pins the timezone to UTC with active NTP sync, configures DNS fallback resolvers, suppresses login noise on container workers, and hardens SSH with guardrails that prevent accidental lockout.
 
 ## Audience
 

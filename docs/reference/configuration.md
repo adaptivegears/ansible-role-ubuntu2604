@@ -1,30 +1,8 @@
 # Configuration
 
-The `ubuntu2604` role exposes six user-configurable variables. All other settings are applied as fixed defaults tuned for container-worker VMs.
+The `ubuntu2604` role exposes five user-configurable variables. All other settings are applied as fixed defaults tuned for container-worker VMs.
 
 ## Variables
-
-### `ubuntu2604_cloud`
-
-The cloud platform the VM runs on. This enables platform-specific behavior such as regional APT mirror selection.
-
-| Attribute     | Value          |
-|---------------|----------------|
-| Type          | String         |
-| Default       | `""`           |
-| Required      | No             |
-
-Set to `"aws"` on EC2 instances to enable AWS-aware tuning. The role reads EC2 instance metadata to discover the region and prefers the regional `ec2.archive.ubuntu.com` mirror. When left empty, the role uses the official Canonical archives directly.
-
-Example: enable AWS-aware behavior.
-
-```yaml
-- hosts: workers
-  vars:
-    ubuntu2604_cloud: "aws"
-  roles:
-    - role: ubuntu2604
-```
 
 ### `ubuntu2604_disable_ipv6`
 
@@ -236,9 +214,9 @@ The role manages APT deterministically so package resolution is consistent acros
 
 **Mirror selection**
 
-When `ubuntu2604_cloud` is set to `"aws"`, the role gathers EC2 metadata via IMDS to discover the region and keeps the regional `ec2.archive.ubuntu.com` mirror as a fallback after Canonical-operated archive endpoints. When the cloud variable is empty or set to another value, the role uses the official archive directly.
+The role uses provider-neutral Canonical archive endpoints directly and does not perform cloud-provider detection or metadata probing. Primary packages come from `archive.ubuntu.com`; security packages prefer `security.ubuntu.com` with `archive.ubuntu.com` as fallback.
 
-Ubuntu 26.04 publishes arm64 packages through the normal archive and security endpoints, including EC2 regional mirrors. Aarch64 hosts therefore intentionally use the same mirror lists as amd64 instead of switching to `ports.ubuntu.com`, which older Ubuntu releases commonly required.
+Ubuntu 26.04 publishes arm64 packages through the normal archive and security endpoints. Aarch64 hosts therefore intentionally use the same mirror lists as amd64 instead of switching to `ports.ubuntu.com`, which older Ubuntu releases commonly required.
 
 Mirror lists are written to:
 
@@ -302,17 +280,17 @@ When safe to proceed, the role:
 
 If your workload relies on snaps, either migrate them to another packaging format or skip the `snap` tag.
 
-### VPS package removal
+### Container-worker package removal
 
-The role purges packages that are relevant to desktops, physical hardware, or broad server images but unnecessary on a KVM VPS running container workloads. Removed packages include:
+The role purges packages that are relevant to desktops, physical hardware, SAN-style storage, or broad interactive server images but unnecessary for the provider-neutral container-worker baseline. Removed packages include:
 
 - **Hardware daemons**: `modemmanager`, `fwupd`, `udisks2`, `bolt`
-- **Storage agents**: `multipath-tools`, `open-iscsi`, `open-vm-tools`
+- **Storage agents**: `multipath-tools`, `open-iscsi`
 - **GUI/package helpers**: `software-properties-common`, `packagekit`, `polkitd`
 - **Crash reporting**: `apport`, `apport-core-dump-handler`
-- **Cloud/interactive tooling**: `pollinate`, `networkd-dispatcher`, `ubuntu-pro-client`, `ubuntu-pro-client-l10n`, `update-manager-core`, `update-notifier-common`, `ubuntu-minimal`, `sysstat`
+- **Interactive/update tooling**: `pollinate`, `networkd-dispatcher`, `ubuntu-pro-client`, `ubuntu-pro-client-l10n`, `update-manager-core`, `update-notifier-common`, `ubuntu-minimal`, `sysstat`
 
-These removals reduce image size, idle services, and boot-time noise. The role does not purge arbitrary dependencies; only the listed packages are targeted.
+These removals reduce image size, idle services, and boot-time noise without assuming a specific cloud provider. The role does not purge arbitrary dependencies; only the listed packages are targeted.
 
 ### Operational packages
 
@@ -341,7 +319,6 @@ All tasks carry semantic tags so you can run or skip sections with `ansible-play
 | `ssh` | SSH hardening, drop-in config, and guardrails |
 | `systemd` | System manager resource limits and cgroup accounting defaults |
 | `swap` | Swap disable and `/etc/fstab` cleanup |
-| `aws` | EC2 metadata gathering and regional APT mirror selection |
 | `apt` | Mirror lists, sources list, and cache update |
 | `upgrade` | Safe package upgrade, autoremove, and autoclean |
 | `packages` | Package installs and removals across all sections |

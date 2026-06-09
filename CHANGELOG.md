@@ -2,17 +2,25 @@
 
 All notable changes to this project are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow [CalVer](https://calver.org/) (`YYYY.M.MICRO`).
 
-## Unreleased
+## [2026.6.0] - 2026-06-09
+
+### Highlights
+This release makes the role fully provider-neutral by removing all AWS-specific integration and simplifies networking with an opt-in IPv6 disable flag. APT sources now point directly at Canonical endpoints without mirror-list indirection.
 
 ### Breaking Changes
-- **Removed AWS integration**: Dropped EC2 metadata gathering, regional `ec2.archive.ubuntu.com` mirror fallback, the `ubuntu2604_cloud` variable, and the `aws` task tag. AWS-specific behavior now belongs in the separate AWS role.
+- **Removed AWS integration**: Dropped EC2 metadata gathering, regional `ec2.archive.ubuntu.com` mirror fallback, the `ubuntu2604_cloud` variable, the `aws` task tag, and the `amazon.aws` collection dependency. AWS-specific behavior now belongs in a separate role.
+- **Replaced `ubuntu2604_prefer_ipv4` with `ubuntu2604_disable_ipv6`**: The old gai.conf-based IPv4 preference and address-selection tasks are removed. The new `ubuntu2604_disable_ipv6` variable (default `true`) controls IPv6 at the sysctl level across all interfaces.
+- **Removed `open-vm-tools` from package cleanup**: VMware-specific assumptions no longer apply in the provider-neutral baseline.
 
 ### Improvements
-- **Provider-neutral APT sources**: APT now uses direct Canonical archive and security endpoints without cloud-provider probing or `mirror+file` indirection.
-- **Provider-neutral package cleanup**: Package slimming is described as a container-worker baseline and no longer removes `open-vm-tools`, avoiding VMware-specific assumptions in the non-AWS role.
+- **Provider-neutral APT sources**: The `ubuntu.sources` template now uses direct `archive.ubuntu.com` and `security.ubuntu.com` URIs instead of `mirror+file` indirection through managed mirror lists. Legacy mirror list files are cleaned up automatically.
+- **Simplified APT cache logic**: Cache refresh condition no longer tracks mirror list changes, only source file changes.
+- **IPv6 sysctl controls**: When IPv6 is enabled, the role explicitly configures RA acceptance and forwarding for bridge compatibility. When disabled, all interfaces including loopback are covered.
+- **Container-worker terminology**: Task names, comments, and tests reframed from "VPS" to "container-worker" to better describe the role's target environment.
 
 ### Internal
-- Removed the `amazon.aws` collection dependency and updated docs, examples, and tests for the non-AWS role contract.
+- Kernel and network sysctl tasks now carry both `kernel` and `network` tags for selective execution.
+- Tests updated: removed gai.conf and mirror-list assertions, added legacy mirror absence checks and direct-endpoint verification.
 
 ## [2026.5.7] - 2026-05-30
 

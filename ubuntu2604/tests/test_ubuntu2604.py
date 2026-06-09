@@ -28,8 +28,6 @@ EXPECTED_BREADCRUMBED_FILES = (
     "/etc/security/limits.d/60-ubuntu2604-container.conf",
     "/etc/systemd/system/transparent-hugepages-madvise.service",
     "/etc/systemd/system.conf.d/60-ubuntu2604-density.conf",
-    "/etc/apt/ubuntu-mirrors.txt",
-    "/etc/apt/ubuntu-security-mirrors.txt",
     "/etc/apt/sources.list.d/ubuntu.sources",
     "/etc/apt/preferences.d/99-ubuntu2604-nosnap.pref",
     "/etc/apt/apt.conf.d/20auto-upgrades",
@@ -222,8 +220,10 @@ def test_fstab_has_no_active_swap_entries(host):
 # -----------------------------------------------------------------------------
 
 
-APT_MIRRORS = "/etc/apt/ubuntu-mirrors.txt"
-APT_SECURITY_MIRRORS = "/etc/apt/ubuntu-security-mirrors.txt"
+APT_LEGACY_MIRRORS = (
+    "/etc/apt/ubuntu-mirrors.txt",
+    "/etc/apt/ubuntu-security-mirrors.txt",
+)
 APT_SOURCES = "/etc/apt/sources.list.d/ubuntu.sources"
 APT_NOSNAP_PREF = "/etc/apt/preferences.d/99-ubuntu2604-nosnap.pref"
 APT_CONTAINER_WORKER_REMOVED_PACKAGES = (
@@ -249,46 +249,22 @@ APT_CONTAINER_WORKER_REMOVED_PACKAGES = (
 )
 
 
-def test_apt_sources_use_managed_mirror_lists(host):
+def test_apt_sources_use_provider_neutral_official_endpoints(host):
     sources = host.file(APT_SOURCES)
 
     assert sources.exists
     assert sources.contains(r"^Types: deb$")
-    assert sources.contains(
-        rf"^URIs: mirror+file:{grep_literal(APT_MIRRORS)}$"
-    )
-    assert sources.contains(
-        rf"^URIs: mirror+file:{grep_literal(APT_SECURITY_MIRRORS)}$"
-    )
+    assert sources.contains(r"^URIs: http://archive\.ubuntu\.com/ubuntu/$")
+    assert sources.contains(r"^URIs: http://security\.ubuntu\.com/ubuntu/$")
     assert sources.contains(r"^Components: main restricted universe multiverse$")
     assert sources.contains(
         r"^Signed-By: /usr/share/keyrings/ubuntu-archive-keyring\.gpg$"
     )
 
 
-def test_apt_mirrors_use_provider_neutral_official_archive(host):
-    mirrors = host.file(APT_MIRRORS)
-
-    assert mirrors.exists
-    assert [
-        line
-        for line in mirrors.content_string.splitlines()
-        if line and not line.startswith("#")
-    ] == ["http://archive.ubuntu.com/ubuntu/ priority:1"]
-
-
-def test_apt_security_mirrors_use_provider_neutral_official_endpoints(host):
-    mirrors = host.file(APT_SECURITY_MIRRORS)
-
-    assert mirrors.exists
-    assert [
-        line
-        for line in mirrors.content_string.splitlines()
-        if line and not line.startswith("#")
-    ] == [
-        "http://security.ubuntu.com/ubuntu/ priority:1",
-        "http://archive.ubuntu.com/ubuntu/ priority:2",
-    ]
+@pytest.mark.parametrize("path", APT_LEGACY_MIRRORS)
+def test_apt_legacy_mirror_list_is_absent(host, path):
+    assert not host.file(path).exists
 
 
 @pytest.mark.parametrize("package", APT_CONTAINER_WORKER_REMOVED_PACKAGES)

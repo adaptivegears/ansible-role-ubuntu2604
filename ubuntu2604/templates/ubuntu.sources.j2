@@ -2,13 +2,13 @@
 # Source: https://github.com/adaptivegears/ansible-role-ubuntu2604
 
 Types: deb
-URIs: mirror+file:/etc/apt/ubuntu-mirrors.txt
+URIs: http://archive.ubuntu.com/ubuntu/
 Suites: {{ ansible_facts["distribution_release"] }} {{ ansible_facts["distribution_release"] }}-updates {{ ansible_facts["distribution_release"] }}-backports
 Components: main restricted universe multiverse
 Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
 
 Types: deb
-URIs: mirror+file:/etc/apt/ubuntu-security-mirrors.txt
+URIs: http://security.ubuntu.com/ubuntu/
 Suites: {{ ansible_facts["distribution_release"] }}-security
 Components: main restricted universe multiverse
 Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg

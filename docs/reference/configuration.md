@@ -212,18 +212,13 @@ The role also tightens permissions on `/etc/ssh/sshd_config` and host keys, vali
 
 The role manages APT deterministically so package resolution is consistent across rebuilds and does not rely on cloud-init defaults.
 
-**Mirror selection**
+**Source endpoint selection**
 
-The role uses provider-neutral Canonical archive endpoints directly and does not perform cloud-provider detection or metadata probing. Primary packages come from `archive.ubuntu.com`; security packages prefer `security.ubuntu.com` with `archive.ubuntu.com` as fallback.
+The role writes direct provider-neutral Canonical endpoints and does not perform cloud-provider detection, metadata probing, or APT mirror-list indirection. Primary packages come from `archive.ubuntu.com`; security packages come from `security.ubuntu.com`.
 
-Ubuntu 26.04 publishes arm64 packages through the normal archive and security endpoints. Aarch64 hosts therefore intentionally use the same mirror lists as amd64 instead of switching to `ports.ubuntu.com`, which older Ubuntu releases commonly required.
+Ubuntu 26.04 publishes arm64 packages through the normal archive and security endpoints. Aarch64 hosts therefore intentionally use the same source endpoints as amd64 instead of switching to `ports.ubuntu.com`, which older Ubuntu releases commonly required.
 
-Mirror lists are written to:
-
-- `/etc/apt/ubuntu-mirrors.txt` — primary archive mirrors
-- `/etc/apt/ubuntu-security-mirrors.txt` — security archive mirrors
-
-Sources are configured in DEB822 format at `/etc/apt/sources.list.d/ubuntu.sources` and use the `mirror+file` URI scheme so APT respects the priority lists.
+Sources are configured in DEB822 format at `/etc/apt/sources.list.d/ubuntu.sources`. Legacy role-managed mirror-list files at `/etc/apt/ubuntu-mirrors.txt` and `/etc/apt/ubuntu-security-mirrors.txt` are removed so APT cannot accidentally treat them as repositories.
 
 **cloud-init wait**
 

@@ -44,7 +44,7 @@ Use the included playbook or add the role to your own:
 ansible-playbook -i inventory.ini playbook.yml
 ```
 
-The role waits up to 30 minutes for cloud-init to complete before mutating the host, so fresh cloud or VPS images do not fail on dpkg locks or partial boot-time state. The role does not perform cloud-provider detection and uses provider-neutral Canonical APT mirrors.
+The role waits up to 30 minutes for cloud-init to complete before mutating the host, so fresh cloud or VPS images do not fail on dpkg locks or partial boot-time state. The role does not perform cloud-provider detection and uses direct provider-neutral Canonical APT endpoints.
 
 IPv6 is disabled by default with sysctl settings. If a host requires IPv6 or dual-stack networking, keep IPv6 enabled explicitly.
 
@@ -72,7 +72,7 @@ Run the included test suite against your inventory:
 make test
 ```
 
-This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks in parallel across all hosts to confirm kernel modules, sysctl persistence, IPv6 policy, PAM limits, systemd manager defaults, transparent hugepages, swap removal, APT source and mirror configuration, snapd removal and reinstallation block, container-worker package cleanup, unattended-upgrade policy, log pressure controls, locale configuration, and SSH hardening.
+This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks in parallel across all hosts to confirm kernel modules, sysctl persistence, IPv6 policy, PAM limits, systemd manager defaults, transparent hugepages, swap removal, APT source configuration, snapd removal and reinstallation block, container-worker package cleanup, unattended-upgrade policy, log pressure controls, locale configuration, and SSH hardening.
 
 You can also spot-check individual settings with ad-hoc Ansible commands:
 
@@ -92,7 +92,7 @@ ansible workers -i inventory.ini -m ansible.builtin.shell -a "resolvectl status"
 - Systemd service defaults align file descriptor, process, task, and memory accounting behavior with dense container workloads
 - Transparent hugepages set to `madvise` via systemd service
 - Swap disabled and removed from `/etc/fstab`
-- APT sources configured with provider-neutral Canonical archive and security mirrors
+- APT sources configured with direct provider-neutral Canonical archive and security endpoints
 - Safe package upgrades, autoremove, and autoclean applied during the run, with reboot-required markers reported
 - Unattended security upgrades enabled with automatic reboots, shutdown-time installs, and needrestart service restarts blocked
 - Journald persistence, retention, and `/var/log` free-space pressure limits configured
@@ -120,7 +120,7 @@ Available tags:
 | `ssh` | SSH hardening, drop-in config, and guardrails |
 | `systemd` | System manager resource limits and cgroup accounting defaults |
 | `swap` | Swap disable and fstab cleanup |
-| `apt` | APT source configuration, mirror lists, and cache update |
+| `apt` | APT source configuration, source configuration and cache update |
 | `upgrade` | Safe package upgrade, autoremove, and autoclean |
 | `packages` | Package installs and removals across all sections |
 | `unattended_upgrades` | Unattended security upgrades, reboot policy, and needrestart |

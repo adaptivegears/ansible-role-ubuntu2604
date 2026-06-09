@@ -8,7 +8,7 @@ All notable changes to this project are documented here. Format follows [Keep a 
 - **Removed AWS integration**: Dropped EC2 metadata gathering, regional `ec2.archive.ubuntu.com` mirror fallback, the `ubuntu2604_cloud` variable, and the `aws` task tag. AWS-specific behavior now belongs in the separate AWS role.
 
 ### Improvements
-- **Provider-neutral APT mirrors**: Mirror lists now use Canonical archive and security endpoints directly without cloud-provider probing.
+- **Provider-neutral APT sources**: APT now uses direct Canonical archive and security endpoints without cloud-provider probing or `mirror+file` indirection.
 - **Provider-neutral package cleanup**: Package slimming is described as a container-worker baseline and no longer removes `open-vm-tools`, avoiding VMware-specific assumptions in the non-AWS role.
 
 ### Internal

@@ -1,6 +1,6 @@
 # Configuration
 
-The `ubuntu2604` role exposes five user-configurable variables. All other settings are applied as fixed defaults tuned for container-worker VMs.
+The `ubuntu2604` role exposes six user-configurable variables. All other settings are applied as fixed defaults tuned for container-worker VMs.
 
 ## Variables
 
@@ -110,6 +110,26 @@ Example: allow TCP forwarding.
     - role: ubuntu2604
 ```
 
+### `ubuntu2604_ssh_port`
+
+The TCP port the OpenSSH server listens on.
+
+| Attribute     | Value          |
+|---------------|----------------|
+| Type          | Integer        |
+| Default       | `22`           |
+| Required      | No             |
+
+The role sets the `Port` directive in the SSH hardening drop-in. Ubuntu 26.04 runs sshd socket-activated; the distro's `sshd-socket-generator` derives `ssh.socket` `ListenStream` entries from that directive, and the role's restart handler reloads systemd and restarts `ssh.socket` before `ssh.service` so the listener actually moves. The setting therefore works whether sshd is socket-activated or standalone.
+
+Move the port in two steps: run the play connected on the current port with the new `ubuntu2604_ssh_port`, then update `ansible_port` in your inventory to match for subsequent runs. The Ansible connection that applies the change survives the restart; only new connections use the new port.
+
+Example: free port 22 for another service and serve admin SSH on 22022.
+
+```ini
+worker1.example.com ansible_port=22022 ubuntu2604_ssh_port=22022
+```
+
 ## Fixed defaults
 
 The following settings are not exposed as variables because they are intrinsic to the role's purpose. Change them only by forking or overriding the role tasks.
@@ -185,6 +205,7 @@ The drop-in enforces the following settings:
 
 | Setting | Value | Rationale |
 |---------|-------|-----------|
+| `Port` | `22` (configurable) | Listen port; `ubuntu2604_ssh_port` moves it, including the socket-activated listener |
 | `PasswordAuthentication` | `no` | Require key-based authentication |
 | `PermitRootLogin` | `no` (unless opted in) | Reduce root attack surface |
 | `PubkeyAuthentication` | `yes` | Ensure key access works |

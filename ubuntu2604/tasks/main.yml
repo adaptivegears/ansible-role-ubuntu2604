@@ -899,6 +899,12 @@
       # Verbose auth logs aid SSH recovery without debug noise.
       LogLevel VERBOSE
 
+      # Listen port for the OpenSSH admin endpoint. Ubuntu 26.04 runs sshd
+      # socket-activated: sshd-socket-generator derives ssh.socket ListenStream
+      # entries from this directive on daemon-reload, so it stays authoritative
+      # whether sshd is socket-activated or standalone.
+      Port {{ ubuntu2604_ssh_port }}
+
       # Use keys only while preserving PAM session policy.
       LoginGraceTime 60
       MaxAuthTries 3

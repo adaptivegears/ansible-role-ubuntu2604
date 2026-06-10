@@ -480,7 +480,10 @@ def test_operation_package_is_installed(host, package):
 
 SSHD_CONFIG = "/etc/ssh/sshd_config"
 SSHD_HARDENING_CONFIG = "/etc/ssh/sshd_config.d/00-ubuntu2604-hardening.conf"
+# Mirrors ubuntu2604_ssh_port in inventory.ini; update both together.
+EXPECTED_SSH_PORT = "22022"
 EXPECTED_SSHD_HARDENING_SETTINGS = (
+    ("Port", "port", EXPECTED_SSH_PORT),
     ("LogLevel", "loglevel", "VERBOSE"),
     ("X11Forwarding", "x11forwarding", "no"),
     ("MaxAuthTries", "maxauthtries", "3"),
@@ -531,6 +534,10 @@ def test_ssh_service_is_active_and_enabled(host):
     assert service.exists
     assert service.is_running
     assert service.is_enabled
+
+
+def test_sshd_is_listening_on_expected_port(host):
+    assert host.socket(f"tcp://0.0.0.0:{EXPECTED_SSH_PORT}").is_listening
 
 
 def test_sshd_config_permissions(host):

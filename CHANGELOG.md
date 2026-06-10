@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow [CalVer](https://calver.org/) (`YYYY.M.MICRO`).
 
+## [2026.6.1] - 2026-06-10
+
+### Highlights
+This release makes the SSH server port configurable so hosts can hand port 22 to another service (such as an application SSH endpoint) and serve OpenSSH admin access elsewhere.
+
+### New Features
+- **Configurable SSH port**: New `ubuntu2604_ssh_port` variable (default `22`) sets the `Port` directive in the hardening drop-in. Ubuntu 26.04's socket-activated sshd follows automatically because `sshd-socket-generator` derives `ssh.socket` `ListenStream` entries from `sshd_config`.
+
+### Improvements
+- **Socket-aware OpenSSH restart**: The restart handler now reloads systemd and restarts `ssh.socket` before `ssh.service` so listener changes take effect under socket activation instead of only restarting the daemon.
+
+### Internal
+- Tests verify the configured port is persistent in the drop-in, effective in `sshd -T`, and actually listening.
+- The example inventory documents pairing `ansible_port` with `ubuntu2604_ssh_port` when the port moves.
+
 ## [2026.6.0] - 2026-06-09
 
 ### Highlights

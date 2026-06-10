@@ -4,3 +4,4 @@ ubuntu2604_locale: en_US.UTF-8
 ubuntu2604_timezone: UTC
 ubuntu2604_ssh_allow_root_login: false
 ubuntu2604_ssh_allow_tcp_forwarding: false
+ubuntu2604_ssh_port: 22

@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow [CalVer](https://calver.org/) (`YYYY.M.MICRO`).
 
+## [2026.10.0] - 2026-10-20
+
+### Highlights
+This release adopts the exact ssh-audit Ubuntu 26.04 server crypto profile, regenerates image-provided SSH host keys on first configuration, and updates Ansible requirements and provisioning checks.
+
+### Breaking Changes
+- **Ansible requirement**: The minimum supported version is now ansible-core 2.20, which supports Ubuntu 26.04's Python 3.14. Control-node Python requirements are documented separately.
+- **SSH crypto policy**: All nine crypto directives now match the ssh-audit Ubuntu 26.04 server guide v1 dated 2026-06-14. Clients must support hybrid post-quantum key exchange; ECDSA user keys and RSA user keys shorter than 3072 bits are no longer accepted.
+- **First-run host identities**: When `/etc/ssh/sshd_config.d/00-ubuntu2604-hardening.conf` does not exist, existing host keys are replaced with Ed25519 and RSA 4096 keys. This changes server fingerprints. Existing role configuration prevents regeneration, including when crypto settings change.
+
+### Improvements
+- **Safe selective execution**: OS and architecture checks and the cloud-init barrier use `always`; SSH guardrails follow `ssh`; snapd guardrails and cleanup also follow `packages`. Network runs include prerequisite kernel modules, and package upgrades include reboot reporting.
+- **SSH connection cleanup**: `ClientAliveCountMax` is now `3` with a 300-second interval, disconnecting unresponsive clients after approximately 15 minutes without terminating responsive idle sessions.
+- **APT maintenance timers**: Both daily timers are started as well as enabled, so stopped timers do not require a reboot to become active.
+- **Collection discovery**: `ansible.cfg` includes the repository-local collection directory alongside the standard user and system paths, making dependencies installed by `make deps` available to standalone Ansible commands.
+
+### Internal
+- Updated `community.general` from 13.0.0 to 13.5.0.
+- SSH verification now expects the default port 22, checks all nine crypto directives, and verifies Ed25519 and RSA 4096 host keys.
+- APT timer verification now checks both enabled and running state.
+- Updated configuration and quickstart documentation to reflect the new requirements and behavior.
+
 ## [2026.6.1] - 2026-06-10
 
 ### Highlights

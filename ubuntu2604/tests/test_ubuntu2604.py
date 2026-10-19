@@ -350,11 +350,12 @@ def test_needrestart_is_configured_for_list_only_mode(host):
 
 
 @pytest.mark.parametrize("timer", EXPECTED_UNATTENDED_TIMERS)
-def test_apt_maintenance_timer_is_enabled(host, timer):
+def test_apt_maintenance_timer_is_active_and_enabled(host, timer):
     service = host.service(timer)
 
     assert service.exists
     assert service.is_enabled
+    assert service.is_running
 
 
 # -----------------------------------------------------------------------------

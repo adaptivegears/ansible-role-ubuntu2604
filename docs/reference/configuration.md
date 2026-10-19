@@ -271,7 +271,7 @@ The role explicitly installs `unattended-upgrades` and enables periodic security
 - Install-on-shutdown is disabled
 - `needrestart` is set to list-only mode so stale processes are reported but not restarted automatically
 
-The APT daily and daily-upgrade timers are enabled so metadata and security patches are fetched on schedule.
+The APT daily and daily-upgrade timers are enabled and started so metadata and security patches are fetched on schedule without waiting for a reboot.
 
 ### Logs
 

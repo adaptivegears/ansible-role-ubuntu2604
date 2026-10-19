@@ -433,10 +433,12 @@
     ubuntu2604__installed_snap_names: >-
       {{
         ubuntu2604__snap_list.stdout_lines | default([])
-        | reject('match', '^Name\\s+')
         | reject('match', '^No snaps are installed')
-        | reject('equalto', '')
-        | map('regex_replace', '^([^\\s]+).*$', '\\1')
+        | map('split')
+        | select
+        | map('first')
+        | reject('equalto', 'Name')
+        | unique
         | list
       }}
   tags: [snap, apt, packages]

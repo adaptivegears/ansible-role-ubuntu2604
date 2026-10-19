@@ -54,6 +54,7 @@ From a checkout of this repository:
 make deps   # Install this collection and its dependencies locally
 make check  # Lint the collection and syntax-check both installed playbooks
 make build  # Build dist/andreygubarev-com-2026.10.2.tar.gz
+make publish # Check, build, and publish the current version to Ansible Galaxy
 make test   # Verify deployed hosts using inventory.ini
 ```
 
@@ -68,15 +69,13 @@ Roles live in `roles/`, and collection playbooks live in `playbooks/`. `make tes
    token: <your-galaxy-api-token>
    ```
 
-3. Check `version` in `galaxy.yml` before building. Every published version is immutable; increment it for subsequent releases. Build and publish the tarball, not the Git repository:
+3. Check `version` in `galaxy.yml` before publishing. Every published version is immutable; increment it for subsequent releases, then run:
 
    ```bash
-   make check
-   make build
-   ansible-galaxy collection publish dist/andreygubarev-com-2026.10.2.tar.gz
+   make publish
    ```
 
-   The filename follows the version in `galaxy.yml`; use the newly built artifact when changing versions. Publishing waits for Galaxy's import validation to finish.
+   This runs `make check`, builds a fresh tarball, and publishes the artifact for the version read from `galaxy.yml`. Existing artifacts for other versions are not selected. Authentication uses the configured Galaxy token, and publishing waits for Galaxy's import validation to finish.
 
 4. After the import succeeds, install with `ansible-galaxy collection install andreygubarev.com` and run either included playbook on the target machine.
 

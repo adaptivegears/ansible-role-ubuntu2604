@@ -4,6 +4,9 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- **Galaxy publishing target**: `make publish` checks the collection, builds a fresh artifact, and publishes the version declared in `galaxy.yml` using the configured Galaxy token.
+
 ## [2026.10.2] - 2026-10-20
 
 ### Added

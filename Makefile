@@ -3,6 +3,7 @@
 # Ansible
 ANSIBLE_BUILD_DIR ?= $(CURDIR)/dist
 ANSIBLE_COLLECTIONS_PATH ?= $(CURDIR)/.ansible/collections
+ANSIBLE_COLLECTION_VERSION := $(shell awk '/^version:/ { print $$2 }' galaxy.yml)
 ANSIBLE_GALAXY ?= uvx --from ansible-core ansible-galaxy
 ANSIBLE_INVENTORY ?= inventory.ini
 ANSIBLE_LINT ?= uvx --from ansible-lint ansible-lint
@@ -28,6 +29,10 @@ deps: ## Install the local collection and its dependencies
 .PHONY: build
 build: ## Build the collection artifact
 	$(ANSIBLE_GALAXY) collection build --force --output-path $(ANSIBLE_BUILD_DIR)
+
+.PHONY: publish
+publish: check build ## Check, build, and publish the collection to Ansible Galaxy
+	$(ANSIBLE_GALAXY) collection publish "$(ANSIBLE_BUILD_DIR)/andreygubarev-com-$(ANSIBLE_COLLECTION_VERSION).tar.gz"
 
 .PHONY: lint
 lint: deps ## Run ansible-lint against the collection

@@ -22,14 +22,18 @@ Source repository: [andreygubarev/ansible-collection](https://github.com/andreyg
 | Role / playbook | Purpose |
 |-----------------|---------|
 | `andreygubarev.com.ubuntu2604` | Provision Ubuntu 26.04 VMs as container-worker hosts |
+| `andreygubarev.com.kubernetes` | Provision a single-node kubeadm cluster with containerd, Flannel, and metrics-server |
 
-Run the included playbook on the Ubuntu 26.04 machine you want to configure. It uses a local connection; no inventory or SSH connection is needed:
+Run either included playbook on the Ubuntu 26.04 machine you want to configure. Both use a local connection; no inventory or SSH connection is needed:
 
 ```bash
 ansible-playbook andreygubarev.com.ubuntu2604
+ansible-playbook andreygubarev.com.kubernetes
 ```
 
-Run as a user with sudo privileges and SSH authorized keys already provisioned. Add `-K` if sudo requires a password. SSH hardening guardrails still apply: running as root requires explicit `-e ubuntu2604_ssh_allow_root_login=true` and root authorized keys.
+The playbooks are independent: Kubernetes does not automatically apply the Ubuntu role. Its kubeconfig defaults to the invoking user's home directory. See the [Kubernetes quickstart](docs/kubernetes/getting-started/quickstart.md).
+
+Use root or a user with sudo privileges; add `-K` if sudo requires a password. The Ubuntu role additionally requires SSH authorized keys and explicit `-e ubuntu2604_ssh_allow_root_login=true` when running as root, because it hardens SSH.
 
 For remote provisioning over SSH, use the role in your own playbook:
 
@@ -48,12 +52,12 @@ From a checkout of this repository:
 
 ```bash
 make deps   # Install this collection and its dependencies locally
-make check  # Lint the collection and syntax-check the installed playbook
+make check  # Lint the collection and syntax-check both installed playbooks
 make build  # Build dist/andreygubarev-com-2026.10.1.tar.gz
 make test   # Verify deployed hosts using inventory.ini
 ```
 
-Roles live in `roles/`, and collection playbooks live in `playbooks/`.
+Roles live in `roles/`, and collection playbooks live in `playbooks/`. `make test` verifies the Ubuntu role by default; use `make test ANSIBLE_ROLE_DIR=roles/kubernetes` for Kubernetes, and add `TESTINFRA_HOSTS=local://` to verify the local machine.
 
 ## Publish to Ansible Galaxy
 
@@ -74,4 +78,8 @@ Roles live in `roles/`, and collection playbooks live in `playbooks/`.
 
    The filename follows the version in `galaxy.yml`; use the newly built artifact when changing versions. Publishing waits for Galaxy's import validation to finish.
 
-4. After the import succeeds, install with `ansible-galaxy collection install andreygubarev.com` and run `ansible-playbook andreygubarev.com.ubuntu2604` on the target machine.
+4. After the import succeeds, install with `ansible-galaxy collection install andreygubarev.com` and run either included playbook on the target machine.
+
+## License
+
+The collection and both roles are licensed under [Apache-2.0](LICENSE). See [NOTICE](NOTICE) for the copyright notice.

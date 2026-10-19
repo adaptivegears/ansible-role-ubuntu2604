@@ -38,6 +38,11 @@ Every changed line should trace directly to the user request or to keeping that 
 - The `ubuntu2604` role configures Ubuntu 26.04 VMs that are expected to actively run container workloads.
 - Prefer host defaults that support container networking, dense service processes, and predictable VM recovery.
 
+## Kubernetes role target
+
+- The `kubernetes` role provisions a standalone single-node kubeadm cluster on Ubuntu 26.04.
+- Both included playbooks target localhost; the Kubernetes playbook does not automatically apply the Ubuntu role.
+
 ## Ansible style
 
 - Keep role tasks in `roles/ubuntu2604/tasks/main.yml` until the file becomes too large to navigate.
@@ -62,7 +67,8 @@ Every changed line should trace directly to the user request or to keeping that 
 ## Testinfra verification
 
 - Use testinfra for production deployment verification.
-- Keep verification in `roles/ubuntu2604/tests/test_ubuntu2604.py`.
+- Keep verification in `roles/ubuntu2604/tests/test_ubuntu2604.py` and `roles/kubernetes/tests/test_kubernetes.py`.
+- Select the role to verify with `make test ANSIBLE_ROLE_DIR=roles/kubernetes` (the default is `roles/ubuntu2604`).
 - Keep tests self-contained by hardcoding the expected role contract in the tests.
 - Use native testinfra modules such as `host.sysctl`, `host.file`, `host.service`, and `host.package`.
 - Place expected-value constants close to the tests that use them, grouped by semantic section.

@@ -1,0 +1,13 @@
+---
+- name: Provision the local single-node Kubernetes cluster
+  hosts: localhost
+  connection: local
+  # Gather facts before escalation so kubeconfig defaults to the invoking account.
+  pre_tasks:
+    - name: Local | Identify provisioning user
+      ansible.builtin.set_fact:
+        ansible_user: "{{ ansible_facts['user_id'] }}"
+      tags: always
+  roles:
+    - role: andreygubarev.com.kubernetes
+      become: true

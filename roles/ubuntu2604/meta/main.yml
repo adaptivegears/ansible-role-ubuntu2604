@@ -4,7 +4,7 @@ galaxy_info:
   namespace: andreygubarev
   author: Andrey Gubarev
   description: Ubuntu 26.04 server provisioning for container-worker VMs
-  license: MIT
+  license: Apache-2.0
   min_ansible_version: "2.20"
   platforms:
     - name: Ubuntu

@@ -7,11 +7,13 @@ authors:
   - Andrey Gubarev
 description: Personal collection of public infrastructure roles and playbooks
 license:
-  - MIT
+  - Apache-2.0
 tags:
   - infrastructure
   - linux
   - ubuntu
+  - kubernetes
+  - containerd
 dependencies:
   community.general: "13.5.0"
 repository: https://github.com/andreygubarev/ansible-collection

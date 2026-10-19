@@ -1,11 +1,13 @@
 .DEFAULT_GOAL := help
 
 # Ansible
+ANSIBLE_BUILD_DIR ?= $(CURDIR)/dist
 ANSIBLE_COLLECTIONS_PATH ?= $(CURDIR)/.ansible/collections
 ANSIBLE_GALAXY ?= uvx --from ansible-core ansible-galaxy
 ANSIBLE_INVENTORY ?= inventory.ini
 ANSIBLE_LINT ?= uvx --from ansible-lint ansible-lint
-ANSIBLE_ROLE_DIR ?= ubuntu2604
+ANSIBLE_PLAYBOOK ?= uvx --from ansible-core ansible-playbook
+ANSIBLE_ROLE_DIR ?= roles/ubuntu2604
 
 # Testinfra
 TESTINFRA_HOSTS ?= ansible://all?controlpersist=300&timeout=30
@@ -17,15 +19,23 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make <target>\n\nTargets:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 .PHONY: check
-check: lint ## Run all checks
+check: lint syntax ## Run all checks
 
 .PHONY: deps
-deps: ## Install Ansible collection dependencies
-	ANSIBLE_COLLECTIONS_PATH=$(ANSIBLE_COLLECTIONS_PATH) $(ANSIBLE_GALAXY) collection install -r requirements.yml -p $(ANSIBLE_COLLECTIONS_PATH)
+deps: ## Install the local collection and its dependencies
+	ANSIBLE_COLLECTIONS_PATH=$(ANSIBLE_COLLECTIONS_PATH) $(ANSIBLE_GALAXY) collection install . --force -p $(ANSIBLE_COLLECTIONS_PATH)
+
+.PHONY: build
+build: ## Build the collection artifact
+	$(ANSIBLE_GALAXY) collection build --force --output-path $(ANSIBLE_BUILD_DIR)
 
 .PHONY: lint
-lint: deps ## Run ansible-lint against the role
-	ANSIBLE_COLLECTIONS_PATH=$(ANSIBLE_COLLECTIONS_PATH) $(ANSIBLE_LINT) $(ANSIBLE_ROLE_DIR)
+lint: deps ## Run ansible-lint against the collection
+	ANSIBLE_COLLECTIONS_PATH=$(ANSIBLE_COLLECTIONS_PATH) $(ANSIBLE_LINT) .
+
+.PHONY: syntax
+syntax: deps ## Check the installed ubuntu2604 playbook syntax
+	ANSIBLE_COLLECTIONS_PATH=$(ANSIBLE_COLLECTIONS_PATH) $(ANSIBLE_PLAYBOOK) --syntax-check -i localhost, andreygubarev.com.ubuntu2604
 
 .PHONY: test
 test: ## Run testinfra verification tests against inventory.ini

@@ -1,4 +1,4 @@
-# ansible-role-ubuntu2604
+# andreygubarev.com
 
 ## IMPORTANT behavioral guardrails
 
@@ -28,14 +28,19 @@ These guidelines bias toward caution over speed. For trivial tasks, use judgment
 
 Every changed line should trace directly to the user request or to keeping that change correct, tested, and lint-clean.
 
-## Role target
+## Collection scope
 
-- This role configures Ubuntu 26.04 VMs that are expected to actively run container workloads.
+- This repository is the `andreygubarev.com` collection of public infrastructure roles and playbooks.
+- Keep roles in `roles/` and collection playbooks in `playbooks/`; use fully qualified role names.
+
+## Ubuntu 26.04 role target
+
+- The `ubuntu2604` role configures Ubuntu 26.04 VMs that are expected to actively run container workloads.
 - Prefer host defaults that support container networking, dense service processes, and predictable VM recovery.
 
 ## Ansible style
 
-- Keep role tasks in `ubuntu2604/tasks/main.yml` until the file becomes too large to navigate.
+- Keep role tasks in `roles/ubuntu2604/tasks/main.yml` until the file becomes too large to navigate.
 - Group tasks with comment sections using full-width separators and a short rationale:
 
   ```yaml
@@ -57,7 +62,7 @@ Every changed line should trace directly to the user request or to keeping that 
 ## Testinfra verification
 
 - Use testinfra for production deployment verification.
-- Keep verification in `ubuntu2604/tests/test_ubuntu2604.py`.
+- Keep verification in `roles/ubuntu2604/tests/test_ubuntu2604.py`.
 - Keep tests self-contained by hardcoding the expected role contract in the tests.
 - Use native testinfra modules such as `host.sysctl`, `host.file`, `host.service`, and `host.package`.
 - Place expected-value constants close to the tests that use them, grouped by semantic section.

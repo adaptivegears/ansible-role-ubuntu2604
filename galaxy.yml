@@ -1,0 +1,34 @@
+---
+namespace: andreygubarev
+name: com
+version: 2026.10.0
+readme: README.md
+authors:
+  - Andrey Gubarev
+description: Personal collection of public infrastructure roles and playbooks
+license:
+  - MIT
+tags:
+  - infrastructure
+  - linux
+  - ubuntu
+dependencies:
+  community.general: "13.5.0"
+repository: https://github.com/adaptivegears/ansible-role-ubuntu2604
+build_ignore:
+  - .ansible
+  - .ansible-lint.yml
+  - .cache
+  - .env
+  - .envrc
+  - .gitignore
+  - .pytest_cache
+  - .venv
+  - AGENTS.md
+  - Makefile
+  - ansible.cfg
+  - dist
+  - "*.tar.gz"
+  - "*.ini"
+  - "*.pem"
+  - "**/__pycache__"

@@ -1,8 +1,8 @@
 ---
 galaxy_info:
   role_name: ubuntu2604
-  namespace: local
-  author: local
+  namespace: andreygubarev
+  author: Andrey Gubarev
   description: Ubuntu 26.04 server provisioning for container-worker VMs
   license: MIT
   min_ansible_version: "2.20"

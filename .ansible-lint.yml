@@ -1,10 +1,14 @@
 ---
-# Ansible-lint configuration for this role repository.
+# Ansible-lint configuration for this collection repository.
 # See: https://docs.ansible.com/projects/lint/configuring/
 
 profile: production
 
 offline: true
+
+# The role requires 2.20; the linter's built-in version list still ends at 2.19.
+supported_ansible_also:
+  - "2.20"
 
 exclude_paths:
   - .cache/

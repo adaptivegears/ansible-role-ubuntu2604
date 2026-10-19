@@ -1,0 +1,5 @@
+---
+- name: Provision Ubuntu 26.04 container-worker hosts
+  hosts: all
+  roles:
+    - andreygubarev.com.ubuntu2604

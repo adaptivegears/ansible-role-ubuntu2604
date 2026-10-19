@@ -1,6 +1,8 @@
-# ubuntu2604
+# andreygubarev.com
 
-Documentation for the `ubuntu2604` Ansible role, which provisions Ubuntu 26.04 VMs for container workloads.
+Personal Ansible collection of public infrastructure roles and playbooks.
+
+The collection currently includes the `andreygubarev.com.ubuntu2604` role and playbook, which provision Ubuntu 26.04 VMs for container workloads.
 
 ## What this role does
 
@@ -22,4 +24,4 @@ These docs are for operators and platform engineers who manage Ubuntu 26.04 VMs 
 
 ## Releases
 
-- [Changelog](../../CHANGELOG.md) — Version history and notable changes.
+- [Changelog](../CHANGELOG.md) — Version history and notable changes.

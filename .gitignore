@@ -12,6 +12,8 @@ venv/
 *.retry
 .ansible/
 .cache/
+dist/
+*.tar.gz
 
 # Molecule / test artifacts
 .molecule/

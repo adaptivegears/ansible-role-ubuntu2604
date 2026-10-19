@@ -4,7 +4,7 @@ Provision an Ubuntu 26.04 VM as a container worker in a few minutes.
 
 ## Goal
 
-Apply the `ubuntu2604` role to a target host and verify that container-optimized settings are active.
+Apply the `andreygubarev.com.ubuntu2604` role to a target host and verify that container-optimized settings are active.
 
 ## Prerequisites
 
@@ -14,19 +14,23 @@ Apply the `ubuntu2604` role to a target host and verify that container-optimized
 - SSH access to the target host as a user with `sudo` privileges
 - **SSH key-based access** for the Ansible user. The role disables password authentication and will fail if the current Ansible user has no `~/.ssh/authorized_keys` file.
 
-## Step 1 — Install dependencies
+## Step 1 — Install the collection
 
-Install the required Ansible collections:
+Install directly from Git, including the collection's dependencies:
+
+```bash
+ansible-galaxy collection install git+https://github.com/adaptivegears/ansible-role-ubuntu2604.git
+```
+
+Append `,<tag-or-commit>` to the Git URL to pin a revision. Galaxy publication is not required.
+
+For development from a repository checkout, install the local collection and its dependencies instead:
 
 ```bash
 make deps
 ```
 
-Or manually:
-
-```bash
-ansible-galaxy collection install -r requirements.yml
-```
+After editing the source, run `make deps` again to refresh the installed copy.
 
 ## Step 2 — Add the host to your inventory
 
@@ -42,7 +46,7 @@ worker1.example.com ansible_user=ubuntu
 Use the included playbook or add the role to your own:
 
 ```bash
-ansible-playbook -i inventory.ini playbook.yml
+ansible-playbook -i inventory.ini andreygubarev.com.ubuntu2604
 ```
 
 The role waits up to 30 minutes for cloud-init to complete before mutating the host, so fresh cloud or VPS images do not fail on dpkg locks or partial boot-time state. The role does not perform cloud-provider detection and uses direct provider-neutral Canonical APT endpoints.
@@ -54,7 +58,7 @@ IPv6 is disabled by default with sysctl settings. If a host requires IPv6 or dua
   vars:
     ubuntu2604_disable_ipv6: false
   roles:
-    - role: ubuntu2604
+    - role: andreygubarev.com.ubuntu2604
 ```
 
 Or reference the role directly:
@@ -62,12 +66,12 @@ Or reference the role directly:
 ```yaml
 - hosts: workers
   roles:
-    - role: ubuntu2604
+    - role: andreygubarev.com.ubuntu2604
 ```
 
 ## Step 4 — Verify the changes
 
-Run the included test suite against your inventory:
+From a repository checkout, run the included test suite against your inventory:
 
 ```bash
 make test
@@ -136,16 +140,16 @@ Available tags:
 Example: apply only kernel and swap tuning:
 
 ```bash
-ansible-playbook -i inventory.ini playbook.yml --tags "kernel,swap"
+ansible-playbook -i inventory.ini andreygubarev.com.ubuntu2604 --tags "kernel,swap"
 ```
 
 Example: skip the package upgrade step on a host that is already current:
 
 ```bash
-ansible-playbook -i inventory.ini playbook.yml --skip-tags upgrade
+ansible-playbook -i inventory.ini andreygubarev.com.ubuntu2604 --skip-tags upgrade
 ```
 
 ## Next steps
 
 - [Configuration reference](../reference/configuration.md) — Customize role behavior.
-- Review `ubuntu2604/tasks/main.yml` for the full list of applied settings.
+- Review `roles/ubuntu2604/tasks/main.yml` for the full list of applied settings.

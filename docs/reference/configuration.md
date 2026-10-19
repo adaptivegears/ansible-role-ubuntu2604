@@ -1,6 +1,6 @@
 # Configuration
 
-The `ubuntu2604` role exposes six user-configurable variables. All other settings are applied as fixed defaults tuned for container-worker VMs.
+The `andreygubarev.com.ubuntu2604` role exposes six user-configurable variables. All other settings are applied as fixed defaults tuned for container-worker VMs.
 
 ## Variables
 
@@ -23,7 +23,7 @@ Example: keep IPv6 enabled for hosts that require IPv6 or dual-stack networking.
   vars:
     ubuntu2604_disable_ipv6: false
   roles:
-    - role: ubuntu2604
+    - role: andreygubarev.com.ubuntu2604
 ```
 
 ### `ubuntu2604_locale`
@@ -43,7 +43,7 @@ Example: set a different locale in your playbook or inventory.
   vars:
     ubuntu2604_locale: C.UTF-8
   roles:
-    - role: ubuntu2604
+    - role: andreygubarev.com.ubuntu2604
 ```
 
 ### `ubuntu2604_timezone`
@@ -63,7 +63,7 @@ Example: set a different timezone.
   vars:
     ubuntu2604_timezone: America/New_York
   roles:
-    - role: ubuntu2604
+    - role: andreygubarev.com.ubuntu2604
 ```
 
 ### `ubuntu2604_ssh_allow_root_login`
@@ -85,7 +85,7 @@ Example: allow root SSH for recovery paths.
   vars:
     ubuntu2604_ssh_allow_root_login: true
   roles:
-    - role: ubuntu2604
+    - role: andreygubarev.com.ubuntu2604
 ```
 
 ### `ubuntu2604_ssh_allow_tcp_forwarding`
@@ -107,7 +107,7 @@ Example: allow TCP forwarding.
   vars:
     ubuntu2604_ssh_allow_tcp_forwarding: true
   roles:
-    - role: ubuntu2604
+    - role: andreygubarev.com.ubuntu2604
 ```
 
 ### `ubuntu2604_ssh_port`
@@ -367,7 +367,7 @@ Use `ansible-playbook --tags` or `--skip-tags` to select sections. OS and archit
 Example: run only APT and upgrade tasks:
 
 ```bash
-ansible-playbook -i inventory.ini playbook.yml --tags "apt,upgrade"
+ansible-playbook -i inventory.ini andreygubarev.com.ubuntu2604 --tags "apt,upgrade"
 ```
 
 ## Related pages

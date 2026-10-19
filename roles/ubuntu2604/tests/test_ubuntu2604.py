@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
 import pytest
 import yaml
 from ansible.plugins.filter.core import FilterModule
+from ansible.plugins.test.core import TestModule as AnsibleTestModule
 from jinja2 import Environment
 
 
@@ -50,6 +52,131 @@ def test_role_owned_text_file_has_source_breadcrumb(host, path):
 
     assert config.exists
     assert config.contains(grep_literal(ROLE_SOURCE_URL))
+
+
+# -----------------------------------------------------------------------------
+# Hostname
+# -----------------------------------------------------------------------------
+
+
+HOSTNAME_FACT = "/etc/ansible/facts.d/ubuntu2604.fact"
+HOSTNAME_CLOUD_CONFIG = "/etc/cloud/cloud.cfg.d/99-ubuntu2604-hostname.cfg"
+
+
+@pytest.fixture
+def hostname_contract():
+    tasks_file = Path(__file__).resolve().parents[1] / "tasks/main.yml"
+    tasks = yaml.safe_load(tasks_file.read_text())
+    block = next(task for task in tasks if task["name"] == "Hostname | Configure hostname")
+    environment = Environment()
+    filters = FilterModule().filters()
+    environment.filters.update({name: filters[name] for name in ("combine", "to_nice_json")})
+    environment.tests["match"] = AnsibleTestModule().tests()["match"]
+    return {task["name"]: task for task in tasks + block["block"]}, environment
+
+
+@pytest.mark.parametrize(
+    "saved, overrides, expected, managed, persisted",
+    (
+        ({}, {}, "image-host", False, False),
+        ({"hostname": "saved-host"}, {}, "saved-host", True, False),
+        ({}, {"ubuntu2604_hostname": "new-host"}, "new-host", True, True),
+        ({"hostname": "saved-host"}, {"ubuntu2604_hostname": "new-host"}, "new-host", True, True),
+        ({"hostname": "saved-host"}, {"ubuntu2604_hostname": ""}, "", True, True),
+    ),
+)
+def test_hostname_selection_and_persistence_policy(
+    hostname_contract, saved, overrides, expected, managed, persisted
+):
+    tasks, environment = hostname_contract
+    context = {"ansible_facts": {"hostname": "image-host"}, "ubuntu2604__settings": saved, **overrides}
+    expression = tasks["Hostname | Select effective hostname"]["ansible.builtin.set_fact"]["ubuntu2604__hostname"]
+
+    assert environment.from_string(expression).render(**context) == expected
+    for task_name, enabled in (
+        ("Hostname | Configure hostname", managed),
+        ("Hostname | Save explicit hostname", persisted),
+    ):
+        condition = tasks[task_name]["when"]
+        assert environment.from_string("{{ " + condition + " }}").render(**context) == str(enabled)
+
+
+@pytest.mark.parametrize(
+    "hostname, valid",
+    (
+        ("node-1", True),
+        ("node-1.example.com", True),
+        ("", False),
+        (False, False),
+        (0, False),
+        ("Node-1", False),
+        ("bad name", False),
+        ("-node", False),
+        ("node..example.com", False),
+        ("x" * 65, False),
+    ),
+)
+def test_hostname_validation(hostname_contract, hostname, valid):
+    tasks, environment = hostname_contract
+    conditions = tasks["Hostname | Validate hostname"]["ansible.builtin.assert"]["that"]
+
+    assert all(
+        environment.from_string("{{ " + condition + " }}").render(ubuntu2604__hostname=hostname) == "True"
+        for condition in conditions
+    ) is valid
+
+
+def test_hostname_fact_preserves_other_settings(hostname_contract):
+    tasks, environment = hostname_contract
+    copy = tasks["Hostname | Save explicit hostname"]["ansible.builtin.copy"]
+    content = environment.from_string(copy["content"]).render(
+        ubuntu2604__settings={"hostname": "old-host", "other_setting": "keep"},
+        ubuntu2604__hostname="new-host",
+    )
+
+    assert copy["dest"] == HOSTNAME_FACT
+    assert copy["mode"] == "0644"
+    assert json.loads(content) == {"hostname": "new-host", "other_setting": "keep"}
+    defaults = Path(__file__).resolve().parents[1] / "defaults/main.yml"
+    assert "ubuntu2604_hostname" not in yaml.safe_load(defaults.read_text())
+
+
+@pytest.fixture
+def saved_hostname(host):
+    fact = host.file(HOSTNAME_FACT)
+    if not fact.exists:
+        pytest.skip("No hostname has been explicitly configured")
+    settings = json.loads(fact.content_string)
+    if "hostname" not in settings:
+        pytest.skip("No hostname has been explicitly configured")
+
+    assert fact.user == "root"
+    assert fact.group == "root"
+    assert fact.mode == 0o644
+    return settings["hostname"]
+
+
+def test_configured_hostname_is_persistent(host, saved_hostname):
+    assert host.file("/etc/hostname").content_string.strip() == saved_hostname
+    assert host.check_output("hostname") == saved_hostname
+
+
+def test_configured_hostname_resolves_locally(host, saved_hostname):
+    expected = [saved_hostname]
+    if "." in saved_hostname:
+        expected.append(saved_hostname.split(".")[0])
+    entries = host.file("/etc/hosts").content_string.splitlines()
+
+    assert any(line.split() == ["127.0.1.1", *expected] for line in entries)
+
+
+def test_cloud_init_preserves_configured_hostname(host, saved_hostname):
+    if not host.file("/usr/bin/cloud-init").exists:
+        pytest.skip("cloud-init is not installed")
+    config = host.file(HOSTNAME_CLOUD_CONFIG)
+
+    assert config.contains(r"^preserve_hostname: true$")
+    assert config.contains(r"^manage_etc_hosts: false$")
 
 
 # -----------------------------------------------------------------------------

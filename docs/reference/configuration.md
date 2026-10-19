@@ -1,8 +1,30 @@
 # Configuration
 
-The `andreygubarev.com.ubuntu2604` role exposes six user-configurable variables. All other settings are applied as fixed defaults tuned for container-worker VMs.
+The `andreygubarev.com.ubuntu2604` role exposes seven user-configurable variables. All other settings are applied as fixed defaults tuned for container-worker VMs. Only `ubuntu2604_hostname` currently remembers explicit values through local facts; the other variables retain their existing behavior.
 
 ## Variables
+
+### `ubuntu2604_hostname`
+
+Optional lowercase DNS hostname or FQDN, at most 64 characters (the systemd hostname limit). Labels may contain letters, digits, and internal hyphens, with at most 63 characters per label.
+
+This variable is deliberately absent from `defaults/main.yml`, so the role can distinguish an explicit override from omission:
+
+- Explicitly provided: validate and apply the name, then save it in `/etc/ansible/facts.d/ubuntu2604.fact` as JSON under `hostname`. Other saved settings are preserved.
+- Omitted with a saved hostname: reuse the saved name without rewriting the fact file.
+- Omitted without a saved hostname: leave the current hostname, `/etc/hosts`, and cloud-init policy untouched; do not create a settings fact.
+
+The fact is loaded as `ansible_facts['ansible_local']['ubuntu2604']['hostname']`. Empty strings and non-string values are rejected, not treated as omission. Only successful explicit changes are saved.
+
+The role uses `ansible.builtin.hostname` with systemd to manage the runtime and static hostname. It owns the `127.0.1.1` mapping in `/etc/hosts`, adding both the FQDN and short alias when appropriate. If cloud-init is installed, a drop-in preserves the hostname and disables cloud-init's hosts-file management so neither is reset on reboot.
+
+```bash
+# Set and remember the name
+ansible-playbook andreygubarev.com.ubuntu2604 --tags hostname -e ubuntu2604_hostname=worker-1.example.com
+
+# Reuse it without repeating the override
+ansible-playbook andreygubarev.com.ubuntu2604 --tags hostname
+```
 
 ### `ubuntu2604_disable_ipv6`
 
@@ -347,6 +369,7 @@ Use `ansible-playbook --tags` or `--skip-tags` to select sections. OS and archit
 
 | Tag | Covers |
 |-----|--------|
+| `hostname` | Persistent hostname, local resolution, cloud-init hostname policy, and explicit-value local fact |
 | `kernel` | Kernel modules, sysctls, PAM limits, transparent hugepages service |
 | `network` | All managed sysctls, including IPv6 policy, and prerequisite kernel modules |
 | `ssh` | SSH hardening, drop-in config, and guardrails |

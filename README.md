@@ -35,6 +35,8 @@ The playbooks are independent: Kubernetes does not automatically apply the Ubunt
 
 Use root or a user with sudo privileges; add `-K` if sudo requires a password. The Ubuntu role additionally requires SSH authorized keys because it disables password authentication. When run as root, it automatically preserves root SSH access regardless of `ubuntu2604_ssh_allow_root_login`; no extra parameter is needed. Sudo escalation from a non-root account does not trigger this override.
 
+Optionally choose a hostname once with `-e ubuntu2604_hostname=worker-1`. The Ubuntu role remembers it in a local fact and reuses it when omitted on later runs; without an explicit or saved name, the current hostname is left unchanged. Other variables do not yet use this persistence mechanism.
+
 For remote provisioning over SSH, use the role in your own playbook:
 
 ```yaml

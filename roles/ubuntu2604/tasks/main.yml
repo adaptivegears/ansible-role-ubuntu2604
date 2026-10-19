@@ -91,6 +91,99 @@
   tags: always
 
 # -----------------------------------------------------------------------------
+# Hostname
+# -----------------------------------------------------------------------------
+# Remember explicit choices on the host so later runs need no repeated override.
+# Without a choice or saved fact, leave the image's hostname and policy untouched.
+# -----------------------------------------------------------------------------
+
+- name: Hostname | Read saved settings
+  ansible.builtin.set_fact:
+    ubuntu2604__settings: "{{ ansible_facts.get('ansible_local', {}).get('ubuntu2604', {}) }}"
+  tags: hostname
+
+- name: Hostname | Select effective hostname
+  ansible.builtin.set_fact:
+    ubuntu2604__hostname: >-
+      {{ ubuntu2604_hostname | default(ubuntu2604__settings.get('hostname', ansible_facts['hostname'])) }}
+  tags: hostname
+
+- name: Hostname | Configure hostname
+  when: ubuntu2604_hostname is defined or 'hostname' in ubuntu2604__settings
+  tags: hostname
+  block:
+    - name: Hostname | Validate hostname
+      ansible.builtin.assert:
+        that:
+          - ubuntu2604__hostname is string
+          - ubuntu2604__hostname | length <= 64
+          - >-
+            ubuntu2604__hostname.split('.')
+            | reject('match', '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$')
+            | list | length == 0
+        fail_msg: "ubuntu2604_hostname must be a lowercase DNS hostname or FQDN, at most 64 characters."
+
+    - name: Hostname | Preserve hostname through cloud-init
+      become: true
+      ansible.builtin.copy:
+        dest: /etc/cloud/cloud.cfg.d/99-ubuntu2604-hostname.cfg
+        content: |
+          # Managed by andreygubarev.com.ubuntu2604
+          # Source: https://github.com/andreygubarev/ansible-collection
+          # Keep cloud metadata from reverting the chosen hostname or hosts mapping.
+          preserve_hostname: true
+          manage_etc_hosts: false
+        owner: root
+        group: root
+        mode: "0644"
+      when: ubuntu2604__cloud_init.stat.exists
+
+    - name: Hostname | Configure local name resolution
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.1\.1[ \t]+'
+        line: >-
+          127.0.1.1 {{ ubuntu2604__hostname }}{{ ' ' + ubuntu2604__hostname.split('.')[0] if '.' in ubuntu2604__hostname else '' }}
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Hostname | Apply static and runtime hostname
+      become: true
+      ansible.builtin.hostname:
+        name: "{{ ubuntu2604__hostname }}"
+        use: systemd
+
+    - name: Hostname | Ensure local facts directory exists
+      become: true
+      ansible.builtin.file:
+        path: /etc/ansible/facts.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      when: ubuntu2604_hostname is defined
+
+    - name: Hostname | Save explicit hostname
+      become: true
+      ansible.builtin.copy:
+        dest: /etc/ansible/facts.d/ubuntu2604.fact
+        content: "{{ ubuntu2604__settings | combine({'hostname': ubuntu2604__hostname}) | to_nice_json }}\n"
+        owner: root
+        group: root
+        mode: "0644"
+      register: ubuntu2604__settings_file
+      when: ubuntu2604_hostname is defined
+
+    - name: Hostname | Refresh local facts
+      ansible.builtin.setup:
+        filter: ansible_local
+      when:
+        - ubuntu2604__settings_file is changed
+        - not ansible_check_mode
+
+# -----------------------------------------------------------------------------
 # Kernel
 # -----------------------------------------------------------------------------
 # Container-worker VMs need routing, density, observability, and auto-recovery

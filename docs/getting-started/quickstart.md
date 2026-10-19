@@ -43,6 +43,14 @@ ansible-playbook andreygubarev.com.ubuntu2604
 
 This configures the machine running the command, using the invoking account for the SSH access guardrails. It changes SSH policy, removes snap packages and their data, and disables swap and IPv6 by default.
 
+To choose a hostname, pass it once:
+
+```bash
+ansible-playbook andreygubarev.com.ubuntu2604 -e ubuntu2604_hostname=worker-1
+```
+
+The role remembers the name in a local fact and reuses it on subsequent runs without `-e`. If no hostname has ever been supplied, it leaves the machine's current name unchanged. See the [configuration reference](../reference/configuration.md#ubuntu2604_hostname).
+
 The role waits up to 30 minutes for cloud-init to complete before mutating the host, so fresh cloud or VPS images do not fail on dpkg locks or partial boot-time state. The role does not perform cloud-provider detection and uses direct provider-neutral Canonical APT endpoints.
 
 IPv6 is disabled by default with sysctl settings. If a host requires IPv6 or dual-stack networking, keep IPv6 enabled explicitly:
@@ -124,6 +132,7 @@ Available tags:
 
 | Tag | Section |
 |-----|---------|
+| `hostname` | Persistent hostname, local resolution, cloud-init policy, and saved explicit hostname |
 | `kernel` | Kernel modules, sysctls, PAM limits, and transparent hugepages |
 | `network` | All managed sysctls, including IPv6 policy, and prerequisite kernel modules |
 | `ssh` | SSH hardening, drop-in config, and guardrails |

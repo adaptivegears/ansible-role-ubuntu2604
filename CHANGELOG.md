@@ -4,6 +4,8 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.3] - 2026-10-20
+
 ### Changed
 - **Automatic root SSH preservation**: Running the Ubuntu role as root now forces `PermitRootLogin yes` regardless of `ubuntu2604_ssh_allow_root_login`, including an explicit `false`. Non-root provisioning still honors the variable. Password authentication remains disabled and authorized keys are still required.
 

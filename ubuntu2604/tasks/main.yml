@@ -847,6 +847,61 @@
     mode: "0755"
   tags: ssh
 
+# The role-owned drop-in is the first-run marker: only replace image-provided
+# host identities before this role has configured SSH for the first time.
+- name: SSH | Hardening | Check for existing role configuration
+  become: true
+  ansible.builtin.stat:
+    path: /etc/ssh/sshd_config.d/00-ubuntu2604-hardening.conf
+  register: ubuntu2604__ssh_hardening_config
+  tags: ssh
+
+- name: SSH | Hardening | Regenerate host keys before first configuration
+  become: true
+  when: not ubuntu2604__ssh_hardening_config.stat.exists
+  tags: ssh
+  block:
+    - name: SSH | Hardening | Find initial host key files
+      ansible.builtin.find:
+        paths: /etc/ssh
+        patterns: "ssh_host_*"
+        file_type: any
+      register: ubuntu2604__ssh_initial_host_keys
+
+    - name: SSH | Hardening | Remove initial host key files
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ ubuntu2604__ssh_initial_host_keys.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: SSH | Hardening | Generate Ed25519 host key
+      ansible.builtin.command:
+        argv:
+          - ssh-keygen
+          - -t
+          - ed25519
+          - -f
+          - /etc/ssh/ssh_host_ed25519_key
+          - -N
+          - ""
+        creates: /etc/ssh/ssh_host_ed25519_key
+
+    - name: SSH | Hardening | Generate RSA 4096 host key
+      ansible.builtin.command:
+        argv:
+          - ssh-keygen
+          - -t
+          - rsa
+          - -b
+          - "4096"
+          - -f
+          - /etc/ssh/ssh_host_rsa_key
+          - -N
+          - ""
+        creates: /etc/ssh/ssh_host_rsa_key
+
 - name: SSH | Hardening | Configure sshd_config permissions
   become: true
   ansible.builtin.file:
@@ -936,11 +991,23 @@
       Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-gcm@openssh.com,aes128-ctr
       MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com
       RequiredRSASize 3072
-      HostKeyAlgorithms sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256
+      HostKeyAlgorithms {{
+        'sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,'
+        ~ 'rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,'
+        ~ 'sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256'
+      }}
       CASignatureAlgorithms sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256
       GSSAPIKexAlgorithms gss-curve25519-sha256-,gss-group16-sha512-
-      HostbasedAcceptedAlgorithms sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256
-      PubkeyAcceptedAlgorithms sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256
+      HostbasedAcceptedAlgorithms {{
+        'sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,'
+        ~ 'rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,'
+        ~ 'sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256'
+      }}
+      PubkeyAcceptedAlgorithms {{
+        'sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,'
+        ~ 'rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,'
+        ~ 'sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256'
+      }}
 
       # Bound idle sessions and unauthenticated bursts to limit brute-force cost.
       ClientAliveCountMax 0

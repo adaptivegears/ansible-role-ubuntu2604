@@ -620,6 +620,22 @@ def test_sshd_hardening_setting_is_effective(host, _directive, effective_key, ex
     assert sshd_effective_config(host)[effective_key] == expected
 
 
+EXPECTED_SSH_HOST_KEYS = (
+    ("/etc/ssh/ssh_host_ed25519_key", "256", "(ED25519)"),
+    ("/etc/ssh/ssh_host_rsa_key", "4096", "(RSA)"),
+)
+
+
+@pytest.mark.parametrize("path, bits, key_type", EXPECTED_SSH_HOST_KEYS)
+def test_ssh_host_key_type_and_size(host, path, bits, key_type):
+    key = host.file(path)
+
+    assert key.is_file
+    details = host.check_output("ssh-keygen -lf %s", path).split()
+    assert details[0] == bits
+    assert details[-1] == key_type
+
+
 def test_ssh_private_host_key_permissions(host):
     paths = host.check_output(
         "find /etc/ssh -maxdepth 1 -type f -name 'ssh_host_*_key' ! -name '*.pub' "

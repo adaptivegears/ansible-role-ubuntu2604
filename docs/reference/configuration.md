@@ -236,7 +236,9 @@ The nine crypto directives match the [ssh-audit Ubuntu 26.04 server hardening gu
 
 Clients must support one of the listed hybrid post-quantum exchanges. ECDSA user keys and RSA user keys shorter than 3072 bits are no longer accepted. Provision a compatible key for the Ansible user before applying this policy; the existing authorized-keys guardrail checks file presence and size, not key compatibility.
 
-Only the guide's crypto directives are adopted here. Its host-key deletion/regeneration commands are not run: the role preserves existing server identities. The guide also generates a 4096-bit RSA host key, so matching these directives alone does not establish conformance with its complete audit policy.
+On first SSH configuration, the role follows the guide's host-key regeneration: it removes `/etc/ssh/ssh_host_*` and generates Ed25519 and 4096-bit RSA host keys with empty passphrases for unattended service startup. This changes the server fingerprints; verify the new keys through a trusted channel before updating clients' `known_hosts` entries.
+
+The existing `/etc/ssh/sshd_config.d/00-ubuntu2604-hardening.conf` is the first-run marker. If this file exists, the role preserves the host keys, even when crypto settings change. No separate marker file is created. The drop-in is written only after key generation succeeds, so a failed first run can retry. Removing this file deliberately causes regeneration on the next SSH run.
 
 The role also tightens permissions on `/etc/ssh/sshd_config` and host keys, validates the configuration with `sshd -t`, and ensures the `ssh` service is enabled and running.
 

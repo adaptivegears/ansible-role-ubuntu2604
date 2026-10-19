@@ -55,7 +55,7 @@ From a checkout of this repository:
 ```bash
 make deps   # Install this collection and its dependencies locally
 make check  # Lint the collection and syntax-check both installed playbooks
-make build  # Build dist/andreygubarev-com-2026.10.3.tar.gz
+make build  # Build dist/andreygubarev-com-2026.10.4.tar.gz
 make publish # Check, build, and publish the current version to Ansible Galaxy
 make test   # Verify deployed hosts using inventory.ini
 ```

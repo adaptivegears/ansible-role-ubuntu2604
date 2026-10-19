@@ -4,6 +4,8 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.4] - 2026-10-20
+
 ### Added
 - **Remembered hostname**: `ubuntu2604_hostname` applies and saves explicit names to `/etc/ansible/facts.d/ubuntu2604.fact`. Later runs reuse the saved value without rewriting it; hosts without an explicit or saved name are untouched. The `hostname` section also maintains local name resolution and prevents cloud-init from resetting the chosen name.
 

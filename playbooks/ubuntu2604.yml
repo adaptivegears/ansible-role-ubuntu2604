@@ -1,5 +1,9 @@
 ---
-- name: Provision Ubuntu 26.04 container-worker hosts
-  hosts: all
+- name: Provision the local Ubuntu 26.04 container-worker host
+  hosts: localhost
+  connection: local
+  vars:
+    # Local connections have no SSH login user; keep SSH guardrails tied to the invoking account.
+    ansible_user: "{{ ansible_facts['user_id'] }}"
   roles:
     - andreygubarev.com.ubuntu2604

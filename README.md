@@ -21,13 +21,15 @@ The Git repository name does not affect the collection name. No Galaxy publicati
 |-----------------|---------|
 | `andreygubarev.com.ubuntu2604` | Provision Ubuntu 26.04 VMs as container-worker hosts |
 
-Run the included playbook:
+Run the included playbook on the Ubuntu 26.04 machine you want to configure. It uses a local connection; no inventory or SSH connection is needed:
 
 ```bash
-ansible-playbook andreygubarev.com.ubuntu2604 -i inventory.ini
+ansible-playbook andreygubarev.com.ubuntu2604
 ```
 
-Or use the role in your own playbook:
+Run as a user with sudo privileges and SSH authorized keys already provisioned. Add `-K` if sudo requires a password. SSH hardening guardrails still apply: running as root requires explicit `-e ubuntu2604_ssh_allow_root_login=true` and root authorized keys.
+
+For remote provisioning over SSH, use the role in your own playbook:
 
 ```yaml
 - name: Provision container workers

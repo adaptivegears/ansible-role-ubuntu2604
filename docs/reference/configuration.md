@@ -122,7 +122,7 @@ The TCP port the OpenSSH server listens on.
 
 The role sets the `Port` directive in the SSH hardening drop-in. Ubuntu 26.04 runs sshd socket-activated; the distro's `sshd-socket-generator` derives `ssh.socket` `ListenStream` entries from that directive, and the role's restart handler reloads systemd and restarts `ssh.socket` before `ssh.service` so the listener actually moves. The setting therefore works whether sshd is socket-activated or standalone.
 
-Move the port in two steps: run the play connected on the current port with the new `ubuntu2604_ssh_port`, then update `ansible_port` in your inventory to match for subsequent runs. The Ansible connection that applies the change survives the restart; only new connections use the new port.
+When applying the role over SSH, move the port in two steps: run the play connected on the current port with the new `ubuntu2604_ssh_port`, then update `ansible_port` in your inventory to match for subsequent runs. The Ansible connection that applies the change survives the restart; only new connections use the new port. The included local playbook does not use SSH and needs no inventory port update.
 
 Example: free port 22 for another service and serve admin SSH on 22022.
 
@@ -367,7 +367,7 @@ Use `ansible-playbook --tags` or `--skip-tags` to select sections. OS and archit
 Example: run only APT and upgrade tasks:
 
 ```bash
-ansible-playbook -i inventory.ini andreygubarev.com.ubuntu2604 --tags "apt,upgrade"
+ansible-playbook andreygubarev.com.ubuntu2604 --tags "apt,upgrade"
 ```
 
 ## Related pages

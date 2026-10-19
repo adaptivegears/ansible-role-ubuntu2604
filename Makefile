@@ -35,7 +35,7 @@ lint: deps ## Run ansible-lint against the collection
 
 .PHONY: syntax
 syntax: deps ## Check the installed ubuntu2604 playbook syntax
-	ANSIBLE_COLLECTIONS_PATH=$(ANSIBLE_COLLECTIONS_PATH) $(ANSIBLE_PLAYBOOK) --syntax-check -i localhost, andreygubarev.com.ubuntu2604
+	ANSIBLE_COLLECTIONS_PATH=$(ANSIBLE_COLLECTIONS_PATH) $(ANSIBLE_PLAYBOOK) --syntax-check andreygubarev.com.ubuntu2604
 
 .PHONY: test
 test: ## Run testinfra verification tests against inventory.ini

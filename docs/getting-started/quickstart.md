@@ -4,15 +4,16 @@ Provision an Ubuntu 26.04 VM as a container worker in a few minutes.
 
 ## Goal
 
-Apply the `andreygubarev.com.ubuntu2604` role to a target host and verify that container-optimized settings are active.
+Run the `andreygubarev.com.ubuntu2604` playbook on the machine you want to configure and verify that container-optimized settings are active.
 
 ## Prerequisites
 
-- A target host running **Ubuntu 26.04**
-- **ansible-core 2.20** or newer on your control node; 2.20 is the first release supporting Ubuntu 26.04's Python 3.14
-- A control-node Python version supported by your ansible-core release: **Python 3.12–3.14 for ansible-core 2.20** ([support matrix](https://docs.ansible.com/projects/ansible-core/2.20/reference_appendices/release_and_maintenance.html#ansible-core-support-matrix))
-- SSH access to the target host as a user with `sudo` privileges
-- **SSH key-based access** for the Ansible user. The role disables password authentication and will fail if the current Ansible user has no `~/.ssh/authorized_keys` file.
+- Run directly on the host you want to configure, running **Ubuntu 26.04**
+- **ansible-core 2.20** or newer installed on that host; 2.20 is the first release supporting Ubuntu 26.04's Python 3.14
+- A Python version supported by your ansible-core release: **Python 3.12–3.14 for ansible-core 2.20** ([support matrix](https://docs.ansible.com/projects/ansible-core/2.20/reference_appendices/release_and_maintenance.html#ansible-core-support-matrix))
+- A local user with `sudo` privileges; add `-K` to the playbook command if sudo requires a password
+- **SSH authorized keys** already provisioned for that user. Execution is local, but the role hardens SSH and refuses to disable password authentication without a non-empty `~/.ssh/authorized_keys` file.
+- Running as `root` requires explicit `-e ubuntu2604_ssh_allow_root_login=true` and root authorized keys; root SSH is disabled by default, so the guardrail otherwise stops the run.
 
 ## Step 1 — Install the collection
 
@@ -32,61 +33,64 @@ make deps
 
 After editing the source, run `make deps` again to refresh the installed copy.
 
-## Step 2 — Add the host to your inventory
+## Step 2 — Run the local playbook
 
-Create or edit your inventory file:
+No inventory or SSH connection is needed:
+
+```bash
+ansible-playbook andreygubarev.com.ubuntu2604
+```
+
+This configures the machine running the command, using the invoking account for the SSH access guardrails. It changes SSH policy, removes snap packages and their data, and disables swap and IPv6 by default.
+
+The role waits up to 30 minutes for cloud-init to complete before mutating the host, so fresh cloud or VPS images do not fail on dpkg locks or partial boot-time state. The role does not perform cloud-provider detection and uses direct provider-neutral Canonical APT endpoints.
+
+IPv6 is disabled by default with sysctl settings. If a host requires IPv6 or dual-stack networking, keep IPv6 enabled explicitly:
+
+```bash
+ansible-playbook andreygubarev.com.ubuntu2604 -e ubuntu2604_disable_ipv6=false
+```
+
+## Step 3 — Verify the changes
+
+From a repository checkout, run the included test suite locally (requires sudo access):
+
+```bash
+make test TESTINFRA_HOSTS=local://
+```
+
+This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks to confirm kernel modules, sysctl persistence, IPv6 policy, PAM limits, systemd manager defaults, transparent hugepages, swap removal, APT source configuration, snapd removal and reinstallation block, container-worker package cleanup, unattended-upgrade policy, log pressure controls, locale configuration, and SSH hardening.
+
+You can also spot-check individual settings directly:
+
+```bash
+lsmod | grep -E 'br_netfilter|nf_conntrack'
+sysctl net.ipv4.ip_forward
+swapon --show
+timedatectl show --property=Timezone --value
+resolvectl status
+```
+
+## Remote provisioning
+
+The included playbook always targets localhost. To provision remote hosts over SSH, use the role in your own playbook, for example `workers.yml`:
+
+```yaml
+- name: Provision container workers
+  hosts: workers
+  roles:
+    - role: andreygubarev.com.ubuntu2604
+```
+
+Provide an inventory with the SSH login user:
 
 ```ini
 [workers]
 worker1.example.com ansible_user=ubuntu
 ```
 
-## Step 3 — Run the role
-
-Use the included playbook or add the role to your own:
-
 ```bash
-ansible-playbook -i inventory.ini andreygubarev.com.ubuntu2604
-```
-
-The role waits up to 30 minutes for cloud-init to complete before mutating the host, so fresh cloud or VPS images do not fail on dpkg locks or partial boot-time state. The role does not perform cloud-provider detection and uses direct provider-neutral Canonical APT endpoints.
-
-IPv6 is disabled by default with sysctl settings. If a host requires IPv6 or dual-stack networking, keep IPv6 enabled explicitly.
-
-```yaml
-- hosts: workers
-  vars:
-    ubuntu2604_disable_ipv6: false
-  roles:
-    - role: andreygubarev.com.ubuntu2604
-```
-
-Or reference the role directly:
-
-```yaml
-- hosts: workers
-  roles:
-    - role: andreygubarev.com.ubuntu2604
-```
-
-## Step 4 — Verify the changes
-
-From a repository checkout, run the included test suite against your inventory:
-
-```bash
-make test
-```
-
-This runs [pytest-testinfra](https://testinfra.readthedocs.io/) checks in parallel across all hosts to confirm kernel modules, sysctl persistence, IPv6 policy, PAM limits, systemd manager defaults, transparent hugepages, swap removal, APT source configuration, snapd removal and reinstallation block, container-worker package cleanup, unattended-upgrade policy, log pressure controls, locale configuration, and SSH hardening.
-
-You can also spot-check individual settings with ad-hoc Ansible commands:
-
-```bash
-ansible workers -i inventory.ini -m ansible.builtin.shell -a "lsmod | grep -E 'br_netfilter|nf_conntrack'" --become
-ansible workers -i inventory.ini -m ansible.builtin.shell -a "sysctl net.ipv4.ip_forward" --become
-ansible workers -i inventory.ini -m ansible.builtin.shell -a "free -h | grep -i swap" --become
-ansible workers -i inventory.ini -m ansible.builtin.shell -a "timedatectl show --property=Timezone --value" --become
-ansible workers -i inventory.ini -m ansible.builtin.shell -a "resolvectl status" --become
+ansible-playbook -i inventory.ini workers.yml
 ```
 
 ## What changed on the host
@@ -140,13 +144,13 @@ Available tags:
 Example: apply only kernel and swap tuning:
 
 ```bash
-ansible-playbook -i inventory.ini andreygubarev.com.ubuntu2604 --tags "kernel,swap"
+ansible-playbook andreygubarev.com.ubuntu2604 --tags "kernel,swap"
 ```
 
 Example: skip the package upgrade step on a host that is already current:
 
 ```bash
-ansible-playbook -i inventory.ini andreygubarev.com.ubuntu2604 --skip-tags upgrade
+ansible-playbook andreygubarev.com.ubuntu2604 --skip-tags upgrade
 ```
 
 ## Next steps

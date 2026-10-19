@@ -17,13 +17,13 @@ Run the `andreygubarev.com.ubuntu2604` playbook on the machine you want to confi
 
 ## Step 1 — Install the collection
 
-Install directly from Git, including the collection's dependencies:
+After the first release is published, install from Ansible Galaxy, including the collection's dependencies:
 
 ```bash
-ansible-galaxy collection install git+https://github.com/adaptivegears/ansible-role-ubuntu2604.git
+ansible-galaxy collection install andreygubarev.com
 ```
 
-Append `,<tag-or-commit>` to the Git URL to pin a revision. Galaxy publication is not required.
+Source code is available at [andreygubarev/ansible-collection](https://github.com/andreygubarev/ansible-collection).
 
 For development from a repository checkout, install the local collection and its dependencies instead:
 

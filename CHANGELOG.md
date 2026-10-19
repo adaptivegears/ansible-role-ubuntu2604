@@ -4,9 +4,12 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.1] - 2026-10-20
+
 ### Breaking Changes
 - **Local playbook**: The included `ubuntu2604` playbook now configures localhost using a local connection, without inventory or SSH transport. It derives the guardrail user from local facts and preserves SSH key and root-login checks. Remote provisioning uses the role in a caller-owned playbook.
-- **Collection packaging**: The repository is now the `andreygubarev.com` collection. The Ubuntu role lives in `roles/ubuntu2604` and is referenced as `andreygubarev.com.ubuntu2604`. Install the collection from Git or with `make deps`, then run `ansible-playbook andreygubarev.com.ubuntu2604` instead of the former root `playbook.yml`. Collection dependencies are declared in `galaxy.yml` instead of `requirements.yml`.
+- **Collection packaging**: The repository is now the `andreygubarev.com` collection. The Ubuntu role lives in `roles/ubuntu2604` and is referenced as `andreygubarev.com.ubuntu2604`. Install the published collection with `ansible-galaxy collection install andreygubarev.com` or the development checkout with `make deps`, then run `ansible-playbook andreygubarev.com.ubuntu2604` instead of the former root `playbook.yml`. Collection dependencies are declared in `galaxy.yml` instead of `requirements.yml`.
+- **Source breadcrumbs**: Managed configuration files and their verification now point to `https://github.com/andreygubarev/ansible-collection`.
 - **Purge installed snaps**: The role now removes all installed snap applications, dependencies, revisions, and their data with `--purge` before removing snapd, instead of refusing to continue when snaps are present. No automatic removal snapshots are created. Use `--skip-tags snap` if snaps must be retained.
 
 ## [2026.10.0] - 2026-10-20

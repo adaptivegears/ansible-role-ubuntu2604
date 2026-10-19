@@ -7,13 +7,15 @@ Personal Ansible collection of public infrastructure roles and playbooks.
 - ansible-core **2.20** or newer
 - Target requirements are documented for each role
 
-## Install from Git
+## Install from Ansible Galaxy
+
+After the first release is published:
 
 ```bash
-ansible-galaxy collection install git+https://github.com/adaptivegears/ansible-role-ubuntu2604.git
+ansible-galaxy collection install andreygubarev.com
 ```
 
-The Git repository name does not affect the collection name. No Galaxy publication is required. To pin a revision, append `,<tag-or-commit>` to the Git URL.
+Source repository: [andreygubarev/ansible-collection](https://github.com/andreygubarev/ansible-collection).
 
 ## Roles and playbooks
 
@@ -47,8 +49,29 @@ From a checkout of this repository:
 ```bash
 make deps   # Install this collection and its dependencies locally
 make check  # Lint the collection and syntax-check the installed playbook
-make build  # Build dist/andreygubarev-com-2026.10.0.tar.gz
+make build  # Build dist/andreygubarev-com-2026.10.1.tar.gz
 make test   # Verify deployed hosts using inventory.ini
 ```
 
 Roles live in `roles/`, and collection playbooks live in `playbooks/`.
+
+## Publish to Ansible Galaxy
+
+1. Sign in to [Ansible Galaxy](https://galaxy.ansible.com/) and ensure your account has permission to publish under the `andreygubarev` namespace. A GitHub repository alone does not grant Galaxy namespace access.
+2. Obtain an API token from [Galaxy API token management](https://galaxy.ansible.com/ui/token/). Store it outside the repository in `~/.ansible/galaxy_token` with permissions `0600`:
+
+   ```yaml
+   token: <your-galaxy-api-token>
+   ```
+
+3. Check `version` in `galaxy.yml` before building. Every published version is immutable; increment it for subsequent releases. Build and publish the tarball, not the Git repository:
+
+   ```bash
+   make check
+   make build
+   ansible-galaxy collection publish dist/andreygubarev-com-2026.10.1.tar.gz
+   ```
+
+   The filename follows the version in `galaxy.yml`; use the newly built artifact when changing versions. Publishing waits for Galaxy's import validation to finish.
+
+4. After the import succeeds, install with `ansible-galaxy collection install andreygubarev.com` and run `ansible-playbook andreygubarev.com.ubuntu2604` on the target machine.

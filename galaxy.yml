@@ -1,7 +1,7 @@
 ---
 namespace: andreygubarev
 name: com
-version: 2026.10.0
+version: 2026.10.1
 readme: README.md
 authors:
   - Andrey Gubarev
@@ -14,7 +14,7 @@ tags:
   - ubuntu
 dependencies:
   community.general: "13.5.0"
-repository: https://github.com/adaptivegears/ansible-role-ubuntu2604
+repository: https://github.com/andreygubarev/ansible-collection
 build_ignore:
   - .ansible
   - .ansible-lint.yml

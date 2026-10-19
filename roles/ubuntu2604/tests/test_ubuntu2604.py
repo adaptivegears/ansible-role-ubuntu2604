@@ -21,7 +21,7 @@ def locale_a_name(locale: str) -> str:
 # -----------------------------------------------------------------------------
 
 
-ROLE_SOURCE_URL = "https://github.com/adaptivegears/ansible-role-ubuntu2604"
+ROLE_SOURCE_URL = "https://github.com/andreygubarev/ansible-collection"
 EXPECTED_BREADCRUMBED_FILES = (
     "/etc/modules-load.d/99-ubuntu2604-container.conf",
     "/etc/sysctl.d/99-ubuntu2604.conf",

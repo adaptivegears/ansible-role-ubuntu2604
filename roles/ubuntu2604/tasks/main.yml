@@ -115,7 +115,7 @@
     dest: /etc/modules-load.d/99-ubuntu2604-container.conf
     content: |
       # Managed by ansible-role-ubuntu2604
-      # Source: https://github.com/adaptivegears/ansible-role-ubuntu2604
+      # Source: https://github.com/andreygubarev/ansible-collection
 
       # Load bridge netfilter early so bridge sysctls exist on minimal images.
       br_netfilter
@@ -145,7 +145,7 @@
     dest: /etc/sysctl.d/99-ubuntu2604.conf
     content: |
       # Managed by ansible-role-ubuntu2604
-      # Source: https://github.com/adaptivegears/ansible-role-ubuntu2604
+      # Source: https://github.com/andreygubarev/ansible-collection
 
       # Route bridged container traffic through host firewall policy.
       net.bridge.bridge-nf-call-arptables = 1
@@ -248,7 +248,7 @@
     dest: /etc/security/limits.d/60-ubuntu2604-container.conf
     content: |
       # Managed by ansible-role-ubuntu2604
-      # Source: https://github.com/adaptivegears/ansible-role-ubuntu2604
+      # Source: https://github.com/andreygubarev/ansible-collection
 
       # Keep PAM-launched sessions from retaining low descriptor defaults after
       # raising kernel FD ceilings.
@@ -271,11 +271,11 @@
     dest: /etc/systemd/system/transparent-hugepages-madvise.service
     content: |
       # Managed by ansible-role-ubuntu2604
-      # Source: https://github.com/adaptivegears/ansible-role-ubuntu2604
+      # Source: https://github.com/andreygubarev/ansible-collection
 
       [Unit]
       Description=Set Transparent Hugepages to madvise
-      Documentation=https://github.com/adaptivegears/ansible-role-ubuntu2604
+      Documentation=https://github.com/andreygubarev/ansible-collection
       After=multi-user.target
 
       [Service]
@@ -323,7 +323,7 @@
     dest: /etc/systemd/system.conf.d/60-ubuntu2604-density.conf
     content: |
       # Managed by ansible-role-ubuntu2604
-      # Source: https://github.com/adaptivegears/ansible-role-ubuntu2604
+      # Source: https://github.com/andreygubarev/ansible-collection
 
       [Manager]
       # Keep service-launched workloads aligned with the kernel and PAM file
@@ -365,7 +365,7 @@
   ansible.builtin.replace:
     path: /etc/fstab
     regexp: '^(?!#)(.*\sswap\s.*)$'
-    replace: '# Disabled by ansible-role-ubuntu2604 (https://github.com/adaptivegears/ansible-role-ubuntu2604): \1'
+    replace: '# Disabled by ansible-role-ubuntu2604 (https://github.com/andreygubarev/ansible-collection): \1'
     backup: true
   tags: swap
 
@@ -498,7 +498,7 @@
     dest: /etc/apt/preferences.d/99-ubuntu2604-nosnap.pref
     content: |
       # Managed by ansible-role-ubuntu2604
-      # Source: https://github.com/adaptivegears/ansible-role-ubuntu2604
+      # Source: https://github.com/andreygubarev/ansible-collection
 
       # Keep server images free of snapd unless an operator deliberately removes this policy.
       Package: snapd
@@ -628,7 +628,7 @@
     dest: /etc/apt/apt.conf.d/20auto-upgrades
     content: |
       // Managed by ansible-role-ubuntu2604
-      // Source: https://github.com/adaptivegears/ansible-role-ubuntu2604
+      // Source: https://github.com/andreygubarev/ansible-collection
 
       APT::Periodic::Update-Package-Lists "1";
       APT::Periodic::Unattended-Upgrade "1";
@@ -643,7 +643,7 @@
     dest: /etc/apt/apt.conf.d/52ubuntu2604-unattended-upgrades
     content: |
       // Managed by ansible-role-ubuntu2604
-      // Source: https://github.com/adaptivegears/ansible-role-ubuntu2604
+      // Source: https://github.com/andreygubarev/ansible-collection
 
       // Reserve reboots/shutdown installs for maintenance automation, not background APT.
       Unattended-Upgrade::Automatic-Reboot "false";
@@ -666,7 +666,7 @@
     dest: /etc/needrestart/conf.d/99-ubuntu2604-no-auto-restarts.conf
     content: |
       # Managed by ansible-role-ubuntu2604
-      # Source: https://github.com/adaptivegears/ansible-role-ubuntu2604
+      # Source: https://github.com/andreygubarev/ansible-collection
 
       # List stale processes without restarting runtimes or workload services.
       $nrconf{restart} = 'l';
@@ -717,7 +717,7 @@
     dest: /etc/systemd/journald.conf.d/60-ubuntu2604-log-pressure.conf
     content: |
       # Managed by ansible-role-ubuntu2604
-      # Source: https://github.com/adaptivegears/ansible-role-ubuntu2604
+      # Source: https://github.com/andreygubarev/ansible-collection
 
       [Journal]
       # Keep recovery history without unbounded journal growth on small disks.
@@ -976,7 +976,7 @@
     dest: /etc/ssh/sshd_config.d/00-ubuntu2604-hardening.conf
     content: |
       # Managed by ansible-role-ubuntu2604
-      # Source: https://github.com/adaptivegears/ansible-role-ubuntu2604
+      # Source: https://github.com/andreygubarev/ansible-collection
 
       # 00-* wins over later cloud-init/package snippets.
       # Verbose auth logs aid SSH recovery without debug noise.
@@ -1096,7 +1096,7 @@
   become: true
   ansible.builtin.lineinfile:
     path: /etc/default/locale
-    line: "# Source: https://github.com/adaptivegears/ansible-role-ubuntu2604"
+    line: "# Source: https://github.com/andreygubarev/ansible-collection"
     insertafter: "^# Managed by ansible-role-ubuntu2604$"
     create: true
     mode: "0644"
@@ -1171,7 +1171,7 @@
     dest: /etc/systemd/resolved.conf.d/60-ubuntu2604-fallback-dns.conf
     content: |
       # Managed by ansible-role-ubuntu2604
-      # Source: https://github.com/adaptivegears/ansible-role-ubuntu2604
+      # Source: https://github.com/andreygubarev/ansible-collection
 
       [Resolve]
       FallbackDNS=1.1.1.1 1.0.0.1

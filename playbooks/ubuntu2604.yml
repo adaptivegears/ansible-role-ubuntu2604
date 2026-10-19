@@ -2,8 +2,11 @@
 - name: Provision the local Ubuntu 26.04 container-worker host
   hosts: localhost
   connection: local
-  vars:
-    # Local connections have no SSH login user; keep SSH guardrails tied to the invoking account.
-    ansible_user: "{{ ansible_facts['user_id'] }}"
+  # Resolve the invoking account after gathering facts, before role SSH guardrails run.
+  pre_tasks:
+    - name: Local | Identify provisioning user
+      ansible.builtin.set_fact:
+        ansible_user: "{{ ansible_facts['user_id'] }}"
+      tags: always
   roles:
     - andreygubarev.com.ubuntu2604

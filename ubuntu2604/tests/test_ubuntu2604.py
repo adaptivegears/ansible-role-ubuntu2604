@@ -516,7 +516,7 @@ EXPECTED_SSHD_HARDENING_SETTINGS = (
         "sntrup761x25519-sha512@openssh.com",
     ),
     ("ClientAliveInterval", "clientaliveinterval", "300"),
-    ("ClientAliveCountMax", "clientalivecountmax", "0"),
+    ("ClientAliveCountMax", "clientalivecountmax", "3"),
     ("LoginGraceTime", "logingracetime", "60"),
     ("Banner", "banner", "none"),
     ("UsePAM", "usepam", "yes"),

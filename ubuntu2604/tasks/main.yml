@@ -1009,9 +1009,12 @@
         ~ 'sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256'
       }}
 
-      # Bound idle sessions and unauthenticated bursts to limit brute-force cost.
-      ClientAliveCountMax 0
+      # Drop clients after three unanswered five-minute probes to clear lost
+      # connections; responsive clients stay connected even without user input.
+      ClientAliveCountMax 3
       ClientAliveInterval 300
+
+      # Bound concurrent sessions and unauthenticated bursts to limit abuse.
       MaxSessions 3
       MaxStartups 10:30:60
 

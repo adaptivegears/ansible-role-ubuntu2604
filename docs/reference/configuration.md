@@ -215,8 +215,8 @@ The drop-in enforces the following settings:
 | `PermitUserEnvironment` | `no` | Prevent user-controlled environment injection |
 | `AllowTcpForwarding` | `no` (unless opted in) | Avoid unaudited tunnels on workers |
 | `X11Forwarding` | `no` | Disable desktop forwarding |
-| `ClientAliveInterval` | `300` | Bound idle sessions |
-| `ClientAliveCountMax` | `0` | Terminate unresponsive sessions |
+| `ClientAliveInterval` | `300` | Probe clients after five minutes without received data; not a user-inactivity timeout |
+| `ClientAliveCountMax` | `3` | Disconnect after three unanswered probes, approximately 15 minutes; responsive idle sessions remain connected |
 | `LoginGraceTime` | `60` | Limit unauthenticated window |
 | `MaxAuthTries` | `3` | Slow brute-force attempts |
 | `MaxSessions` | `3` | Limit concurrent sessions per connection |

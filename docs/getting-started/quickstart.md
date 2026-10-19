@@ -102,7 +102,7 @@ ansible workers -i inventory.ini -m ansible.builtin.shell -a "resolvectl status"
 - Operational troubleshooting toolbox installed (`htop`, `iotop`, `jq`, `tcpdump`, `tmux`, `bind9-dnsutils`, and others)
 - Timezone pinned to UTC with `chrony` time synchronization active
 - `systemd-resolved` enabled with Cloudflare fallback DNS (`1.1.1.1`, `1.0.0.1`) for when DHCP resolvers are unavailable
-- SSH hardened with a priority drop-in (`PasswordAuthentication no`, key-only algorithms, idle timeouts, TCP forwarding disabled) and guardrails that prevent applying the role without key-based access
+- SSH hardened with a priority drop-in (`PasswordAuthentication no`, key-only algorithms, unresponsive-client cleanup, TCP forwarding disabled) and guardrails that prevent applying the role without key-based access
 - `snapd` removed and residual directories cleaned when no snaps are installed, with reinstallation blocked via APT preferences
 - Container-worker irrelevant packages purged, including desktop helpers, hardware daemons, storage agents, and interactive tooling
 - Dynamic and static MOTD cleared and `motd-news.timer` masked for quiet SSH logins

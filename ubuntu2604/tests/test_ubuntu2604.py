@@ -480,8 +480,8 @@ def test_operation_package_is_installed(host, package):
 
 SSHD_CONFIG = "/etc/ssh/sshd_config"
 SSHD_HARDENING_CONFIG = "/etc/ssh/sshd_config.d/00-ubuntu2604-hardening.conf"
-# Mirrors ubuntu2604_ssh_port in inventory.ini; update both together.
-EXPECTED_SSH_PORT = "22022"
+# Verify the role's default SSH port.
+EXPECTED_SSH_PORT = "22"
 # ssh-audit Ubuntu 26.04 server guide v1 (2026-06-14), including list order.
 EXPECTED_SSHD_KEY_ALGORITHMS = (
     "sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,"

@@ -9,7 +9,8 @@ Apply the `ubuntu2604` role to a target host and verify that container-optimized
 ## Prerequisites
 
 - A target host running **Ubuntu 26.04**
-- **Ansible 2.15** or newer on your control node
+- **ansible-core 2.20** or newer on your control node; 2.20 is the first release supporting Ubuntu 26.04's Python 3.14
+- A control-node Python version supported by your ansible-core release: **Python 3.12–3.14 for ansible-core 2.20** ([support matrix](https://docs.ansible.com/projects/ansible-core/2.20/reference_appendices/release_and_maintenance.html#ansible-core-support-matrix))
 - SSH access to the target host as a user with `sudo` privileges
 - **SSH key-based access** for the Ansible user. The role disables password authentication and will fail if the current Ansible user has no `~/.ssh/authorized_keys` file.
 

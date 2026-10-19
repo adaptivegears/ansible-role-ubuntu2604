@@ -109,20 +109,20 @@ ansible workers -i inventory.ini -m ansible.builtin.shell -a "resolvectl status"
 
 ## Run only specific sections
 
-Every task is tagged with a semantic selector. Use `--tags` or `--skip-tags` to run only the sections you need.
+Use `--tags` or `--skip-tags` to run only the sections you need. OS and architecture checks and the cloud-init barrier use `always`, so they also run during selective execution. Do not skip `always` when applying the role. SSH access guardrails run with `ssh`; snapd guardrails and cleanup also run with `packages`.
 
 Available tags:
 
 | Tag | Section |
 |-----|---------|
 | `kernel` | Kernel modules, sysctls, PAM limits, and transparent hugepages |
-| `network` | IPv6 sysctl policy |
+| `network` | All managed sysctls, including IPv6 policy, and prerequisite kernel modules |
 | `ssh` | SSH hardening, drop-in config, and guardrails |
 | `systemd` | System manager resource limits and cgroup accounting defaults |
 | `swap` | Swap disable and fstab cleanup |
-| `apt` | APT source configuration, source configuration and cache update |
+| `apt` | APT sources and cache, snapd removal, package cleanup, upgrades, and reboot reporting |
 | `upgrade` | Safe package upgrade, autoremove, and autoclean |
-| `packages` | Package installs and removals across all sections |
+| `packages` | Package installs and removals, including snapd guardrails and cleanup, upgrades, and reboot reporting |
 | `unattended_upgrades` | Unattended security upgrades, reboot policy, and needrestart |
 | `logs` | Journald persistence, retention, and `/var/log` pressure controls |
 | `firewall` | nftables service ownership, UFW masking, and iptables compatibility tools |

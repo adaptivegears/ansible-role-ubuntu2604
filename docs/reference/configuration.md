@@ -326,18 +326,18 @@ Dynamic MOTD entries under `/etc/update-motd.d` are removed, the static `/etc/mo
 
 ## Task tags
 
-All tasks carry semantic tags so you can run or skip sections with `ansible-playbook --tags` or `--skip-tags`.
+Use `ansible-playbook --tags` or `--skip-tags` to select sections. OS and architecture checks and the cloud-init barrier carry `always` and run even with `--tags`; do not skip `always` when applying the role. SSH access guardrails run with `ssh`, so unrelated sections do not require SSH key checks.
 
 | Tag | Covers |
 |-----|--------|
 | `kernel` | Kernel modules, sysctls, PAM limits, transparent hugepages service |
-| `network` | IPv6 sysctl policy |
+| `network` | All managed sysctls, including IPv6 policy, and prerequisite kernel modules |
 | `ssh` | SSH hardening, drop-in config, and guardrails |
 | `systemd` | System manager resource limits and cgroup accounting defaults |
 | `swap` | Swap disable and `/etc/fstab` cleanup |
-| `apt` | Mirror lists, sources list, and cache update |
+| `apt` | APT sources and cache, snapd removal, package cleanup, upgrades, and reboot reporting |
 | `upgrade` | Safe package upgrade, autoremove, and autoclean |
-| `packages` | Package installs and removals across all sections |
+| `packages` | Package installs and removals, including snapd guardrails and cleanup, upgrades, and reboot reporting |
 | `unattended_upgrades` | Unattended upgrades config, reboot policy, needrestart, and timers |
 | `logs` | Journald persistence, retention, and `/var/log` pressure controls |
 | `firewall` | nftables service ownership, UFW masking, and iptables compatibility tools |

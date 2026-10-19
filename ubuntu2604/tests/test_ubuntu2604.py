@@ -285,6 +285,19 @@ def test_snap_command_is_absent(host):
     assert host.run("command -v snap").rc != 0
 
 
+EXPECTED_REMOVED_SNAP_DIRECTORIES = (
+    "/snap",
+    "/var/cache/snapd",
+    "/var/lib/snapd",
+    "/var/snap",
+)
+
+
+@pytest.mark.parametrize("path", EXPECTED_REMOVED_SNAP_DIRECTORIES)
+def test_snap_state_directory_is_absent(host, path):
+    assert not host.file(path).exists
+
+
 def test_snapd_reinstallation_is_pinned(host):
     policy = host.file(APT_NOSNAP_PREF)
 

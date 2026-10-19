@@ -297,17 +297,21 @@ The role makes `nftables` the host firewall manager on Ubuntu 26.04. It installs
 
 ### Snap
 
-The role removes `snapd` from server images when no snap packages are installed. Before removal, it checks for installed snaps and fails with a clear message if any are present, so workload ownership is not accidentally destroyed.
+The role removes **all installed snap packages and their data**, then removes `snapd`. This is destructive and intended for newly provisioned container-worker nodes; installed snaps no longer block the role.
 
-When safe to proceed, the role:
+The role:
 
+- Reads installed snaps, deduplicating names across active and disabled revisions
+- Removes applications and dependencies together with `snap remove --purge`, letting snapd order their removal
+- Removes the `snapd` snap separately, after all other snaps are gone
+- Uses `--purge` to avoid creating automatic removal snapshots; no snap data backup is retained
 - Stops `snapd.service`, `snapd.socket`, and `snapd.seeded.service`
 - Purges the `snapd` package
 - Blocks reinstallation by pinning `snapd` at negative priority in `/etc/apt/preferences.d/99-ubuntu2604-nosnap.pref`
 - Removes residual directories: `/snap`, `/var/cache/snapd`, `/var/lib/snapd`, `/var/snap`
 - Reloads systemd units so stale mount and service references are dropped
 
-If your workload relies on snaps, either migrate them to another packaging format or skip the `snap` tag.
+If a node must retain snaps, exclude this entire section with `--skip-tags snap`. If snap removal fails, the role stops before purging the package manager or deleting residual directories.
 
 ### Container-worker package removal
 
@@ -350,14 +354,14 @@ Use `ansible-playbook --tags` or `--skip-tags` to select sections. OS and archit
 | `swap` | Swap disable and `/etc/fstab` cleanup |
 | `apt` | APT sources and cache, snapd removal, package cleanup, upgrades, and reboot reporting |
 | `upgrade` | Safe package upgrade, autoremove, and autoclean |
-| `packages` | Package installs and removals, including snapd guardrails and cleanup, upgrades, and reboot reporting |
+| `packages` | Package installs and removals, including all installed snaps and their data, snapd cleanup, upgrades, and reboot reporting |
 | `unattended_upgrades` | Unattended upgrades config, reboot policy, needrestart, and timers |
 | `logs` | Journald persistence, retention, and `/var/log` pressure controls |
 | `firewall` | nftables service ownership, UFW masking, and iptables compatibility tools |
 | `locale` | Locale generation and default locale setting |
 | `time` | Timezone and chrony time synchronization |
 | `dns` | systemd-resolved stub and fallback DNS configuration |
-| `snap` | Snapd removal, guardrails, and reinstallation block |
+| `snap` | Purge all installed snaps and their data, remove snapd, and block reinstallation |
 | `motd` | MOTD cleanup and motd-news timer masking |
 
 Example: run only APT and upgrade tasks:

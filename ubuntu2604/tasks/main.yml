@@ -409,8 +409,8 @@
 # -----------------------------------------------------------------------------
 # Snap
 # -----------------------------------------------------------------------------
-# Remove snapd from server images only when it is unused. Installed snaps are a
-# workload ownership signal, so the role fails before removing their package manager.
+# Fresh container-worker nodes do not retain snap workloads or their data.
+# Remove installed snaps before their package manager, without creating snapshots.
 # -----------------------------------------------------------------------------
 
 - name: Snap | Check for snap command
@@ -443,15 +443,30 @@
       }}
   tags: [snap, apt, packages]
 
-- name: Snap | Assert snapd can be removed safely
-  ansible.builtin.assert:
-    that:
-      - ubuntu2604__installed_snap_names | length == 0
-    fail_msg: >-
-      Refusing to remove snapd because snap packages are installed:
-      {{ ubuntu2604__installed_snap_names | join(', ') }}. Migrate or remove
-      these snaps first, then rerun the role.
-    success_msg: "No installed snap packages block snapd removal"
+# Bulk removal lets snapd order applications before their base/content providers.
+# The snapd snap must be removed separately: it refuses removal while others exist.
+- name: Snap | Purge installed snap applications and dependencies
+  become: true
+  ansible.builtin.command:
+    argv: >-
+      {{
+        ['snap', 'remove', '--purge']
+        + (ubuntu2604__installed_snap_names | reject('equalto', 'snapd') | list)
+      }}
+  changed_when: true
+  when: ubuntu2604__installed_snap_names | reject('equalto', 'snapd') | list | length > 0
+  tags: [snap, apt, packages]
+
+- name: Snap | Purge installed snapd snap
+  become: true
+  ansible.builtin.command:
+    argv:
+      - snap
+      - remove
+      - --purge
+      - snapd
+  changed_when: true
+  when: "'snapd' in ubuntu2604__installed_snap_names"
   tags: [snap, apt, packages]
 
 - name: Snap | Stop snapd services before removal

@@ -103,14 +103,14 @@ ansible workers -i inventory.ini -m ansible.builtin.shell -a "resolvectl status"
 - Timezone pinned to UTC with `chrony` time synchronization active
 - `systemd-resolved` enabled with Cloudflare fallback DNS (`1.1.1.1`, `1.0.0.1`) for when DHCP resolvers are unavailable
 - SSH hardened with a priority drop-in (`PasswordAuthentication no`, key-only algorithms, unresponsive-client cleanup, TCP forwarding disabled) and guardrails that prevent applying the role without key-based access
-- `snapd` removed and residual directories cleaned when no snaps are installed, with reinstallation blocked via APT preferences
+- All installed snaps and their data purged without removal snapshots, then `snapd` removed and residual directories cleaned, with reinstallation blocked via APT preferences
 - Container-worker irrelevant packages purged, including desktop helpers, hardware daemons, storage agents, and interactive tooling
 - Dynamic and static MOTD cleared and `motd-news.timer` masked for quiet SSH logins
 - Tasks tagged for selective execution
 
 ## Run only specific sections
 
-Use `--tags` or `--skip-tags` to run only the sections you need. OS and architecture checks and the cloud-init barrier use `always`, so they also run during selective execution. Do not skip `always` when applying the role. SSH access guardrails run with `ssh`; snapd guardrails and cleanup also run with `packages`.
+Use `--tags` or `--skip-tags` to run only the sections you need. OS and architecture checks and the cloud-init barrier use `always`, so they also run during selective execution. Do not skip `always` when applying the role. SSH access guardrails run with `ssh`; purging all installed snaps and their data and cleaning up snapd also run with `packages`.
 
 Available tags:
 
@@ -123,14 +123,14 @@ Available tags:
 | `swap` | Swap disable and fstab cleanup |
 | `apt` | APT sources and cache, snapd removal, package cleanup, upgrades, and reboot reporting |
 | `upgrade` | Safe package upgrade, autoremove, and autoclean |
-| `packages` | Package installs and removals, including snapd guardrails and cleanup, upgrades, and reboot reporting |
+| `packages` | Package installs and removals, including all installed snaps and their data, snapd cleanup, upgrades, and reboot reporting |
 | `unattended_upgrades` | Unattended security upgrades, reboot policy, and needrestart |
 | `logs` | Journald persistence, retention, and `/var/log` pressure controls |
 | `firewall` | nftables service ownership, UFW masking, and iptables compatibility tools |
 | `locale` | Locale generation and default locale setting |
 | `time` | Timezone and chrony time synchronization |
 | `dns` | systemd-resolved stub and fallback DNS configuration |
-| `snap` | Snapd removal, guardrails, and reinstallation block |
+| `snap` | Purge all installed snaps and their data, remove snapd, and block reinstallation |
 | `motd` | MOTD cleanup and motd-news timer masking |
 
 Example: apply only kernel and swap tuning:

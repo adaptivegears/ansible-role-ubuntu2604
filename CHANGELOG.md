@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow [CalVer](https://calver.org/) (`YYYY.M.MICRO`).
 
+## [Unreleased]
+
+### Breaking Changes
+- **Purge installed snaps**: The role now removes all installed snap applications, dependencies, revisions, and their data with `--purge` before removing snapd, instead of refusing to continue when snaps are present. No automatic removal snapshots are created. Use `--skip-tags snap` if snaps must be retained.
+
 ## [2026.10.0] - 2026-10-20
 
 ### Highlights

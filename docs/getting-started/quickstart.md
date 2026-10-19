@@ -13,7 +13,7 @@ Run the `andreygubarev.com.ubuntu2604` playbook on the machine you want to confi
 - A Python version supported by your ansible-core release: **Python 3.12–3.14 for ansible-core 2.20** ([support matrix](https://docs.ansible.com/projects/ansible-core/2.20/reference_appendices/release_and_maintenance.html#ansible-core-support-matrix))
 - A local user with `sudo` privileges; add `-K` to the playbook command if sudo requires a password
 - **SSH authorized keys** already provisioned for that user. Execution is local, but the role hardens SSH and refuses to disable password authentication without a non-empty `~/.ssh/authorized_keys` file.
-- Running as `root` requires explicit `-e ubuntu2604_ssh_allow_root_login=true` and root authorized keys; root SSH is disabled by default, so the guardrail otherwise stops the run.
+- Running as `root` automatically preserves root SSH access, even when `ubuntu2604_ssh_allow_root_login=false`; no extra parameter is needed. Root authorized keys are still required.
 
 ## Step 1 — Install the collection
 

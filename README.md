@@ -33,7 +33,7 @@ ansible-playbook andreygubarev.com.kubernetes
 
 The playbooks are independent: Kubernetes does not automatically apply the Ubuntu role. Its kubeconfig defaults to the invoking user's home directory. See the [Kubernetes quickstart](docs/kubernetes/getting-started/quickstart.md).
 
-Use root or a user with sudo privileges; add `-K` if sudo requires a password. The Ubuntu role additionally requires SSH authorized keys and explicit `-e ubuntu2604_ssh_allow_root_login=true` when running as root, because it hardens SSH.
+Use root or a user with sudo privileges; add `-K` if sudo requires a password. The Ubuntu role additionally requires SSH authorized keys because it disables password authentication. When run as root, it automatically preserves root SSH access regardless of `ubuntu2604_ssh_allow_root_login`; no extra parameter is needed. Sudo escalation from a non-root account does not trigger this override.
 
 For remote provisioning over SSH, use the role in your own playbook:
 

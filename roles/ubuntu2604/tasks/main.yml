@@ -33,18 +33,6 @@
       {{ ansible_user | default(ansible_ssh_user) }}
   tags: ssh
 
-- name: Prerequisite | Assert SSH hardening for root user
-  ansible.builtin.assert:
-    that:
-      - ubuntu2604__ssh_user != "root" or ubuntu2604_ssh_allow_root_login | bool
-    fail_msg: >-
-      Refusing to disable root SSH while Ansible is connected as root. Connect as
-      a non-root sudo user with SSH keys, or explicitly set
-      ubuntu2604_ssh_allow_root_login=true after accepting that root key-based
-      SSH remains part of the recovery path.
-    success_msg: "SSH root access guardrail passed"
-  tags: ssh
-
 - name: Prerequisite | Read SSH user account
   ansible.builtin.getent:
     database: passwd
@@ -993,7 +981,8 @@
       MaxAuthTries 3
       PasswordAuthentication no
       PermitEmptyPasswords no
-      PermitRootLogin {{ ubuntu2604_ssh_allow_root_login | bool | ternary('yes', 'no') }}
+      # Preserve root key-based access when provisioning as root, regardless of the variable.
+      PermitRootLogin {{ (ubuntu2604__ssh_user == 'root' or ubuntu2604_ssh_allow_root_login | bool) | ternary('yes', 'no') }}
       PubkeyAuthentication yes
       UsePAM yes
 

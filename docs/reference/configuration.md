@@ -76,7 +76,7 @@ Whether to permit root login over SSH.
 | Default       | `false`        |
 | Required      | No             |
 
-When `false`, the role sets `PermitRootLogin no` in the SSH hardening drop-in. If you run Ansible as `root`, the role fails before mutating the host unless you explicitly set this to `true`.
+For non-root provisioning accounts, this variable controls `PermitRootLogin` in the SSH hardening drop-in: `false` renders `no`, and `true` renders `yes`. When the invoking account (local playbook) or SSH login user (remote role) is `root`, the role always renders `PermitRootLogin yes`, ignoring this variable even if explicitly set to `false`. Sudo escalation from a non-root account does not trigger the override. Password authentication remains disabled, and the provisioning user's authorized-keys guardrail still applies.
 
 Example: allow root SSH for recovery paths.
 
@@ -198,7 +198,7 @@ A systemd one-shot service (`transparent-hugepages-madvise`) sets THP to `madvis
 
 The role hardens SSH through a priority drop-in at `/etc/ssh/sshd_config.d/00-ubuntu2604-hardening.conf` so site-specific or cloud-init snippets in later drop-ins do not silently override the policy. Before applying hardening, the role runs guardrails that prevent accidental lockout:
 
-- If Ansible is connected as `root`, the role refuses to continue unless `ubuntu2604_ssh_allow_root_login` is `true`.
+- If Ansible is invoked locally as `root` or connected over SSH as `root`, the role preserves root SSH access regardless of `ubuntu2604_ssh_allow_root_login` to avoid locking out the provisioning account.
 - If the current Ansible user has no `~/.ssh/authorized_keys` file, the role refuses to continue because disabling password authentication would lock you out.
 
 The drop-in enforces the following settings:
@@ -207,7 +207,7 @@ The drop-in enforces the following settings:
 |---------|-------|-----------|
 | `Port` | `22` (configurable) | Listen port; `ubuntu2604_ssh_port` moves it, including the socket-activated listener |
 | `PasswordAuthentication` | `no` | Require key-based authentication |
-| `PermitRootLogin` | `no` (unless opted in) | Reduce root attack surface |
+| `PermitRootLogin` | `yes` for root provisioning; otherwise `no` unless opted in | Preserve root key-based access for root runs; deny it by default for non-root runs |
 | `PubkeyAuthentication` | `yes` | Ensure key access works |
 | `PermitEmptyPasswords` | `no` | Block empty password logins |
 | `HostbasedAuthentication` | `no` | Disable legacy trust |

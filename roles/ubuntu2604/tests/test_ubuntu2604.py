@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 import pytest
+import yaml
+from ansible.plugins.filter.core import FilterModule
+from jinja2 import Environment
 
 
 def grep_literal(value: str) -> str:
@@ -570,6 +574,50 @@ def sshd_effective_config(host):
         for line in host.check_output("sshd -T").splitlines()
         if line.strip()
     }
+
+
+@pytest.mark.parametrize(
+    "user, allow_root_login, expected",
+    (
+        ("root", False, "yes"),
+        ("root", True, "yes"),
+        ("root", "false", "yes"),
+        ("ubuntu", False, "no"),
+        ("ubuntu", True, "yes"),
+        ("ubuntu", "false", "no"),
+    ),
+)
+def test_root_ssh_login_policy_rendering(user, allow_root_login, expected):
+    tasks_file = Path(__file__).resolve().parents[1] / "tasks/main.yml"
+    tasks = yaml.safe_load(tasks_file.read_text())
+    content = next(
+        task["ansible.builtin.copy"]["content"]
+        for task in tasks
+        if task.get("ansible.builtin.copy", {}).get("dest") == SSHD_HARDENING_CONFIG
+    )
+    directive = next(
+        line for line in content.splitlines() if line.startswith("PermitRootLogin ")
+    )
+    environment = Environment()
+    environment.filters.update(FilterModule().filters())
+
+    rendered = environment.from_string(directive).render(
+        ubuntu2604__ssh_user=user,
+        ubuntu2604_ssh_allow_root_login=allow_root_login,
+    )
+
+    assert rendered == f"PermitRootLogin {expected}"
+
+
+def test_root_ssh_login_policy_is_effective(host):
+    directive = re.search(
+        r"^PermitRootLogin[ \t]+(yes|no)$",
+        host.file(SSHD_HARDENING_CONFIG).content_string,
+        re.MULTILINE,
+    )
+
+    assert directive is not None
+    assert sshd_effective_config(host)["permitrootlogin"] == directive.group(1)
 
 
 def test_openssh_server_package_is_installed(host):

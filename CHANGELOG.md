@@ -4,6 +4,9 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed
+- **Automatic root SSH preservation**: Running the Ubuntu role as root now forces `PermitRootLogin yes` regardless of `ubuntu2604_ssh_allow_root_login`, including an explicit `false`. Non-root provisioning still honors the variable. Password authentication remains disabled and authorized keys are still required.
+
 ### Added
 - **Galaxy publishing target**: `make publish` checks the collection, builds a fresh artifact, and publishes the version declared in `galaxy.yml` using the configured Galaxy token.
 

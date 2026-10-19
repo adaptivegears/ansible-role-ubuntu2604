@@ -222,10 +222,21 @@ The drop-in enforces the following settings:
 | `MaxSessions` | `3` | Limit concurrent sessions per connection |
 | `MaxStartups` | `10:30:60` | Rate-limit unauthenticated connections |
 | `LogLevel` | `VERBOSE` | Aid recovery without debug noise |
-| Ciphers | `aes256-ctr,aes192-ctr,aes128-ctr` | Small audited set |
-| MACs | `hmac-sha2-512,hmac-sha2-256` | Small audited set |
-| KexAlgorithms | `ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256` | Small audited set |
-| HostKeyAlgorithms | `ecdsa-sha2-nistp521,ecdsa-sha2-nistp384,ecdsa-sha2-nistp256` | Small audited set |
+| Ciphers | `chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-gcm@openssh.com,aes128-ctr` | Exact ssh-audit Ubuntu 26.04 server guide v1 list |
+| MACs | `hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com` | Exact ssh-audit guide list; encrypt-then-MAC |
+| KexAlgorithms | `mlkem768x25519-sha256,sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com` | Hybrid post-quantum exchanges only |
+| RequiredRSASize | `3072` | Minimum RSA key size for user and host-based authentication |
+| HostKeyAlgorithms | `sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256` | Exact ssh-audit guide list for server identity |
+| CASignatureAlgorithms | `sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256` | Exact ssh-audit guide list for certificate authorities |
+| GSSAPIKexAlgorithms | `gss-curve25519-sha256-,gss-group16-sha512-` | Exact ssh-audit guide list; does not enable GSSAPI key exchange |
+| HostbasedAcceptedAlgorithms | Same list as `HostKeyAlgorithms` | Exact ssh-audit guide list; host-based authentication remains disabled |
+| PubkeyAcceptedAlgorithms | Same list as `HostKeyAlgorithms` | Exact ssh-audit guide list for user authentication |
+
+The nine crypto directives match the [ssh-audit Ubuntu 26.04 server hardening guide](https://www.ssh-audit.com/hardening_guides.html), version 1 dated 2026-06-14, including algorithm order. The [pinned source](https://github.com/jtesta/ssh-audit/blob/974dd324a6acf739b42c607804db731e507a13f8/src/ssh_audit/hardening_guides.py#L566) records the exact profile used; these are not CIS settings.
+
+Clients must support one of the listed hybrid post-quantum exchanges. ECDSA user keys and RSA user keys shorter than 3072 bits are no longer accepted. Provision a compatible key for the Ansible user before applying this policy; the existing authorized-keys guardrail checks file presence and size, not key compatibility.
+
+Only the guide's crypto directives are adopted here. Its host-key deletion/regeneration commands are not run: the role preserves existing server identities. The guide also generates a 4096-bit RSA host key, so matching these directives alone does not establish conformance with its complete audit policy.
 
 The role also tightens permissions on `/etc/ssh/sshd_config` and host keys, validates the configuration with `sshd -t`, and ensures the `ssh` service is enabled and running.
 

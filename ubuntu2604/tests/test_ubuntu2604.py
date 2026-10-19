@@ -482,6 +482,12 @@ SSHD_CONFIG = "/etc/ssh/sshd_config"
 SSHD_HARDENING_CONFIG = "/etc/ssh/sshd_config.d/00-ubuntu2604-hardening.conf"
 # Mirrors ubuntu2604_ssh_port in inventory.ini; update both together.
 EXPECTED_SSH_PORT = "22022"
+# ssh-audit Ubuntu 26.04 server guide v1 (2026-06-14), including list order.
+EXPECTED_SSHD_KEY_ALGORITHMS = (
+    "sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,"
+    "rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,"
+    "sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256"
+)
 EXPECTED_SSHD_HARDENING_SETTINGS = (
     ("Port", "port", EXPECTED_SSH_PORT),
     ("LogLevel", "loglevel", "VERBOSE"),
@@ -491,12 +497,23 @@ EXPECTED_SSHD_HARDENING_SETTINGS = (
     ("HostbasedAuthentication", "hostbasedauthentication", "no"),
     ("PermitEmptyPasswords", "permitemptypasswords", "no"),
     ("PermitUserEnvironment", "permituserenvironment", "no"),
-    ("Ciphers", "ciphers", "aes256-ctr,aes192-ctr,aes128-ctr"),
-    ("MACs", "macs", "hmac-sha2-512,hmac-sha2-256"),
+    (
+        "Ciphers",
+        "ciphers",
+        "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes256-ctr,"
+        "aes192-ctr,aes128-gcm@openssh.com,aes128-ctr",
+    ),
+    (
+        "MACs",
+        "macs",
+        "hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,"
+        "umac-128-etm@openssh.com",
+    ),
     (
         "KexAlgorithms",
         "kexalgorithms",
-        "ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256",
+        "mlkem768x25519-sha256,sntrup761x25519-sha512,"
+        "sntrup761x25519-sha512@openssh.com",
     ),
     ("ClientAliveInterval", "clientaliveinterval", "300"),
     ("ClientAliveCountMax", "clientalivecountmax", "0"),
@@ -508,10 +525,27 @@ EXPECTED_SSHD_HARDENING_SETTINGS = (
     ("MaxSessions", "maxsessions", "3"),
     ("PubkeyAuthentication", "pubkeyauthentication", "yes"),
     ("PasswordAuthentication", "passwordauthentication", "no"),
+    ("RequiredRSASize", "requiredrsasize", "3072"),
+    ("HostKeyAlgorithms", "hostkeyalgorithms", EXPECTED_SSHD_KEY_ALGORITHMS),
     (
-        "HostKeyAlgorithms",
-        "hostkeyalgorithms",
-        "ecdsa-sha2-nistp521,ecdsa-sha2-nistp384,ecdsa-sha2-nistp256",
+        "CASignatureAlgorithms",
+        "casignaturealgorithms",
+        "sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256",
+    ),
+    (
+        "GSSAPIKexAlgorithms",
+        "gssapikexalgorithms",
+        "gss-curve25519-sha256-,gss-group16-sha512-",
+    ),
+    (
+        "HostbasedAcceptedAlgorithms",
+        "hostbasedacceptedalgorithms",
+        EXPECTED_SSHD_KEY_ALGORITHMS,
+    ),
+    (
+        "PubkeyAcceptedAlgorithms",
+        "pubkeyacceptedalgorithms",
+        EXPECTED_SSHD_KEY_ALGORITHMS,
     ),
 )
 

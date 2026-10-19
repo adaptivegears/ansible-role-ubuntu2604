@@ -4,6 +4,8 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.2] - 2026-10-20
+
 ### Added
 - **Kubernetes role and playbook**: Imported the standalone single-node Kubernetes role, its testinfra verification, and documentation from `ansible-role-kubernetes`. Run `ansible-playbook andreygubarev.com.kubernetes` locally; kubeconfig defaults to the invoking user, and the Ubuntu role is not applied automatically.
 

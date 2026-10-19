@@ -53,7 +53,7 @@ From a checkout of this repository:
 ```bash
 make deps   # Install this collection and its dependencies locally
 make check  # Lint the collection and syntax-check both installed playbooks
-make build  # Build dist/andreygubarev-com-2026.10.1.tar.gz
+make build  # Build dist/andreygubarev-com-2026.10.2.tar.gz
 make test   # Verify deployed hosts using inventory.ini
 ```
 
@@ -73,7 +73,7 @@ Roles live in `roles/`, and collection playbooks live in `playbooks/`. `make tes
    ```bash
    make check
    make build
-   ansible-galaxy collection publish dist/andreygubarev-com-2026.10.1.tar.gz
+   ansible-galaxy collection publish dist/andreygubarev-com-2026.10.2.tar.gz
    ```
 
    The filename follows the version in `galaxy.yml`; use the newly built artifact when changing versions. Publishing waits for Galaxy's import validation to finish.

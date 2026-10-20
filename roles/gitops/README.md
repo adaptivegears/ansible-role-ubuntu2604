@@ -4,7 +4,7 @@ Creates `~/gitops` for `gitops_user`, defaulting to the invoking/SSH user. The d
 
 Run locally with `ansible-playbook andreygubarev.com.gitops`; use `-e gitops_user=operator` to select another existing user. The playbook does not apply other roles or cluster workloads. Set `gitops_git_user_name` and `gitops_git_user_email` on first use; both are mandatory and saved in the repository's `.git/config`. Later runs reuse those values unless explicitly overridden. Global Git identity and auto-detected system identity are not used as fallbacks.
 
-First apply the independent `terraform` role for the same user to install SOPS/age and prepare an age identity. GitOps seeds a public `.sops.yaml` policy and an encrypted empty `terraform.tfvars.sops.yaml` in each workload, only when absent. Existing policies and encrypted inputs are preserved. Terragrunt merges regular YAML first and decrypted SOPS values last. No plaintext secrets are migrated automatically; keep the age private key outside Git and back it up separately. SOPS does not encrypt OpenTofu state or saved plans.
+First apply the independent `terraform` role for the same user to install SOPS/age and prepare an age identity. GitOps seeds a public `.sops.yaml` policy and an encrypted empty `terraform.tfvars.sops.yaml` in each workload, only when absent. Existing policies and encrypted inputs are preserved. Keep non-secret overrides in tracked `terraform.tfvars.yaml` and passwords/access keys/runner credentials only in `terraform.tfvars.sops.yaml`. Terragrunt merges regular YAML first and decrypted SOPS values last. No plaintext secrets are migrated automatically; keep the age private key outside Git and back it up separately. SOPS does not encrypt OpenTofu state or saved plans.
 
 The role copies `files/gitops/` into the workspace on every run, including dotfiles, without deleting host-only files. Matching code files are overwritten, including uncommitted local edits. Each `terraform.tfvars.yaml` is created only if missing and is never overwritten; it contains user overrides, while defaults belong in the HCL variable declarations. Newly added workloads receive their own initial YAML even when the repository already exists.
 
@@ -24,6 +24,7 @@ The scaffold includes `.envrc`, pinned OpenTofu/Terragrunt versions, and a `.git
 - `21-letsencrypt`: A Let's Encrypt ClusterIssuer using Gateway API HTTP-01.
 - `30-openebs`: The `openebs` namespace and OpenEBS LocalPV Hostpath provisioner. `openebs-hostpath` is the default StorageClass; `openebs-hostpath-retain` provides an explicit Retain alternative.
 - `31-cnpg`: The `cnpg-system` namespace and cluster-wide CloudNativePG operator, including CRDs. No PostgreSQL clusters or databases are created.
+- `32-k8up`: The `k8up-system` namespace, K8up CRDs/operator, and global Backblaze B2/Restic configuration. Only annotated PVCs are eligible; no Backup or Schedule resources are created.
 - `40-forgejo`: Rootless Forgejo, a CNPG database, persistent storage, HTTPS/SSH routes, and Actions.
 - `41-forgejo-runner`: A trusted-code-only Forgejo Runner with a privileged DinD sidecar and no automatic Kubernetes API access.
 
@@ -37,6 +38,8 @@ OpenEBS defaults to `4.6.2`; override `openebs_version` in its `terraform.tfvars
 
 CloudNativePG defaults to chart `0.29.1` (operator `1.30.1`); override the chart version through `cnpg_version` in its `terraform.tfvars.yaml`. The operator has no ordering dependencies on OpenEBS or cert-manager; provision storage before creating PostgreSQL clusters separately.
 
+K8up defaults to chart/CRDs `4.10.0` (operator `v2.16.0`); override `k8up_version` to keep chart and CRDs aligned. Set `b2_bucket` and any `b2_endpoint` override in ordinary YAML; put `b2_access_key_id`, `b2_secret_access_key`, and `k8up_repo_password` only in SOPS YAML. Credentials use a Kubernetes Secret; changing them restarts the operator. Helm cleanup hooks are excluded rather than deployed as ordinary Jobs/RBAC. Back up the Restic password separately. Configure backup schedules and annotate selected PVCs explicitly; copying a live PostgreSQL data volume is not a substitute for a database-consistent CNPG backup. K8up has no ordering dependencies on OpenEBS or CNPG.
+
 For Terragrunt `run --all`, Istiod declares ordering dependencies on Gateway API and Istio base; cert-manager depends on Gateway API so its CRDs are present when the controller starts. Single-workload commands do not apply dependencies automatically: apply Gateway API before cert-manager, apply Gateway API and base before Istiod, and destroy cert-manager and Istiod before their dependencies.
 
-Instance-specific settings belong in host YAML overrides. Forgejo and runner overrides are Git-ignored; sensitive values still reside in plaintext local state. Free host port 22 before applying the gateway. Initial bootstrap is sequential because runner credentials are obtained after Forgejo starts.
+Instance-specific settings belong in host YAML overrides. Non-secret overrides are tracked normally; encrypt passwords, access keys, and runner credentials with SOPS. Sensitive values still reside in plaintext local state. Free host port 22 before applying the gateway. Initial bootstrap is sequential because runner credentials are obtained after Forgejo starts.

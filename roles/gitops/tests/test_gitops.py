@@ -133,7 +133,7 @@ def test_workspace_is_private_and_user_owned(host, workspace):
 
 @pytest.mark.parametrize("name", (
     "13-istio-gateway", "20-cert-manager", "21-letsencrypt", "30-openebs", "31-cnpg",
-    "40-forgejo", "41-forgejo-runner",
+    "32-k8up", "40-forgejo", "41-forgejo-runner",
 ))
 def test_workload_directory_is_private_and_user_owned(host, workspace, name):
     user, directory = workspace
@@ -151,6 +151,7 @@ def test_workload_directory_is_private_and_user_owned(host, workspace, name):
     "30-openebs/terraform.tf", "30-openebs/terraform.tfvars.yaml",
     "30-openebs/terragrunt.hcl",
     "31-cnpg/terraform.tf", "31-cnpg/terraform.tfvars.yaml", "31-cnpg/terragrunt.hcl",
+    "32-k8up/terraform.tf", "32-k8up/terraform.tfvars.yaml", "32-k8up/terragrunt.hcl",
     "13-istio-gateway/terraform.tf", "13-istio-gateway/terraform.tfvars.yaml", "13-istio-gateway/terragrunt.hcl",
     "21-letsencrypt/terraform.tf", "21-letsencrypt/terraform.tfvars.yaml", "21-letsencrypt/terragrunt.hcl",
     "40-forgejo/terraform.tf", "40-forgejo/terraform.tfvars.yaml", "40-forgejo/terragrunt.hcl",
@@ -196,8 +197,6 @@ IGNORED_PATHS = (
     "backend.tf",
     "terraform.tfstate",
     "terraform.tfstate.backup",
-    "40-forgejo/terraform.tfvars.yaml",
-    "41-forgejo-runner/terraform.tfvars.yaml",
 )
 
 
@@ -242,7 +241,7 @@ def test_legacy_state_guard_distinguishes_resource_state_from_backend_metadata(c
 
 WORKLOADS = (
     "10-gateway-api", "11-istio-base", "12-istiod", "13-istio-gateway", "20-cert-manager",
-    "21-letsencrypt", "30-openebs", "31-cnpg", "40-forgejo", "41-forgejo-runner",
+    "21-letsencrypt", "30-openebs", "31-cnpg", "32-k8up", "40-forgejo", "41-forgejo-runner",
 )
 
 
@@ -275,8 +274,43 @@ def test_workload_inherits_absolute_state_backend(name):
 
 
 # -----------------------------------------------------------------------------
+# K8up
+# -----------------------------------------------------------------------------
+
+
+def test_k8up_uses_matching_crds_and_secret_backed_credentials():
+    text = (Path(__file__).resolve().parents[1] / "files/gitops/32-k8up/terraform.tf").read_text()
+    assert 'default     = "4.10.0"' in text
+    assert 'k8up-${var.k8up_version}/k8up-crd.yaml' in text
+    assert 'version      = var.k8up_version' in text
+    assert 'skipWithoutAnnotation = true' in text
+    assert '"checksum/credentials" = nonsensitive(sha256(jsonencode(local.credentials)))' in text
+    assert 'depends_on = [kustomization_resource.crds, kustomization_resource.credentials]' in text
+    assert '"helm.sh/hook"' in text
+    for priority in range(3):
+        assert f'setsubtract(data.kustomization_overlay.this.ids_prio[{priority}], local.helm_hooks)' in text
+    for variable, environment, key in (
+        ("b2_access_key_id", "BACKUP_GLOBALACCESSKEYID", "access-key-id"),
+        ("b2_secret_access_key", "BACKUP_GLOBALSECRETACCESSKEY", "secret-access-key"),
+        ("k8up_repo_password", "BACKUP_GLOBALREPOPASSWORD", "repo-password"),
+    ):
+        block = re.search(r'variable "' + variable + r'" \{(.*?)^\}', text, re.M | re.S).group(1)
+        assert re.search(r'sensitive\s*=\s*true', block)
+        assert not re.search(r'\bvalue\s*=\s*var\.' + variable, text)
+        assert re.search(
+            r'name\s*=\s*"' + environment + r'"\s+valueFrom\s*=\s*\{\s+secretKeyRef\s*=\s*'
+            + r'\{\s*name\s*=\s*"k8up-credentials",\s*key\s*=\s*"' + key + r'"', text,
+        )
+
+
+# -----------------------------------------------------------------------------
 # SOPS inputs
 # -----------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("name", WORKLOADS)
+def test_nonsecret_inputs_are_not_ignored(host, workspace, name):
+    assert git_command(host, workspace, "check-ignore", "--no-index", f"{name}/terraform.tfvars.yaml").rc == 1
 
 
 @pytest.mark.parametrize("name", WORKLOADS)

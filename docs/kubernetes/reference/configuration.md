@@ -15,8 +15,9 @@
 | `kubernetes_flannel_manifest_url` | [Flannel v0.28.10 manifest](https://github.com/flannel-io/flannel/releases/download/v0.28.10/kube-flannel.yml) | Applied only when Flannel is absent |
 | `kubernetes_metrics_server_version` | `v0.9.0` | Release applied on installation or image-version drift |
 | `kubernetes_k9s_version` | `0.51.0` | Exact k9s release without a `v` prefix; upstream Debian package verified with SHA256 |
+| `kubernetes_coredns_rewrites` | `{}` | Mapping of exact canonical hostnames to internal DNS names; applies to cluster DNS clients |
 
-All eleven public variables remain in [defaults/main.yml](../../../roles/kubernetes/defaults/main.yml). Precedence is **explicit Ansible input → saved settings → fallback defaults**. Values are strings; empty strings are allowed only for the two GC overrides. Kubernetes minor versions use `major.minor` format. An overly restrictive `GOMEMLIMIT` can cause GC thrashing.
+All twelve public variables remain in [defaults/main.yml](../../../roles/kubernetes/defaults/main.yml). Precedence is **explicit Ansible input → saved settings → fallback defaults**. Values other than the rewrite mapping are strings; empty strings are allowed only for the two GC overrides. Kubernetes minor versions use `major.minor` format. An overly restrictive `GOMEMLIMIT` can cause GC thrashing.
 
 ## Persistence
 
@@ -35,6 +36,19 @@ Cluster name, Kubernetes minor version, pod CIDR, and service CIDR are recorded 
 Non-identity control-plane changes regenerate kubeadm manifests and briefly restart the API server. The configuration uses the installed kubeadm version, not a network-resolved version label. See [architecture](../concepts/architecture.md).
 
 OS/cloud-init checks and configuration processing use `always`, including selective runs; do not skip it. Inspect the [task index](../../../roles/kubernetes/tasks/main.yml) or use `--list-tasks` / `--list-tags`.
+
+## Internal DNS
+
+`kubernetes_coredns_rewrites` keeps public URLs and TLS hostnames while routing cluster DNS clients internally, for example:
+
+```yaml
+kubernetes_coredns_rewrites:
+  git.example.com: gateway.edge.svc.cluster.local
+```
+
+Sources and targets must be distinct lowercase DNS names without trailing dots, not IP addresses. Use an HTTPS-capable Service with a matching certificate when retaining an HTTPS URL. Public DNS is unchanged; clients must use cluster DNS, including nested job containers.
+
+The `coredns` tag patches only a marked rewrite block in the existing kubeadm Corefile; other configuration is preserved and CoreDNS reloads it without Pod restarts. Explicitly set `{}` to remove managed rewrites; omitting the variable reuses saved settings. Reapply after a kubeadm operation that replaces the Corefile.
 
 ## Example
 

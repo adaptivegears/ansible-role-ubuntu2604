@@ -1,0 +1,70 @@
+---
+# -----------------------------------------------------------------------------
+# CoreDNS
+# -----------------------------------------------------------------------------
+# Keep canonical hostnames and TLS while routing cluster clients internally.
+# Preserve kubeadm's Corefile and reconcile only our exact-name rewrite block;
+# the existing reload plugin picks up ConfigMap changes without Pod restarts.
+# -----------------------------------------------------------------------------
+
+- name: CoreDNS | Configure internal name resolution
+  become: true
+  tags: coredns
+  block:
+    - name: CoreDNS | Read current configuration
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - /etc/kubernetes/admin.conf
+          - --namespace
+          - kube-system
+          - get
+          - configmap
+          - coredns
+          - -o
+          - json
+      register: kubernetes__coredns_config
+      check_mode: false
+      changed_when: false
+
+    - name: CoreDNS | Require the kubeadm root server block
+      ansible.builtin.assert:
+        that:
+          - >-
+            (kubernetes__coredns_config.stdout | from_json)['data']['Corefile']
+            | regex_findall('(?m)^[.]:53[ \t]*[{][ \t]*\n') | length == 1
+        fail_msg: "Expected one kubeadm .:53 server block; refusing to modify an unsupported Corefile."
+      when: kubernetes_coredns_rewrites | length > 0
+
+    - name: CoreDNS | Prepare managed rewrite block
+      ansible.builtin.set_fact:
+        kubernetes__coredns_corefile: >-
+          {{ kubernetes__coredns_unmanaged
+             | regex_replace('(?m)^[.]:53[ \t]*[{][ \t]*\n', kubernetes__coredns_root ~ kubernetes__coredns_block)
+             if kubernetes_coredns_rewrites | length > 0 else kubernetes__coredns_unmanaged }}
+      vars:
+        kubernetes__coredns_unmanaged: >-
+          {{ (kubernetes__coredns_config.stdout | from_json)['data']['Corefile']
+             | regex_replace('(?ms)^    # BEGIN ANSIBLE MANAGED COREDNS REWRITES\n.*?^    # END ANSIBLE MANAGED COREDNS REWRITES\n?', '') }}
+        kubernetes__coredns_root: "{{ kubernetes__coredns_unmanaged | regex_search('(?m)^[.]:53[ \\t]*[{][ \\t]*\\n') }}"
+        kubernetes__coredns_block: "{{ lookup('ansible.builtin.template', 'coredns-rewrites.j2') }}"
+
+    - name: CoreDNS | Apply configuration when changed
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - /etc/kubernetes/admin.conf
+          - --namespace
+          - kube-system
+          - patch
+          - configmap
+          - coredns
+          - --type=merge
+          - --patch
+          - >-
+            {{ {'metadata': {'resourceVersion': (kubernetes__coredns_config.stdout | from_json)['metadata']['resourceVersion']},
+                'data': {'Corefile': kubernetes__coredns_corefile}} | to_json }}
+      when: kubernetes__coredns_corefile != (kubernetes__coredns_config.stdout | from_json)['data']['Corefile']
+      changed_when: true

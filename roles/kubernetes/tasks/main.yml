@@ -58,3 +58,6 @@
 
 - name: Metrics server | Import configuration
   ansible.builtin.import_tasks: 71-metrics-server.yml
+
+- name: CoreDNS | Import internal name resolution
+  ansible.builtin.import_tasks: 72-coredns.yml

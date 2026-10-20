@@ -10,6 +10,8 @@ Runs locally; add `-K` if sudo requires a password. Cluster name is required onc
 
 k9s defaults to `0.51.0`, installed system-wide from the official amd64/arm64 Debian package after SHA256 verification. `kubernetes_k9s_version` overrides the exact version; it is saved with the other settings. Run `k9s` as the kubeconfig owner to use their existing cluster access. The `k9s` tag supports selective installation on an already configured host.
 
+Optional `kubernetes_coredns_rewrites` maps canonical hostnames to internal DNS names for cluster-wide split DNS. The `coredns` tag reconciles only its marked block in kubeadm's existing Corefile, preserving other settings. The mapping is saved with the other settings; explicitly set `{}` to remove managed rewrites.
+
 [Task index](tasks/main.yml) uses explicit static imports of numbered `XX-section.yml` files. Preflight and configuration use `always`, including selective runs.
 
 [Quickstart and remote usage](../../docs/kubernetes/getting-started/quickstart.md) · [Configuration](../../docs/kubernetes/reference/configuration.md) · [Architecture](../../docs/kubernetes/concepts/architecture.md)

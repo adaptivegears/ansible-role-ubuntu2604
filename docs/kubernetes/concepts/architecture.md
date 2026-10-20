@@ -24,6 +24,7 @@ The node name defaults to the OS hostname at initialization. Set it beforehand; 
 - The API binds to `kubernetes_advertise_address`. Restrict TCP/6443 with external or host firewall policy.
 - New clusters set kube-proxy `conntrack.maxPerCore=0`, preserving the host's `nf_conntrack_max` rather than overwriting the Ubuntu baseline. Existing clusters' kube-proxy configuration is not migrated automatically.
 - Flannel provides VXLAN networking, not NetworkPolicy enforcement. It is installed only when absent; existing Flannel is not upgraded automatically.
+- Optional exact-name CoreDNS rewrites provide cluster-wide split DNS without changing public URLs. The role patches only its marked block in kubeadm's existing Corefile, preserving other configuration and relying on CoreDNS reload rather than restarting Pods. Reapply after kubeadm replaces the Corefile.
 - Existing Calico clusters are not migrated or cleaned up. Plan a separate migration or rebuild.
 - metrics-server is pinned and reconciled on image-version drift. It uses `--kubelet-insecure-tls` for self-signed kubelet certificates; use a separate TLS hardening procedure where verified serving certificates are required.
 

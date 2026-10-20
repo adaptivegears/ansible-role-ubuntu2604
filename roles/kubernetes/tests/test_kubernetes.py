@@ -36,6 +36,7 @@ DEFAULT_CLUSTER_SETTINGS = {
     "flannel_manifest_url": "https://github.com/flannel-io/flannel/releases/download/v0.28.10/kube-flannel.yml",
     "metrics_server_version": "v0.9.0",
     "k9s_version": "0.51.0",
+    "coredns_rewrites": {},
 }
 
 
@@ -46,7 +47,10 @@ def configuration_contract():
     defaults = yaml.safe_load((role / "defaults/main.yml").read_text())
     environment = Environment()
     filters = FilterModule().filters()
-    environment.filters.update({name: filters[name] for name in ("combine", "to_nice_json")})
+    environment.filters.update({
+        name: filters[name]
+        for name in ("combine", "to_nice_json", "from_json", "to_json", "regex_findall", "regex_replace", "regex_search")
+    })
     environment.tests["match"] = AnsibleTestModule().tests()["match"]
 
     def resolve(saved, overrides):
@@ -115,6 +119,8 @@ def test_complete_settings_snapshot_and_validation_order(configuration_contract)
         "Configuration | Validate required cluster name",
         "Configuration | Assert immutable cluster identity matches stored facts",
         "Configuration | Validate k9s version",
+        "Configuration | Validate CoreDNS rewrites mapping",
+        "Configuration | Validate CoreDNS rewrite names",
         "Configuration | Validate IPv4 cluster networking",
         "Configuration | Read kubeconfig owner account",
     ):
@@ -131,7 +137,7 @@ def test_complete_settings_snapshot_and_validation_order(configuration_contract)
         "other_section": {"keep": True},
     }
     defaults = yaml.safe_load((role / "defaults/main.yml").read_text())
-    assert len(defaults) == 11 and "kubernetes_cluster_name" in defaults
+    assert len(defaults) == 12 and "kubernetes_cluster_name" in defaults
 
 
 @pytest.mark.parametrize(
@@ -147,6 +153,56 @@ def test_k9s_version_validation(configuration_contract, version, accepted):
     required = tasks["Configuration | Validate required string settings"]["ansible.builtin.assert"]["that"]
     exact = tasks["Configuration | Validate k9s version"]["ansible.builtin.assert"]["that"]
     assert all(environment.compile_expression(condition)(**context) for condition in required + exact) is accepted
+
+
+@pytest.mark.parametrize("rewrites, accepted", (({}, True), ([], False), ("", False), (None, False), (False, False)))
+def test_coredns_rewrites_require_mapping(configuration_contract, rewrites, accepted):
+    _role, _ordered, tasks, environment, resolve = configuration_contract
+    context = resolve({}, {"kubernetes_coredns_rewrites": rewrites})
+    conditions = tasks["Configuration | Validate CoreDNS rewrites mapping"]["ansible.builtin.assert"]["that"]
+    assert all(environment.compile_expression(condition)(**context) for condition in conditions) is accepted
+
+
+@pytest.mark.parametrize(
+    "source, target, accepted",
+    (
+        ("git.example.com", "gateway.edge.svc.cluster.local", True),
+        ("git-1.example.com", "gateway-1.edge.svc.cluster.local", True),
+        ("git.example.com.", "gateway.edge.svc.cluster.local", False),
+        ("Git.example.com", "gateway.edge.svc.cluster.local", False),
+        ("git.example.com", "gateway.edge.svc.cluster.local\n", False),
+        ("git.example.com\n", "gateway.edge.svc.cluster.local", False),
+        ("*.example.com", "gateway.edge.svc.cluster.local", False),
+        ("git.example.com", "10.96.0.10", False),
+        ("git.example.com", "https://gateway.edge.svc.cluster.local", False),
+        ("git.example.com", "git.example.com", False),
+        ("git.example.com", "gateway.edge.svc.cluster.local }", False),
+        ("a" * 64 + ".example.com", "gateway.edge.svc.cluster.local", False),
+        ("git.example.com", None, False),
+        (False, "gateway.edge.svc.cluster.local", False),
+    ),
+)
+def test_coredns_rewrite_name_validation(configuration_contract, source, target, accepted):
+    _role, _ordered, tasks, environment, resolve = configuration_contract
+    context = resolve({}, {})
+    task = tasks["Configuration | Validate CoreDNS rewrite names"]
+    context.update(task["vars"])
+    context["item"] = {"key": source, "value": target}
+    conditions = task["ansible.builtin.assert"]["that"]
+    assert all(environment.compile_expression(condition)(**context) for condition in conditions) is accepted
+
+
+@pytest.mark.parametrize("override", (None, {}, {"new.example.com": "new.edge.svc.cluster.local"}))
+def test_coredns_saved_rewrites_and_explicit_replacement(configuration_contract, override):
+    _role, _ordered, tasks, environment, resolve = configuration_contract
+    saved = {"coredns_rewrites": {"old.example.com": "old.edge.svc.cluster.local"}}
+    overrides = {} if override is None else {"kubernetes_coredns_rewrites": override}
+    context = resolve(saved, overrides)
+    expected = saved["coredns_rewrites"] if override is None else override
+    assert context["kubernetes_coredns_rewrites"] == expected
+    expression = tasks["Configuration | Prepare complete settings snapshot"]["ansible.builtin.set_fact"]["kubernetes__vars"]
+    snapshot = environment.compile_expression(expression.strip()[2:-2].strip())(**context)
+    assert snapshot["coredns_rewrites"] == expected
 
 
 @pytest.mark.parametrize("gogc, limit", (("50", ""), ("", ""), ("", "1536MiB"), ("0", "off")))
@@ -173,7 +229,8 @@ def saved_settings(host):
     assert fact.user == "root" and fact.group == "root"
     assert fact.mode == 0o644
     settings = json.loads(fact.content_string)["cluster"]
-    for key in DEFAULT_CLUSTER_SETTINGS:
+    assert isinstance(settings["coredns_rewrites"], dict)
+    for key in DEFAULT_CLUSTER_SETTINGS.keys() - {"coredns_rewrites"}:
         assert isinstance(settings[key], str)
         if key not in ("apiserver_gogc", "apiserver_gomemlimit"):
             assert settings[key]
@@ -456,6 +513,128 @@ def test_control_plane_taint_is_removed(host):
     )
 
     assert "node-role.kubernetes.io/control-plane" not in taints
+
+
+# -----------------------------------------------------------------------------
+# CoreDNS
+# -----------------------------------------------------------------------------
+
+
+COREDNS_BEGIN = "    # BEGIN ANSIBLE MANAGED COREDNS REWRITES\n"
+COREDNS_END = "    # END ANSIBLE MANAGED COREDNS REWRITES\n"
+SAMPLE_COREFILE = """# Existing site configuration
+.:53 {
+    errors
+    health {
+        lameduck 5s
+    }
+    ready
+    kubernetes cluster.local in-addr.arpa ip6.arpa {
+        pods insecure
+        fallthrough in-addr.arpa ip6.arpa
+        ttl 30
+    }
+    forward . /etc/resolv.conf {
+        max_concurrent 1000
+    }
+    cache 30
+    reload
+}
+example.net:53 {
+    forward . 192.0.2.53
+}
+"""
+
+
+@pytest.fixture
+def coredns_contract(configuration_contract):
+    role, _ordered, _tasks, environment, _resolve = configuration_contract
+    environment = environment.overlay(trim_blocks=True, keep_trailing_newline=True)
+    ordered = yaml.safe_load((role / "tasks/72-coredns.yml").read_text())[0]["block"]
+    tasks = {task["name"]: task for task in ordered}
+
+    def prepare(corefile, rewrites):
+        context = {
+            "kubernetes__coredns_config": {"stdout": json.dumps({
+                "metadata": {"resourceVersion": "123"}, "data": {"Corefile": corefile},
+            })},
+            "kubernetes_coredns_rewrites": rewrites,
+        }
+        context["lookup"] = lambda _plugin, path: environment.from_string(
+            (role / "templates" / path).read_text()
+        ).render(**context)
+        task = tasks["CoreDNS | Prepare managed rewrite block"]
+        for name, expression in task["vars"].items():
+            context[name] = environment.compile_expression(expression.strip()[2:-2].strip())(**context)
+        expression = task["ansible.builtin.set_fact"]["kubernetes__coredns_corefile"]
+        context["kubernetes__coredns_corefile"] = environment.compile_expression(expression.strip()[2:-2].strip())(**context)
+        return context
+
+    return tasks, environment, prepare
+
+
+@pytest.mark.parametrize("rewrites", ({}, {"git.example.com": "gateway.edge.svc.cluster.local"}))
+def test_coredns_preserves_other_configuration_and_is_idempotent(coredns_contract, rewrites):
+    tasks, environment, prepare = coredns_contract
+    context = prepare(SAMPLE_COREFILE, rewrites)
+    desired = context["kubernetes__coredns_corefile"]
+    block = COREDNS_BEGIN + "    rewrite name exact git.example.com gateway.edge.svc.cluster.local\n" + COREDNS_END
+    expected = SAMPLE_COREFILE.replace(".:53 {\n", ".:53 {\n" + block) if rewrites else SAMPLE_COREFILE
+    assert desired == expected
+    condition = tasks["CoreDNS | Apply configuration when changed"]["when"]
+    assert bool(environment.compile_expression(condition)(**context)) is bool(rewrites)
+    repeated = prepare(desired, rewrites)
+    assert repeated["kubernetes__coredns_corefile"] == desired
+    assert environment.compile_expression(condition)(**repeated) is False
+
+
+@pytest.mark.parametrize("rewrites", ({}, {"new.example.com": "new.edge.svc.cluster.local"}))
+def test_coredns_rewrites_can_be_replaced_or_removed(coredns_contract, rewrites):
+    _tasks, _environment, prepare = coredns_contract
+    original = prepare(SAMPLE_COREFILE, {"old.example.com": "old.edge.svc.cluster.local"})["kubernetes__coredns_corefile"]
+    desired = prepare(original, rewrites)["kubernetes__coredns_corefile"]
+    assert "old.example.com" not in desired
+    if rewrites:
+        block = COREDNS_BEGIN + "    rewrite name exact new.example.com new.edge.svc.cluster.local\n" + COREDNS_END
+        assert desired == SAMPLE_COREFILE.replace(".:53 {\n", ".:53 {\n" + block)
+    else:
+        assert desired == SAMPLE_COREFILE
+
+
+def test_coredns_rewrites_are_sorted_and_patch_only_corefile(coredns_contract):
+    tasks, environment, prepare = coredns_contract
+    context = prepare(SAMPLE_COREFILE, {
+        "z.example.com": "z.edge.svc.cluster.local", "a.example.com": "a.edge.svc.cluster.local",
+    })
+    desired = context["kubernetes__coredns_corefile"]
+    assert desired.index("a.example.com") < desired.index("z.example.com")
+    patch = tasks["CoreDNS | Apply configuration when changed"]["ansible.builtin.command"]["argv"][-1]
+    assert json.loads(environment.from_string(patch).render(**context)) == {
+        "metadata": {"resourceVersion": "123"}, "data": {"Corefile": desired},
+    }
+
+
+@pytest.mark.parametrize("corefile, accepted", ((SAMPLE_COREFILE, True), ("example.net:53 {\n}\n", False), (".:53 {\n}\n.:53 {\n}\n", False)))
+def test_coredns_requires_one_root_server_block(coredns_contract, corefile, accepted):
+    tasks, environment, prepare = coredns_contract
+    context = prepare(corefile, {})
+    conditions = tasks["CoreDNS | Require the kubeadm root server block"]["ansible.builtin.assert"]["that"]
+    assert all(environment.compile_expression(condition)(**context) for condition in conditions) is accepted
+
+
+def test_coredns_saved_rewrites_are_applied(host, saved_settings):
+    config = json.loads(host.check_output(
+        "kubectl --kubeconfig /etc/kubernetes/admin.conf get configmap coredns -n kube-system -o json"
+    ))
+    corefile = config["data"]["Corefile"]
+    rewrites = saved_settings["coredns_rewrites"]
+    assert corefile.count(COREDNS_BEGIN) == corefile.count(COREDNS_END) == bool(rewrites)
+    if rewrites:
+        managed = corefile.split(COREDNS_BEGIN)[1].split(COREDNS_END)[0]
+        assert managed.splitlines() == [
+            f"    rewrite name exact {source} {target}" for source, target in sorted(rewrites.items())
+        ]
+    assert re.search(r"(?m)^\s*reload\s*$", corefile)
 
 
 # -----------------------------------------------------------------------------

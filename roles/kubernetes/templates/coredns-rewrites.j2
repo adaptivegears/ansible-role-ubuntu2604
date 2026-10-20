@@ -1,0 +1,5 @@
+    # BEGIN ANSIBLE MANAGED COREDNS REWRITES
+{% for source, target in kubernetes_coredns_rewrites | dictsort %}
+    rewrite name exact {{ source }} {{ target }}
+{% endfor %}
+    # END ANSIBLE MANAGED COREDNS REWRITES

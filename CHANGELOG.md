@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.15] - 2026-10-20
+
+### Added
+- **CloudNativePG workload**: Add `31-cnpg`, defaulting to chart `0.29.1` (operator `1.30.1`), with the `cnpg-system` namespace, CRDs, and cluster-wide reconciliation. Use local state and the current kubeconfig context; allow chart version overrides through `cnpg_version`. No PostgreSQL clusters or databases are created, and workload application remains manual.
+
 ## [2026.10.14] - 2026-10-20
 
 ### Added

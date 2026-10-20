@@ -1,0 +1,74 @@
+---
+# -----------------------------------------------------------------------------
+# Tenv
+# -----------------------------------------------------------------------------
+# Keep a checksummed, versioned system installation and expose only the requested
+# proxies. OpenTofu and Terragrunt versions belong to the selected user, not root.
+# -----------------------------------------------------------------------------
+
+- name: Tenv | Install manager and proxies
+  become: true
+  tags: [tenv, opentofu, terragrunt]
+  block:
+    - name: Tenv | Record archive name
+      ansible.builtin.set_fact:
+        terraform__tenv_archive: >-
+          tenv_v{{ terraform__vars.tenv_version }}_Linux_{{ 'x86_64' if ansible_facts['architecture'] == 'x86_64' else 'arm64' }}.tar.gz
+
+    - name: Tenv | Ensure download and installation directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - /var/cache/ansible-terraform
+        - "/usr/local/lib/tenv/{{ terraform__vars.tenv_version }}"
+        - /usr/local/bin
+
+    - name: Tenv | Download and verify release archive
+      ansible.builtin.get_url:
+        url: "https://github.com/tofuutils/tenv/releases/download/v{{ terraform__vars.tenv_version }}/{{ terraform__tenv_archive }}"
+        dest: "/var/cache/ansible-terraform/{{ terraform__tenv_archive }}"
+        checksum: >-
+          {{ 'sha256:https://github.com/tofuutils/tenv/releases/download/v' ~ terraform__vars.tenv_version
+             ~ '/tenv_v' ~ terraform__vars.tenv_version ~ '_checksums.txt' }}
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Tenv | Extract manager and requested proxies
+      ansible.builtin.unarchive:
+        src: "/var/cache/ansible-terraform/{{ terraform__tenv_archive }}"
+        dest: "/usr/local/lib/tenv/{{ terraform__vars.tenv_version }}"
+        remote_src: true
+        include:
+          - tenv
+          - tofu
+          - terragrunt
+        creates: "/usr/local/lib/tenv/{{ terraform__vars.tenv_version }}/tenv"
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Tenv | Expose manager and proxies on PATH
+      ansible.builtin.file:
+        src: "/usr/local/lib/tenv/{{ terraform__vars.tenv_version }}/{{ item }}"
+        dest: "/usr/local/bin/{{ item }}"
+        state: link
+        owner: root
+        group: root
+        force: true
+      loop:
+        - tenv
+        - tofu
+        - terragrunt
+
+    - name: Tenv | Ensure user version directory exists
+      ansible.builtin.file:
+        path: "{{ terraform__home }}/.tenv"
+        state: directory
+        owner: "{{ terraform__vars.user }}"
+        group: "{{ terraform__group }}"
+        mode: "0755"

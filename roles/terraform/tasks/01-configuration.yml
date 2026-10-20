@@ -1,0 +1,136 @@
+---
+# -----------------------------------------------------------------------------
+# Configuration
+# -----------------------------------------------------------------------------
+# Resolve initial release selectors before saving exact desired versions. Saved
+# versions prevent routine reapplication from silently upgrading a workstation.
+# GitHub tag queries are limited to the requested minor series, excluding prereleases.
+# -----------------------------------------------------------------------------
+
+- name: Configuration | Validate and save desired settings
+  tags: always
+  block:
+    - name: Configuration | Validate required string settings
+      ansible.builtin.assert:
+        that:
+          - lookup('ansible.builtin.vars', item) is string
+          - lookup('ansible.builtin.vars', item) | trim | length > 0
+        fail_msg: "{{ item }} must be a non-empty string."
+      loop:
+        - terraform_user
+        - terraform_tenv_version
+        - terraform_opentofu_version
+        - terraform_terragrunt_version
+
+    - name: Configuration | Validate tenv version
+      ansible.builtin.assert:
+        that:
+          - terraform_tenv_version == 'latest' or terraform_tenv_version is match('^[0-9]+[.][0-9]+[.][0-9]+$')
+        fail_msg: "terraform_tenv_version must be latest or an exact version without a v prefix."
+
+    - name: Configuration | Validate tool version selectors
+      ansible.builtin.assert:
+        that:
+          - lookup('ansible.builtin.vars', item) is match('^[0-9]+[.][0-9]+[.]([0-9]+|x)$')
+        fail_msg: "{{ item }} must be an exact version or a minor series such as 1.12.x, without a v prefix."
+      loop:
+        - terraform_opentofu_version
+        - terraform_terragrunt_version
+
+    - name: Configuration | Read tool owner account
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ terraform_user }}"
+
+    - name: Configuration | Record tool owner account details
+      ansible.builtin.set_fact:
+        terraform__home: "{{ ansible_facts.getent_passwd[terraform_user][4] }}"
+        terraform__group: "{{ ansible_facts.getent_passwd[terraform_user][2] }}"
+
+    - name: Configuration | Resolve latest stable tenv release
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/tofuutils/tenv/releases/latest
+        return_content: true
+      register: terraform__tenv_release
+      when: terraform_tenv_version == 'latest'
+
+    - name: Configuration | Read OpenTofu minor series tags
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/opentofu/opentofu/git/matching-refs/tags/v{{ terraform_opentofu_version[:-1] }}"
+        return_content: true
+      register: terraform__opentofu_tags
+      when: terraform_opentofu_version.endswith('.x')
+
+    - name: Configuration | Read Terragrunt minor series tags
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/gruntwork-io/terragrunt/git/matching-refs/tags/v{{ terraform_terragrunt_version[:-1] }}"
+        return_content: true
+      register: terraform__terragrunt_tags
+      when: terraform_terragrunt_version.endswith('.x')
+
+    - name: Configuration | Resolve exact versions
+      ansible.builtin.set_fact:
+        terraform__tenv_version: >-
+          {{ terraform__tenv_release.json.tag_name | regex_replace('^v', '')
+             if terraform_tenv_version == 'latest' else terraform_tenv_version }}
+        terraform__opentofu_version: >-
+          {{ (terraform__opentofu_tags.json
+              | map(attribute='ref')
+              | select('match', '^refs/tags/v' ~ (terraform_opentofu_version | regex_escape | replace('x', '[0-9]+')) ~ '$')
+              | map('regex_replace', '^refs/tags/v', '')
+              | community.general.version_sort | last | default(''))
+             if terraform_opentofu_version.endswith('.x') else terraform_opentofu_version }}
+        terraform__terragrunt_version: >-
+          {{ (terraform__terragrunt_tags.json
+              | map(attribute='ref')
+              | select('match', '^refs/tags/v' ~ (terraform_terragrunt_version | regex_escape | replace('x', '[0-9]+')) ~ '$')
+              | map('regex_replace', '^refs/tags/v', '')
+              | community.general.version_sort | last | default(''))
+             if terraform_terragrunt_version.endswith('.x') else terraform_terragrunt_version }}
+
+    - name: Configuration | Assert stable exact versions were found
+      ansible.builtin.assert:
+        that:
+          - lookup('ansible.builtin.vars', item) is match('^[0-9]+[.][0-9]+[.][0-9]+$')
+        fail_msg: "No stable version was found for {{ item }}."
+      loop:
+        - terraform__tenv_version
+        - terraform__opentofu_version
+        - terraform__terragrunt_version
+
+    - name: Configuration | Prepare complete settings snapshot
+      ansible.builtin.set_fact:
+        terraform__vars: >-
+          {{ terraform__facts | combine({
+            'user': terraform_user,
+            'tenv_version': terraform__tenv_version,
+            'opentofu_version': terraform__opentofu_version,
+            'terragrunt_version': terraform__terragrunt_version,
+            '_source': 'https://github.com/andreygubarev/ansible-collection'
+          }) }}
+
+    - name: Configuration | Ensure local facts directory exists
+      become: true
+      ansible.builtin.file:
+        path: /etc/ansible/facts.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Configuration | Save complete desired settings
+      become: true
+      ansible.builtin.copy:
+        dest: /etc/ansible/facts.d/terraform.fact
+        content: "{{ terraform__vars | to_nice_json }}\n"
+        owner: root
+        group: root
+        mode: "0644"
+      register: terraform__facts_file
+
+    - name: Configuration | Refresh local facts
+      ansible.builtin.setup:
+        filter: ansible_local
+      when:
+        - terraform__facts_file is changed
+        - not ansible_check_mode

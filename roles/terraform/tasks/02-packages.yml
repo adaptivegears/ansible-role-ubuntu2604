@@ -1,0 +1,28 @@
+---
+# -----------------------------------------------------------------------------
+# Packages
+# -----------------------------------------------------------------------------
+# direnv needs Bash even when invoked from another shell. CA certificates keep
+# tenv's release downloads and built-in signature verification on trusted HTTPS.
+# -----------------------------------------------------------------------------
+
+- name: Packages | Update package cache
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    lock_timeout: 600
+  changed_when: false
+  tags: [packages, direnv, tenv, opentofu, terragrunt]
+
+- name: Packages | Install direnv and prerequisites
+  become: true
+  ansible.builtin.apt:
+    name:
+      - bash
+      - ca-certificates
+      - direnv
+    state: present
+    install_recommends: false
+    lock_timeout: 600
+  tags: [packages, direnv, tenv, opentofu, terragrunt]

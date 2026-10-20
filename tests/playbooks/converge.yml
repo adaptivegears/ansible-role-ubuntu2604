@@ -11,5 +11,10 @@
   roles:
     - andreygubarev.com.kubernetes
 
+- name: Apply Terraform tooling for the test user
+  hosts: incus_test
+  roles:
+    - andreygubarev.com.terraform
+
 - name: Wait for the cluster
   ansible.builtin.import_playbook: ready.yml

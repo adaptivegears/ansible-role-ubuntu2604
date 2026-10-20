@@ -1,0 +1,21 @@
+---
+# -----------------------------------------------------------------------------
+# Direnv
+# -----------------------------------------------------------------------------
+# Load direnv at the end of interactive Bash startup, after prompt customization.
+# Repository .envrc files remain untrusted until the operator runs direnv allow.
+# -----------------------------------------------------------------------------
+
+- name: Direnv | Enable the Bash hook for the selected user
+  become: true
+  ansible.builtin.blockinfile:
+    path: "{{ terraform__home }}/.bashrc"
+    marker: "# {mark} ANSIBLE terraform direnv"
+    block: |
+      # Source: https://github.com/andreygubarev/ansible-collection
+      eval "$(direnv hook bash)"
+    create: true
+    owner: "{{ terraform__vars.user }}"
+    group: "{{ terraform__group }}"
+    mode: "0644"
+  tags: direnv

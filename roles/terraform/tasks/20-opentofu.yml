@@ -1,0 +1,48 @@
+---
+# -----------------------------------------------------------------------------
+# OpenTofu
+# -----------------------------------------------------------------------------
+# Let tenv download and verify OpenTofu using its normal signature policy. Select
+# a user default without overwriting project-specific version files.
+# -----------------------------------------------------------------------------
+
+- name: OpenTofu | Install and select the user version
+  become: true
+  become_user: "{{ terraform__vars.user }}"
+  environment:
+    HOME: "{{ terraform__home }}"
+    TENV_ROOT: "{{ terraform__home }}/.tenv"
+  tags: opentofu
+  block:
+    - name: OpenTofu | Install through tenv
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/tenv
+          - tofu
+          - install
+          - "{{ terraform__vars.opentofu_version }}"
+        chdir: "{{ terraform__home }}"
+        creates: "{{ terraform__home }}/.tenv/OpenTofu/{{ terraform__vars.opentofu_version }}/tofu"
+
+    - name: OpenTofu | Check the user default file
+      ansible.builtin.stat:
+        path: "{{ terraform__home }}/.tenv/OpenTofu/version"
+      register: terraform__opentofu_default_file
+
+    - name: OpenTofu | Read the user default
+      ansible.builtin.slurp:
+        src: "{{ terraform__home }}/.tenv/OpenTofu/version"
+      register: terraform__opentofu_default
+      when: terraform__opentofu_default_file.stat.exists
+
+    - name: OpenTofu | Select the user default through tenv
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/tenv
+          - tofu
+          - use
+          - --no-install
+          - "{{ terraform__vars.opentofu_version }}"
+        chdir: "{{ terraform__home }}"
+      changed_when: true
+      when: terraform__opentofu_default.content | default('') | b64decode | trim != terraform__vars.opentofu_version

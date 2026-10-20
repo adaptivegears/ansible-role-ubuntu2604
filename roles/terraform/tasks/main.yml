@@ -1,0 +1,21 @@
+---
+- name: Prerequisite | Import checks
+  ansible.builtin.import_tasks: 00-prerequisites.yml
+
+- name: Configuration | Import desired settings
+  ansible.builtin.import_tasks: 01-configuration.yml
+
+- name: Packages | Import prerequisites and direnv
+  ansible.builtin.import_tasks: 02-packages.yml
+
+- name: Tenv | Import installation
+  ansible.builtin.import_tasks: 10-tenv.yml
+
+- name: OpenTofu | Import installation and default version
+  ansible.builtin.import_tasks: 20-opentofu.yml
+
+- name: Terragrunt | Import installation and default version
+  ansible.builtin.import_tasks: 21-terragrunt.yml
+
+- name: Direnv | Import Bash integration
+  ansible.builtin.import_tasks: 30-direnv.yml

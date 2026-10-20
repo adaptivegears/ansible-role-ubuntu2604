@@ -43,7 +43,13 @@ Every changed line should trace directly to the user request or to keeping that 
 
 - The `kubernetes` role provisions a standalone single-node kubeadm cluster on Ubuntu 26.04.
 - Keep public settings in `defaults/main.yml` with local-fact fallbacks. Validate and save the complete desired configuration; reject changes to stored cluster identity before writing.
-- Both included playbooks target localhost; the Kubernetes playbook does not automatically apply the Ubuntu role.
+- Collection playbooks target localhost and do not automatically apply other roles.
+
+## Terraform tooling role target
+
+- The `terraform` role installs system-wide direnv and tenv on Ubuntu 26.04 amd64/arm64, then installs OpenTofu and Terragrunt through tenv for an existing user. It does not install HashiCorp Terraform.
+- Keep public settings in `defaults/main.yml` with local-fact fallbacks. Initially resolve latest stable tenv, OpenTofu 1.12.x, and Terragrunt 1.1.x to exact versions; validate and save the complete configuration before installation. Reuse saved versions unless explicitly overridden.
+- User tool versions live in `~/.tenv`; system proxies live in `/usr/local/bin`. Configure only the selected user's Bash direnv hook and never authorize `.envrc` files automatically.
 
 ## Ansible style
 
@@ -71,8 +77,8 @@ Every changed line should trace directly to the user request or to keeping that 
 ## Testinfra verification
 
 - Use testinfra to verify role application in a fresh local Incus VM.
-- Keep verification in `roles/ubuntu2604/tests/test_ubuntu2604.py` and `roles/kubernetes/tests/test_kubernetes.py`.
-- `make test` applies Ubuntu followed by Kubernetes to a fresh VM and verifies both roles. The roles remain independently usable; standalone Kubernetes testing is not required.
+- Keep verification in `roles/ubuntu2604/tests/test_ubuntu2604.py`, `roles/kubernetes/tests/test_kubernetes.py`, and `roles/terraform/tests/test_terraform.py`.
+- `make test` applies Ubuntu followed by Kubernetes and Terraform tooling to a fresh VM and verifies all three roles. The roles remain independently usable; standalone Kubernetes testing is not required.
 - Keep tests self-contained by hardcoding the expected role contract in the tests.
 - Use native testinfra modules such as `host.sysctl`, `host.file`, `host.service`, and `host.package`.
 - Place expected-value constants close to the tests that use them, grouped by semantic section.

@@ -47,7 +47,7 @@ For automated integration tests, run from a repository checkout on a machine wit
 make test
 ```
 
-This tests Ubuntu followed by Kubernetes in a fresh VM, including repeat application and persistence after reboot. It does not verify the host running the command. See [development](../../../README.md#integration-tests) for requirements and failure diagnostics.
+This tests Ubuntu followed by Kubernetes and Terraform tooling in a fresh VM, including repeat application and persistence after reboot. It does not verify the host running the command. See [development](../../../README.md#integration-tests) for requirements and failure diagnostics.
 
 ## Remote provisioning
 

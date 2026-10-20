@@ -1,0 +1,50 @@
+---
+# -----------------------------------------------------------------------------
+# Prerequisite
+# -----------------------------------------------------------------------------
+# Fail before mutation on unsupported hosts and let cloud-init finish its APT
+# work before installing packages. This role does not depend on the Ubuntu role.
+# -----------------------------------------------------------------------------
+
+- name: Prerequisite | Assert OS is Ubuntu 26.04
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == "Ubuntu"
+      - ansible_facts['distribution_version'] == "26.04"
+    fail_msg: "This role requires Ubuntu 26.04."
+  tags: always
+
+- name: Prerequisite | Assert architecture is supported
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['architecture'] in ['x86_64', 'aarch64']
+    fail_msg: "This role requires amd64 or arm64 architecture."
+  tags: always
+
+- name: Prerequisite | Get cloud-init
+  ansible.builtin.stat:
+    path: /usr/bin/cloud-init
+  register: terraform__cloud_init
+  tags: always
+
+- name: Prerequisite | Wait for cloud-init to finish
+  ansible.builtin.command:
+    argv:
+      - timeout
+      - "1800"
+      - /usr/bin/cloud-init
+      - status
+      - --wait
+  register: terraform__cloud_init_status
+  failed_when: terraform__cloud_init_status.rc not in [0, 1, 2]
+  changed_when: false
+  when: terraform__cloud_init.stat.exists
+  tags: always
+
+- name: Prerequisite | Report cloud-init completed with errors
+  ansible.builtin.debug:
+    msg: "cloud-init completed with errors; inspect cloud-init status --long before relying on the image defaults."
+  when:
+    - terraform__cloud_init.stat.exists
+    - terraform__cloud_init_status.rc == 1
+  tags: always

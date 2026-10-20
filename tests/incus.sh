@@ -97,10 +97,10 @@ verify() {
     "${pytest[@]}" -n "$TESTINFRA_WORKERS" --dist=worksteal \
         --hosts='ansible://testvm?controlpersist=300&timeout=30' \
         --ansible-inventory="$workdir/inventory.yml" --sudo \
-        roles/ubuntu2604/tests roles/kubernetes/tests
+        roles/ubuntu2604/tests roles/kubernetes/tests roles/terraform/tests
 }
 
-echo 'Applying Ubuntu, then Kubernetes to the fresh VM'
+echo 'Applying Ubuntu, Kubernetes, and Terraform tooling to the fresh VM'
 apply -e "ubuntu2604_hostname=$vm" -e "kubernetes_cluster_name=$vm"
 verify
 

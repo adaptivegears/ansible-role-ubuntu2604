@@ -1,0 +1,7 @@
+---
+# Explicit inputs override saved exact versions and the initial release selectors.
+terraform_user: >-
+  {{ terraform__facts.get('user', ansible_user | default(ansible_ssh_user | default(ansible_facts['user_id']))) }}
+terraform_tenv_version: "{{ terraform__facts.get('tenv_version', 'latest') }}"
+terraform_opentofu_version: "{{ terraform__facts.get('opentofu_version', '1.12.x') }}"
+terraform_terragrunt_version: "{{ terraform__facts.get('terragrunt_version', '1.1.x') }}"

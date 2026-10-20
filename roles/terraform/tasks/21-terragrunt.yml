@@ -1,0 +1,48 @@
+---
+# -----------------------------------------------------------------------------
+# Terragrunt
+# -----------------------------------------------------------------------------
+# Keep Terragrunt under the same user's tenv root as OpenTofu. tenv verifies the
+# upstream checksum; default selection must not change repository version files.
+# -----------------------------------------------------------------------------
+
+- name: Terragrunt | Install and select the user version
+  become: true
+  become_user: "{{ terraform__vars.user }}"
+  environment:
+    HOME: "{{ terraform__home }}"
+    TENV_ROOT: "{{ terraform__home }}/.tenv"
+  tags: terragrunt
+  block:
+    - name: Terragrunt | Install through tenv
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/tenv
+          - tg
+          - install
+          - "{{ terraform__vars.terragrunt_version }}"
+        chdir: "{{ terraform__home }}"
+        creates: "{{ terraform__home }}/.tenv/Terragrunt/{{ terraform__vars.terragrunt_version }}/terragrunt"
+
+    - name: Terragrunt | Check the user default file
+      ansible.builtin.stat:
+        path: "{{ terraform__home }}/.tenv/Terragrunt/version"
+      register: terraform__terragrunt_default_file
+
+    - name: Terragrunt | Read the user default
+      ansible.builtin.slurp:
+        src: "{{ terraform__home }}/.tenv/Terragrunt/version"
+      register: terraform__terragrunt_default
+      when: terraform__terragrunt_default_file.stat.exists
+
+    - name: Terragrunt | Select the user default through tenv
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/tenv
+          - tg
+          - use
+          - --no-install
+          - "{{ terraform__vars.terragrunt_version }}"
+        chdir: "{{ terraform__home }}"
+      changed_when: true
+      when: terraform__terragrunt_default.content | default('') | b64decode | trim != terraform__vars.terragrunt_version

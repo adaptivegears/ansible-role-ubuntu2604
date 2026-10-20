@@ -24,17 +24,20 @@ Run on the machine to configure. No inventory or SSH connection is required; add
 ```bash
 ansible-playbook andreygubarev.com.ubuntu2604 -e ubuntu2604_hostname=worker-1
 ansible-playbook andreygubarev.com.kubernetes -e kubernetes_cluster_name=my-cluster
+ansible-playbook andreygubarev.com.terraform
 ```
 
 | Role / playbook | Purpose | Documentation |
 |---|---|---|
 | `andreygubarev.com.ubuntu2604` | Container-host baseline | [Quickstart](docs/getting-started/quickstart.md) · [Configuration](docs/reference/configuration.md) |
 | `andreygubarev.com.kubernetes` | Single-node kubeadm cluster | [Quickstart](docs/kubernetes/getting-started/quickstart.md) · [Configuration](docs/kubernetes/reference/configuration.md) |
+| `andreygubarev.com.terraform` | direnv, tenv, OpenTofu, and Terragrunt | [Quickstart](docs/terraform/getting-started/quickstart.md) · [Configuration](docs/terraform/reference/configuration.md) |
 
-The playbooks are independent. Kubernetes does not automatically apply the Ubuntu role.
+The playbooks are independent. None automatically applies another role.
 
 - Ubuntu requires `ubuntu2604_hostname` once and remembers the complete validated configuration, including defaults. Future runs need no repeated overrides; supply a new value once to change a setting.
 - Kubernetes requires `kubernetes_cluster_name` once and remembers the complete configuration, including the initial API address and kubeconfig owner. Cluster name, Kubernetes minor version, and cluster CIDRs remain immutable.
+- Terraform tooling defaults to the invoking user, latest stable tenv, OpenTofu 1.12.x, and Terragrunt 1.1.x. Exact resolved versions are remembered. OpenTofu/Terragrunt are installed through tenv in the user's `~/.tenv`; direnv is hooked into Bash, but `.envrc` authorization remains manual. HashiCorp Terraform is not installed.
 
 **Ubuntu baseline:** requires SSH authorized keys, disables password authentication, removes all snap data, and regenerates SSH host keys on first configuration. Review the quickstart before use.
 
@@ -42,17 +45,17 @@ The playbooks are independent. Kubernetes does not automatically apply the Ubunt
 
 ```bash
 make deps     # Install the local collection and dependencies
-make check    # Lint and syntax-check both playbooks
+make check    # Lint and syntax-check all playbooks
 make build    # Build the collection artifact in dist/
 make publish  # Check, build, and publish to Galaxy
-make test     # Test Ubuntu followed by Kubernetes in a fresh Incus VM
+make test     # Test all roles in a fresh Incus VM
 ```
 
 ### Integration tests
 
 `make test` requires a running local Incus server with VM support, `uv`, and an SSH client compatible with the role's SSH policy. It creates a fresh Ubuntu 26.04 cloud VM with 4 vCPUs, 6 GiB RAM, and a 30 GiB disk. The existing Incus network and storage pool default to `incusbr0` and `default`; override them with `INCUS_NETWORK` and `INCUS_STORAGE_POOL` if needed. The VM needs outbound access to Ubuntu archives, Kubernetes repositories, GitHub, and container registries.
 
-The test applies the checkout's Ubuntu role, then Kubernetes, waits for the node and system workloads, and runs both testinfra suites. It reapplies both roles without first-run overrides and requires `changed=0`, then reboots and reruns verification. This tests the combined fresh-machine workflow; the roles remain independently usable.
+The test applies the checkout's Ubuntu role, then Kubernetes and Terraform tooling, waits for the node and system workloads, and runs all three testinfra suites. It reapplies the roles without first-run overrides and requires `changed=0`, then reboots and reruns verification. This tests the combined fresh-machine workflow; the roles remain independently usable.
 
 Successful runs delete the VM and temporary files. Failed or interrupted runs retain the VM, generated inventory, disposable SSH key, and logs under `.cache/incus-test.*`, printing inspection and cleanup commands. No existing instances or host SSH keys are used. `make test` no longer reads `inventory.ini` or verifies the local host.
 

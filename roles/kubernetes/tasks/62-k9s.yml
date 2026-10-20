@@ -1,0 +1,41 @@
+---
+# -----------------------------------------------------------------------------
+# K9s
+# -----------------------------------------------------------------------------
+# Install the upstream Debian package so ownership and upgrades stay visible to
+# dpkg/APT. Verify the release checksum before installation; k9s uses the existing
+# operator kubeconfig without creating another set of cluster credentials.
+# -----------------------------------------------------------------------------
+
+- name: K9s | Install the pinned upstream package
+  become: true
+  tags: k9s
+  block:
+    - name: K9s | Record package name
+      ansible.builtin.set_fact:
+        kubernetes__k9s_package: "k9s_linux_{{ 'amd64' if ansible_facts['architecture'] == 'x86_64' else 'arm64' }}.deb"
+
+    - name: K9s | Ensure versioned download directory exists
+      ansible.builtin.file:
+        path: "/var/cache/ansible-kubernetes/k9s/{{ kubernetes_k9s_version }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: K9s | Download and verify release package
+      ansible.builtin.get_url:
+        url: "https://github.com/derailed/k9s/releases/download/v{{ kubernetes_k9s_version }}/{{ kubernetes__k9s_package }}"
+        dest: "/var/cache/ansible-kubernetes/k9s/{{ kubernetes_k9s_version }}/{{ kubernetes__k9s_package }}"
+        checksum: "sha256:https://github.com/derailed/k9s/releases/download/v{{ kubernetes_k9s_version }}/checksums.sha256"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: K9s | Install verified Debian package
+      ansible.builtin.apt:
+        deb: "/var/cache/ansible-kubernetes/k9s/{{ kubernetes_k9s_version }}/{{ kubernetes__k9s_package }}"
+        state: present
+        allow_downgrade: true
+        install_recommends: false
+        lock_timeout: 600

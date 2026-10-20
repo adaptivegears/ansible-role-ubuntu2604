@@ -50,6 +50,9 @@
 - name: Single-node scheduling | Import configuration
   ansible.builtin.import_tasks: 61-single-node.yml
 
+- name: K9s | Import installation
+  ansible.builtin.import_tasks: 62-k9s.yml
+
 - name: CNI | Import Flannel
   ansible.builtin.import_tasks: 70-flannel.yml
 

@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 from ansible.plugins.filter.core import FilterModule
+from ansible.plugins.test.core import TestModule as AnsibleTestModule
 from jinja2 import Environment
 
 
@@ -34,6 +35,7 @@ DEFAULT_CLUSTER_SETTINGS = {
     "apiserver_gomemlimit": "",
     "flannel_manifest_url": "https://github.com/flannel-io/flannel/releases/download/v0.28.10/kube-flannel.yml",
     "metrics_server_version": "v0.9.0",
+    "k9s_version": "0.51.0",
 }
 
 
@@ -45,6 +47,7 @@ def configuration_contract():
     environment = Environment()
     filters = FilterModule().filters()
     environment.filters.update({name: filters[name] for name in ("combine", "to_nice_json")})
+    environment.tests["match"] = AnsibleTestModule().tests()["match"]
 
     def resolve(saved, overrides):
         context = {
@@ -102,8 +105,8 @@ def test_cluster_name_required_and_immutable_policy(
 def test_complete_settings_snapshot_and_validation_order(configuration_contract):
     role, ordered, tasks, environment, resolve = configuration_contract
     saved = {"cluster_name": "my-cluster", "kubernetes_version": "1.36", "other_setting": "keep"}
-    context = resolve(saved, {"kubernetes_apiserver_gogc": ""})
-    expected = {**DEFAULT_CLUSTER_SETTINGS, **saved, "apiserver_gogc": ""}
+    context = resolve(saved, {"kubernetes_apiserver_gogc": "", "kubernetes_k9s_version": "0.50.9"})
+    expected = {**DEFAULT_CLUSTER_SETTINGS, **saved, "apiserver_gogc": "", "k9s_version": "0.50.9"}
     expression = tasks["Configuration | Prepare complete settings snapshot"]["ansible.builtin.set_fact"]["kubernetes__vars"]
     actual = environment.compile_expression(expression.strip()[2:-2].strip())(**context)
     assert actual == expected
@@ -111,6 +114,7 @@ def test_complete_settings_snapshot_and_validation_order(configuration_contract)
     for check in (
         "Configuration | Validate required cluster name",
         "Configuration | Assert immutable cluster identity matches stored facts",
+        "Configuration | Validate k9s version",
         "Configuration | Validate IPv4 cluster networking",
         "Configuration | Read kubeconfig owner account",
     ):
@@ -127,7 +131,22 @@ def test_complete_settings_snapshot_and_validation_order(configuration_contract)
         "other_section": {"keep": True},
     }
     defaults = yaml.safe_load((role / "defaults/main.yml").read_text())
-    assert len(defaults) == 10 and "kubernetes_cluster_name" in defaults
+    assert len(defaults) == 11 and "kubernetes_cluster_name" in defaults
+
+
+@pytest.mark.parametrize(
+    "version, accepted",
+    (("0.51.0", True), ("0.50.9", True), ("v0.51.0", False), ("latest", False),
+     ("0.51", False), ("0.51.0-rc1", False), ("", False), (False, False)),
+)
+def test_k9s_version_validation(configuration_contract, version, accepted):
+    _role, _ordered, tasks, environment, resolve = configuration_contract
+    context = resolve({}, {"kubernetes_k9s_version": version})
+    context["item"] = "kubernetes_k9s_version"
+    context["lookup"] = lambda _plugin, key: context[key]
+    required = tasks["Configuration | Validate required string settings"]["ansible.builtin.assert"]["that"]
+    exact = tasks["Configuration | Validate k9s version"]["ansible.builtin.assert"]["that"]
+    assert all(environment.compile_expression(condition)(**context) for condition in required + exact) is accepted
 
 
 @pytest.mark.parametrize("gogc, limit", (("50", ""), ("", ""), ("", "1536MiB"), ("0", "off")))
@@ -320,6 +339,25 @@ def test_kubernetes_repository_is_configured(host):
     assert source.contains(r"^URIs: https://pkgs\.k8s\.io/core:/stable:/v[0-9][0-9]*\.[0-9][0-9]*/deb/$")
     assert source.contains(r"^Suites: /$")
     assert source.contains(r"^Signed-By: /etc/apt/keyrings/kubernetes\.asc$")
+
+
+# -----------------------------------------------------------------------------
+# K9s
+# -----------------------------------------------------------------------------
+
+
+def test_k9s_package_matches_saved_version(host, saved_settings):
+    package = host.package("k9s")
+    assert package.is_installed
+    assert package.version == saved_settings["k9s_version"]
+    binary = host.file("/usr/bin/k9s")
+    assert binary.is_file
+    assert binary.user == "root" and binary.group == "root"
+    assert binary.mode == 0o755
+
+
+def test_k9s_reports_saved_version(host, saved_settings):
+    assert "v" + saved_settings["k9s_version"] in host.check_output("/usr/bin/k9s version --short")
 
 
 # -----------------------------------------------------------------------------

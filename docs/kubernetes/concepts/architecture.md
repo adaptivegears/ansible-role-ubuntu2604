@@ -6,6 +6,8 @@ One Ubuntu 26.04 node runs the control plane, etcd, kubelet, containerd, and wor
 
 Containerd uses systemd cgroups, `io.containerd.runc.v2`, and pause image `registry.k8s.io/pause:3.10.2`. Kubeconfig is copied to an existing operator account; no account is created.
 
+k9s is installed system-wide from the official, SHA256-verified Debian package for the host architecture. It uses the operator's existing kubeconfig; no additional credentials or cluster resources are created.
+
 The node name defaults to the OS hostname at initialization. Set it beforehand; changing a running node's hostname is not a supported rename procedure.
 
 ## Configuration lifecycle

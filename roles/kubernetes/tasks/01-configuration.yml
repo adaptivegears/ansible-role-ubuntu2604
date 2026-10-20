@@ -32,6 +32,7 @@
         - kubernetes_kubeconfig_user
         - kubernetes_flannel_manifest_url
         - kubernetes_metrics_server_version
+        - kubernetes_k9s_version
 
     - name: Configuration | Validate optional string settings
       ansible.builtin.assert:
@@ -47,6 +48,12 @@
         that:
           - kubernetes_version is match('^[0-9]+[.][0-9]+$')
         fail_msg: "kubernetes_version must be a quoted minor version, for example '1.37'."
+
+    - name: Configuration | Validate k9s version
+      ansible.builtin.assert:
+        that:
+          - kubernetes_k9s_version is match('^[0-9]+[.][0-9]+[.][0-9]+$')
+        fail_msg: "kubernetes_k9s_version must be an exact version without a v prefix, for example '0.51.0'."
 
     - name: Configuration | Assert immutable cluster identity matches stored facts
       ansible.builtin.assert:
@@ -113,7 +120,8 @@
             'apiserver_gogc': kubernetes_apiserver_gogc,
             'apiserver_gomemlimit': kubernetes_apiserver_gomemlimit,
             'flannel_manifest_url': kubernetes_flannel_manifest_url,
-            'metrics_server_version': kubernetes_metrics_server_version
+            'metrics_server_version': kubernetes_metrics_server_version,
+            'k9s_version': kubernetes_k9s_version
           }) }}
 
     - name: Configuration | Ensure local facts directory exists

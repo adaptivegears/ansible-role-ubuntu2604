@@ -14,8 +14,9 @@
 | `kubernetes_apiserver_gomemlimit` | Empty | Optional API server Go memory limit, e.g. `1536MiB` |
 | `kubernetes_flannel_manifest_url` | [Flannel v0.28.10 manifest](https://github.com/flannel-io/flannel/releases/download/v0.28.10/kube-flannel.yml) | Applied only when Flannel is absent |
 | `kubernetes_metrics_server_version` | `v0.9.0` | Release applied on installation or image-version drift |
+| `kubernetes_k9s_version` | `0.51.0` | Exact k9s release without a `v` prefix; upstream Debian package verified with SHA256 |
 
-All ten public variables remain in [defaults/main.yml](../../../roles/kubernetes/defaults/main.yml). Precedence is **explicit Ansible input → saved settings → fallback defaults**. Values are strings; empty strings are allowed only for the two GC overrides. Kubernetes minor versions use `major.minor` format. An overly restrictive `GOMEMLIMIT` can cause GC thrashing.
+All eleven public variables remain in [defaults/main.yml](../../../roles/kubernetes/defaults/main.yml). Precedence is **explicit Ansible input → saved settings → fallback defaults**. Values are strings; empty strings are allowed only for the two GC overrides. Kubernetes minor versions use `major.minor` format. An overly restrictive `GOMEMLIMIT` can cause GC thrashing.
 
 ## Persistence
 

@@ -1,82 +1,42 @@
-# Configuration
-
-Default variables are defined in `roles/kubernetes/defaults/main.yml`.
+# Kubernetes configuration
 
 ## Variables
 
-### `kubernetes_version`
+| Variable | Default | Effect |
+|---|---|---|
+| `kubernetes_cluster_name` | Required once | Immutable cluster name; reused from local facts |
+| `kubernetes_version` | `1.37` | Immutable minor version for the upstream APT repository |
+| `kubernetes_advertise_address` | Default IPv4 address | API advertise/bind address, endpoint, certificate SAN |
+| `kubernetes_pod_subnet` | `10.244.0.0/16` | Immutable pod CIDR; must match the Flannel manifest |
+| `kubernetes_service_subnet` | `10.96.0.0/16` | Immutable service CIDR |
+| `kubernetes_kubeconfig_user` | Ansible user | Existing account receiving `~/.kube/config`; invoking account for local execution |
+| `kubernetes_apiserver_gogc` | `50` | API server Go GC target; empty string uses upstream default |
+| `kubernetes_apiserver_gomemlimit` | Empty | Optional API server Go memory limit, e.g. `1536MiB` |
+| `kubernetes_flannel_manifest_url` | [Flannel v0.28.10 manifest](https://github.com/flannel-io/flannel/releases/download/v0.28.10/kube-flannel.yml) | Applied only when Flannel is absent |
+| `kubernetes_metrics_server_version` | `v0.9.0` | Release applied on installation or image-version drift |
 
-- **Default**: `"1.37"`
-- Kubernetes minor version used for the upstream APT repository URL.
-- Immutable after first role run. The role stores the first value in `/etc/ansible/facts.d/kubernetes.fact` and refuses to proceed if a later run requests a different value.
+See [defaults](../../../roles/kubernetes/defaults/main.yml) for exact expressions. An overly restrictive `GOMEMLIMIT` can cause GC thrashing.
 
-### `kubernetes_cluster_name`
+## `kubernetes_cluster_name`
 
-- **Default**: None; required on the first run.
-- Cluster name passed to kubeadm. Supply a non-empty string, for example `-e kubernetes_cluster_name=my-cluster`; there is no interactive prompt.
-- The variable is deliberately absent from `defaults/main.yml`. Without an explicit value or stored name, the role fails before writing facts or provisioning the host.
-- Later runs automatically reuse `ansible_facts['ansible_local']['kubernetes']['cluster']['cluster_name']` from `/etc/ansible/facts.d/kubernetes.fact` when the variable is omitted, including names stored by earlier role versions.
-- Immutable after first role run. An explicitly supplied different name is rejected before any mutation; the stored identity is not overwritten. Explicit empty or non-string values are rejected rather than falling back to the stored name.
-- Only the cluster name gains this fallback; custom Kubernetes versions and subnets must still be supplied on subsequent runs.
+No role default or interactive prompt. The first run requires an explicit non-empty string and fails before mutation if it is missing.
 
-### `kubernetes_advertise_address`
+Later runs reuse `/etc/ansible/facts.d/kubernetes.fact`, available as `ansible_facts['ansible_local']['kubernetes']['cluster']['cluster_name']`. Names stored by earlier versions remain valid. Explicit empty/non-string values or a different name are rejected; the stored identity is not overwritten.
 
-- **Default**: `{{ ansible_facts.get('default_ipv4', {}).get('address', '') }}`
-- Address used for kubeadm `advertiseAddress`, `controlPlaneEndpoint`, API server certificate SANs, and API server bind address.
-- Set this explicitly when the host has multiple interfaces or when direct access should use a public or specific private address.
+Only the name is reused automatically. Keep all other overrides in inventory/playbooks or supply them on every run.
 
-### `kubernetes_pod_subnet`
+## Immutable identity
 
-- **Default**: `"10.244.0.0/16"`
-- Pod CIDR passed to kubeadm. The default matches the upstream Flannel manifest; a custom CIDR requires a matching Flannel manifest.
-- Immutable after first role run. The role stores the first value in `/etc/ansible/facts.d/kubernetes.fact` and refuses to proceed if a later run requests a different value.
+Cluster name, Kubernetes minor version, pod CIDR, and service CIDR are recorded on the first run and checked before mutation. Changing them requires a rebuild or a separate upgrade/migration procedure; this role provides neither.
 
-### `kubernetes_service_subnet`
-
-- **Default**: `"10.96.0.0/16"`
-- Service CIDR passed to kubeadm.
-- Immutable after first role run. The role stores the first value in `/etc/ansible/facts.d/kubernetes.fact` and refuses to proceed if a later run requests a different value.
-
-### `kubernetes_kubeconfig_user`
-
-- **Default**: `{{ ansible_user | default(ansible_ssh_user | default('')) }}`
-- Existing local user that receives kubeconfig at `<home>/.kube/config`.
-- The included local playbook sets `ansible_user` to the invoking account before escalating role tasks, so kubeconfig is not assigned to root merely because sudo is used.
-- The role does not create this user.
-
-### `kubernetes_apiserver_gogc`
-
-- **Default**: `"50"`
-- `GOGC` for kube-apiserver, rendered into kubeadm `apiServer.extraEnvs` so the setting survives `kubeadm upgrade`. The default halves the Go garbage collector's headroom compared to the upstream `GOGC=100`, trading a little CPU for substantially lower resident memory — on a single-node control plane most of the API server's heap is static CRD schema machinery that the default GC ratio doubles. Set to `""` to keep the upstream default.
-
-### `kubernetes_apiserver_gomemlimit`
-
-- **Default**: `""`
-- Optional `GOMEMLIMIT` hard memory ceiling for kube-apiserver, for example `"1536MiB"`, rendered into kubeadm `apiServer.extraEnvs`. Leave empty until the effect of `kubernetes_apiserver_gogc` alone has been measured: a too-tight ceiling makes the Go runtime thrash the garbage collector.
-
-### `kubernetes_flannel_manifest_url`
-
-- **Default**: `https://github.com/flannel-io/flannel/releases/download/v0.28.10/kube-flannel.yml`
-- Manifest applied when the Flannel DaemonSet is absent. Existing installations are not upgraded automatically.
-- Override with a pinned release URL or a custom manifest whose network matches `kubernetes_pod_subnet`.
-
-### `kubernetes_metrics_server_version`
-
-- **Default**: `"v0.9.0"`
-- metrics-server release installed from that tag's `components.yaml`. The role applies the manifest on first run and whenever the deployed image tag differs from this pin, which is also how metrics-server upgrades are rolled out. The `--kubelet-insecure-tls` patch is re-applied after every install.
+Non-identity control-plane changes regenerate kubeadm manifests and briefly restart the API server. The configuration uses the installed kubeadm version, not a network-resolved version label. See [architecture](../concepts/architecture.md).
 
 ## Example
 
 ```yaml
----
-kubernetes_cluster_name: "my-cluster"
-kubernetes_version: "1.37"
-kubernetes_advertise_address: "203.0.113.10"
-kubernetes_kubeconfig_user: "ubuntu"
+kubernetes_cluster_name: my-cluster
+kubernetes_advertise_address: 203.0.113.10
+kubernetes_kubeconfig_user: ubuntu
 ```
 
-## Notes
-
-Changing kubeadm identity, Kubernetes minor version, or networking values after the first successful run does not reinitialize the cluster. The Kubernetes version, cluster name, pod subnet, and service subnet are additionally guarded by a persistent local fact in `/etc/ansible/facts.d/kubernetes.fact`; back up and rebuild the cluster, or use a future explicit upgrade workflow, if you need to change them after first bootstrap.
-
-Non-identity control-plane settings — such as the API server GC variables — do converge on an initialized cluster: when `/etc/kubernetes/kubeadm-config.yaml` changes, the role uploads the configuration to the `kubeadm-config` ConfigMap and regenerates the control-plane static pod manifests, which briefly restarts the API server. See [Architecture](../concepts/architecture.md) for the convergence model.
+[Quickstart](../getting-started/quickstart.md) · [Networking](../guides/customize-networking.md)

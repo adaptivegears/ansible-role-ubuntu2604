@@ -1,44 +1,27 @@
-# Quickstart
+# Kubernetes quickstart
 
-Provision a single-node Kubernetes cluster on the Ubuntu 26.04 machine running Ansible.
+## Requirements
 
-## Prerequisites
+Ubuntu 26.04 on amd64 or arm64, ansible-core ≥ 2.20, root or sudo access, and a stable API address. See [network requirements](../reference/requirements.md).
 
-- Ubuntu 26.04 on amd64 or arm64
-- ansible-core 2.20 or newer installed on that host
-- Root or sudo access; add `-K` if sudo requires a password
-- A stable address for the Kubernetes API
-- An explicit `kubernetes_cluster_name` on the first run; there is no default or interactive prompt
-
-The role works independently or on hosts already prepared by `andreygubarev.com.ubuntu2604`. It does not automatically apply the Ubuntu role.
-
-## Install the collection
-
-After the collection release containing Kubernetes is published:
+## Run locally
 
 ```bash
 ansible-galaxy collection install andreygubarev.com --upgrade
-```
-
-For development from a repository checkout, use `make deps` instead. It installs the local collection and its dependencies.
-
-## Run the local playbook
-
-No inventory or SSH connection is needed:
-
-```bash
 ansible-playbook andreygubarev.com.kubernetes -e kubernetes_cluster_name=my-cluster
 ```
 
-The first run requires a non-empty cluster name and stores it in a local fact. Later runs reuse that name automatically, so this is sufficient:
+No inventory or SSH transport is required. Add `-K` if sudo requires a password. The Ubuntu baseline role is not applied automatically.
+
+A non-empty cluster name is required on the first run; there is no prompt. Later runs reuse the saved name:
 
 ```bash
 ansible-playbook andreygubarev.com.kubernetes
 ```
 
-An explicitly supplied different name is rejected without changing the stored identity. Only the name gains this fallback; repeat any custom Kubernetes version or subnet overrides as before.
+Renaming is rejected before changes. Other overrides, including custom Kubernetes versions and CIDRs, must still be supplied on each run or stored in inventory/playbooks.
 
-The API server advertises the host's default IPv4 address, and kubeconfig is copied to the invoking user's home directory. If either default is wrong, override it explicitly:
+The API uses the default IPv4 address; kubeconfig is copied to the invoking user's home directory. Override either explicitly if needed:
 
 ```bash
 ansible-playbook andreygubarev.com.kubernetes \
@@ -47,20 +30,16 @@ ansible-playbook andreygubarev.com.kubernetes \
   -e kubernetes_kubeconfig_user=ubuntu
 ```
 
-Review the [configuration reference](../reference/configuration.md) before changing cluster identity or networking. The Kubernetes version, cluster name, pod subnet, and service subnet are immutable after the first role run.
+Choose the node hostname before initialization. Cluster name, Kubernetes minor version, and cluster CIDRs are immutable. Flannel does not enforce NetworkPolicy; metrics-server accepts self-signed kubelet certificates. Review [configuration](../reference/configuration.md) and [architecture](../concepts/architecture.md) before deployment.
 
-## Verify the cluster
-
-On that host, run:
+## Verify
 
 ```bash
 kubectl get nodes
 kubectl get pods -A
 ```
 
-If the node is `Ready` and the `kube-system` pods are running, the installation succeeded.
-
-From a repository checkout, run production verification locally:
+From a repository checkout on the configured host:
 
 ```bash
 make test ANSIBLE_ROLE_DIR=roles/kubernetes TESTINFRA_HOSTS=local://
@@ -68,24 +47,18 @@ make test ANSIBLE_ROLE_DIR=roles/kubernetes TESTINFRA_HOSTS=local://
 
 ## Remote provisioning
 
-To provision over SSH, use the role in your own playbook, for example `kubernetes.yml`:
+Use the role in your own `kubernetes.yml`:
 
 ```yaml
-- name: Provision a single-node Kubernetes cluster
+- name: Configure a single-node cluster
   hosts: kubernetes
   become: true
   roles:
     - andreygubarev.com.kubernetes
 ```
 
-Provide an inventory with the SSH login user:
-
-```ini
-[kubernetes]
-node1.example.com ansible_user=ubuntu
-```
+Set the SSH login user in inventory, for example `node1 ansible_user=ubuntu`, then run:
 
 ```bash
 ansible-playbook -i inventory.ini kubernetes.yml -e kubernetes_cluster_name=my-cluster
-make test ANSIBLE_ROLE_DIR=roles/kubernetes
 ```

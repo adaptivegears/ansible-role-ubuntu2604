@@ -4,6 +4,9 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- **GitOps repository identity**: Require `gitops_git_user_name` and `gitops_git_user_email` before repository initialization, then save them in `.git/config`. Reuse repository-local values on later runs and allow explicit overrides without changing global Git settings. Initial baseline commits use this identity instead of a hardcoded bootstrap author.
+
 ## [2026.10.18] - 2026-10-20
 
 ### Added

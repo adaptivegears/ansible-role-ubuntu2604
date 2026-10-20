@@ -6,6 +6,87 @@ from pathlib import Path
 
 import pytest
 import yaml
+from ansible.plugins.test.core import TestModule as AnsibleTestModule
+from jinja2 import Environment
+
+
+# -----------------------------------------------------------------------------
+# Repository identity
+# -----------------------------------------------------------------------------
+
+
+@pytest.fixture
+def git_identity_contract():
+    role = Path(__file__).resolve().parents[1]
+    ordered = yaml.safe_load((role / "tasks/20-git-init.yml").read_text())
+    tasks = {task["name"]: task for task in ordered}
+    defaults = yaml.safe_load((role / "defaults/main.yml").read_text())
+    environment = Environment()
+    environment.tests["match"] = AnsibleTestModule().tests()["match"]
+
+    def resolve(saved_name, saved_email, overrides):
+        context = {"gitops__git_identity": {"results": [
+            {"stdout": saved_name or ""}, {"stdout": saved_email or ""},
+        ]}}
+        for name in ("gitops_git_user_name", "gitops_git_user_email"):
+            expression = defaults[name].strip()[2:-2].strip()
+            context[name] = environment.compile_expression(expression)(**context)
+        context.update(overrides)
+        context["lookup"] = lambda _plugin, name: context[name]
+        return context
+
+    return role, ordered, tasks, environment, resolve
+
+
+@pytest.mark.parametrize("saved_name, saved_email, overrides, accepted", (
+    (None, None, {}, False),
+    (None, None, {"gitops_git_user_name": "Operator", "gitops_git_user_email": "operator@example.com"}, True),
+    ("Operator", None, {}, False),
+    (None, "operator@example.com", {}, False),
+    ("Operator", "operator@example.com", {}, True),
+    ("Operator", "operator@example.com", {"gitops_git_user_name": "Other Operator"}, True),
+    ("Operator", "operator@example.com", {"gitops_git_user_name": ""}, False),
+    ("Operator", "operator@example.com", {"gitops_git_user_name": "   "}, False),
+    ("Operator", "operator@example.com", {"gitops_git_user_name": False}, False),
+    ("Operator", "operator@example.com", {"gitops_git_user_email": None}, False),
+    ("Operator", "operator@example.com", {"gitops_git_user_email": "invalid"}, False),
+    ("Operator", "operator@example.com", {"gitops_git_user_email": "operator@example.com\n"}, False),
+    ("Operator", "operator@example.com", {"gitops_git_user_email": "<operator@example.com>"}, False),
+))
+def test_git_identity_is_required_and_reuses_local_values(
+    git_identity_contract, saved_name, saved_email, overrides, accepted,
+):
+    _role, _ordered, tasks, environment, resolve = git_identity_contract
+    context = resolve(saved_name, saved_email, overrides)
+    task = tasks["Git | Validate required repository identity"]
+    valid = True
+    for name in task["loop"]:
+        context["item"] = name
+        valid = valid and all(
+            environment.compile_expression(condition)(**context)
+            for condition in task["ansible.builtin.assert"]["that"]
+        )
+    if valid:
+        email = tasks["Git | Validate repository email"]
+        context.update(email["vars"])
+        valid = all(environment.compile_expression(condition)(**context) for condition in email["ansible.builtin.assert"]["that"])
+    assert bool(valid) is accepted
+    assert context["gitops_git_user_name"] == overrides.get("gitops_git_user_name", saved_name or "")
+    assert context["gitops_git_user_email"] == overrides.get("gitops_git_user_email", saved_email or "")
+
+
+def test_git_identity_is_validated_before_initialization_and_scoped_to_repo(git_identity_contract):
+    role, ordered, tasks, _environment, _resolve = git_identity_contract
+    names = [task["name"] for task in ordered]
+    assert names.index("Git | Validate required repository identity") < names.index("Git | Initialize the workspace repository")
+    assert names.index("Git | Validate repository email") < names.index("Git | Initialize the workspace repository")
+    read = tasks["Git | Read saved repository identity"]["ansible.builtin.command"]["argv"]
+    assert "--file" in read and read[read.index("--file") + 1].endswith("/gitops/.git/config")
+    config = tasks["Git | Configure repository identity"]["community.general.git_config"]
+    assert config["scope"] == "file" and config["file"].endswith("/gitops/.git/config")
+    baseline = yaml.safe_load((role / "tasks/40-git-baseline.yml").read_text())[0]["block"]
+    commit = next(task["ansible.builtin.command"]["argv"] for task in baseline if task["name"] == "Git | Commit the initial workspace")
+    assert "-c" not in commit and "--no-gpg-sign" in commit
 
 
 @pytest.fixture
@@ -88,6 +169,15 @@ def test_scaffold_file_is_user_owned(host, workspace, name):
 def test_project_version_is_pinned(host, workspace, name, version):
     _user, directory = workspace
     assert host.file(f"{directory}/{name}").content_string.strip() == version
+
+
+def test_repository_identity_is_saved_locally(host, workspace):
+    for name in ("user.name", "user.email"):
+        result = git_command(host, workspace, "config", "--local", "--get", name)
+        assert result.rc == 0
+        assert result.stdout.strip()
+    email = git_command(host, workspace, "config", "--local", "--get", "user.email").stdout.strip()
+    assert re.fullmatch(r"[^\s@<>]+@[^\s@<>]+", email)
 
 
 def test_repository_has_a_baseline_commit(host, workspace):

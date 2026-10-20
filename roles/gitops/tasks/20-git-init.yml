@@ -2,8 +2,9 @@
 # -----------------------------------------------------------------------------
 # Git initialization
 # -----------------------------------------------------------------------------
-# Prepare the repository before copying files. An existing .git is left intact;
-# the initial commit is a separate step after the scaffold has been copied.
+# Require an explicit identity before initialization, reusing repository-local
+# values on later runs rather than inheriting global or auto-detected root data.
+# The initial commit is a separate step after the scaffold has been copied.
 # -----------------------------------------------------------------------------
 
 - name: Git | Install Git
@@ -14,6 +15,46 @@
     update_cache: true
     cache_valid_time: 3600
     install_recommends: false
+
+- name: Git | Read saved repository identity
+  become: true
+  become_user: "{{ gitops_user }}"
+  environment:
+    HOME: "{{ ansible_facts.getent_passwd[gitops_user][4] }}"
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/git
+      - config
+      - --includes
+      - --file
+      - "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops/.git/config"
+      - --get
+      - "{{ item }}"
+  loop:
+    - user.name
+    - user.email
+  register: gitops__git_identity
+  check_mode: false
+  changed_when: false
+  failed_when: gitops__git_identity.rc not in [0, 1]
+
+- name: Git | Validate required repository identity
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.vars', item) is string
+      - lookup('ansible.builtin.vars', item) | trim | length > 0
+    fail_msg: "Set a non-empty {{ item }} on first use; subsequent runs reuse the repository-local value."
+  loop:
+    - gitops_git_user_name
+    - gitops_git_user_email
+
+- name: Git | Validate repository email
+  ansible.builtin.assert:
+    that:
+      - gitops_git_user_email is match(gitops__git_email_pattern)
+    fail_msg: "gitops_git_user_email must be an email address without whitespace or angle brackets."
+  vars:
+    gitops__git_email_pattern: '^[^\s@<>]+@[^\s@<>]+\Z'
 
 - name: Git | Initialize the workspace repository
   become: true
@@ -28,3 +69,19 @@
     chdir: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops"
     creates: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops/.git"
   when: not ansible_check_mode
+
+- name: Git | Configure repository identity
+  become: true
+  become_user: "{{ gitops_user }}"
+  environment:
+    HOME: "{{ ansible_facts.getent_passwd[gitops_user][4] }}"
+  community.general.git_config:
+    scope: file
+    file: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops/.git/config"
+    name: "{{ item.name }}"
+    value: "{{ item.value | trim }}"
+  loop:
+    - name: user.name
+      value: "{{ gitops_git_user_name }}"
+    - name: user.email
+      value: "{{ gitops_git_user_email }}"

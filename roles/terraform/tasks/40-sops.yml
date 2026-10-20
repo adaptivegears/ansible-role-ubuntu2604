@@ -1,0 +1,44 @@
+---
+# -----------------------------------------------------------------------------
+# SOPS
+# -----------------------------------------------------------------------------
+# Keep a checksummed system binary independent of user-managed OpenTofu versions.
+# The user identity is held by age outside the workspace, never in local facts.
+# -----------------------------------------------------------------------------
+
+- name: SOPS | Install encryption tool
+  become: true
+  tags: sops
+  block:
+    - name: SOPS | Ensure installation directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - "/usr/local/lib/sops/{{ terraform__vars.sops_version }}"
+        - /usr/local/bin
+
+    - name: SOPS | Download and verify binary
+      ansible.builtin.get_url:
+        url: >-
+          {{ 'https://github.com/getsops/sops/releases/download/v' ~ terraform__vars.sops_version
+             ~ '/sops-v' ~ terraform__vars.sops_version ~ '.linux.'
+             ~ ('amd64' if ansible_facts['architecture'] == 'x86_64' else 'arm64') }}
+        dest: "/usr/local/lib/sops/{{ terraform__vars.sops_version }}/sops"
+        checksum: >-
+          sha256:https://github.com/getsops/sops/releases/download/v{{ terraform__vars.sops_version }}/sops-v{{ terraform__vars.sops_version }}.checksums.txt
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: SOPS | Expose binary on PATH
+      ansible.builtin.file:
+        src: "/usr/local/lib/sops/{{ terraform__vars.sops_version }}/sops"
+        dest: /usr/local/bin/sops
+        state: link
+        owner: root
+        group: root
+        force: true

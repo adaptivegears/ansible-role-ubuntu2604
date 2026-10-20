@@ -21,6 +21,17 @@
         - terraform_tenv_version
         - terraform_opentofu_version
         - terraform_terragrunt_version
+        - terraform_sops_version
+        - terraform_age_version
+
+    - name: Configuration | Validate encryption tool versions
+      ansible.builtin.assert:
+        that:
+          - lookup('ansible.builtin.vars', item) is match('^[0-9]+[.][0-9]+[.][0-9]+$')
+        fail_msg: "{{ item }} must be an exact version without a v prefix."
+      loop:
+        - terraform_sops_version
+        - terraform_age_version
 
     - name: Configuration | Validate tenv version
       ansible.builtin.assert:
@@ -106,6 +117,8 @@
             'tenv_version': terraform__tenv_version,
             'opentofu_version': terraform__opentofu_version,
             'terragrunt_version': terraform__terragrunt_version,
+            'sops_version': terraform_sops_version,
+            'age_version': terraform_age_version,
             '_source': 'https://github.com/andreygubarev/ansible-collection'
           }) }}
 

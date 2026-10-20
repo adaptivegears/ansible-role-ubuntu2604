@@ -13,7 +13,7 @@
     cache_valid_time: 3600
     lock_timeout: 600
   changed_when: false
-  tags: [packages, direnv, tenv, opentofu, terragrunt]
+  tags: [packages, direnv, tenv, opentofu, terragrunt, sops, age]
 
 - name: Packages | Install direnv and prerequisites
   become: true
@@ -22,7 +22,9 @@
       - bash
       - ca-certificates
       - direnv
+      - gzip
+      - tar
     state: present
     install_recommends: false
     lock_timeout: 600
-  tags: [packages, direnv, tenv, opentofu, terragrunt]
+  tags: [packages, direnv, tenv, opentofu, terragrunt, sops, age]

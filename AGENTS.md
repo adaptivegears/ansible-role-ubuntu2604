@@ -50,12 +50,14 @@ Every changed line should trace directly to the user request or to keeping that 
 - The `terraform` role installs system-wide direnv and tenv on Ubuntu 26.04 amd64/arm64, then installs OpenTofu and Terragrunt through tenv for an existing user. It does not install HashiCorp Terraform.
 - Keep public settings in `defaults/main.yml` with local-fact fallbacks. Initially resolve latest stable tenv, OpenTofu 1.12.x, and Terragrunt 1.1.x to exact versions; validate and save the complete configuration before installation. Reuse saved versions unless explicitly overridden.
 - User tool versions live in `~/.tenv`; system proxies live in `/usr/local/bin`. Configure only the selected user's Bash direnv hook and never authorize `.envrc` files automatically.
+- Install checksummed, versioned SOPS and age binaries system-wide. Create the selected user's age identity at `~/.config/sops/age/keys.txt` only when absent, with private directory/file permissions; never replace it, log its content, or store it in facts.
 
 ## GitOps role target
 
 - The `gitops` role installs Git and a checksummed system-wide Helm 3 binary, prepares `~/gitops` for `gitops_user`, overlays bundled code without deleting host-only data, and commits the initial Git baseline once. Later updates remain uncommitted. Helm 4 is incompatible with the Kustomize version embedded in `kbst/kustomization`.
 - Create `terraform.tfvars.yaml` only if missing; preserve existing user overrides. Keep defaults in HCL variable declarations. Keep public documentation brief and reusable, without per-server runbooks. Deployment-specific hostnames, addresses, account names, and email belong in host overrides, not bundled defaults or instructions.
 - The local playbook does not apply other roles or run OpenTofu/Terragrunt. Never authorize `.envrc` automatically.
+- Require SOPS/age and the workspace owner's age identity from the independent Terraform tooling role. Seed `.sops.yaml` and encrypted `terraform.tfvars.sops.yaml` maps only when missing; preserve existing recipient policies and ciphertext. Merge ordinary inputs first and decrypted SOPS inputs last. Do not migrate plaintext secrets or rewrite Git history automatically; private keys and state stay outside Git.
 - Forgejo bootstrap is manual and sequential: gateway, ACME issuer, Forgejo/database, then runner registration and runner. Free host port 22 by moving and verifying administrative SSH before applying the gateway.
 - Ignore Forgejo and runner `terraform.tfvars.yaml` in the host workspace because they contain credentials; sensitive values still reside in plaintext local state. Runner jobs are trusted-only, use a privileged DinD sidecar without a node runtime socket, and receive no Kubernetes API credentials automatically.
 

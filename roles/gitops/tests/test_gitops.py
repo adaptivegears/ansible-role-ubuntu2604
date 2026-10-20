@@ -2,8 +2,10 @@
 
 import re
 import shlex
+from pathlib import Path
 
 import pytest
+import yaml
 
 
 @pytest.fixture
@@ -62,7 +64,7 @@ def test_workload_directory_is_private_and_user_owned(host, workspace, name):
 
 
 @pytest.mark.parametrize("name", (
-    ".envrc", ".gitignore", ".opentofu-version", ".terragrunt-version",
+    ".envrc", ".gitignore", ".sops.yaml", ".opentofu-version", ".terragrunt-version",
     "20-cert-manager/terraform.tf", "20-cert-manager/terraform.tfvars.yaml",
     "20-cert-manager/terragrunt.hcl",
     "30-openebs/terraform.tf", "30-openebs/terraform.tfvars.yaml",
@@ -116,3 +118,56 @@ def test_runtime_state_and_caches_are_ignored(host, workspace):
 
 def test_provider_lock_file_is_ignored(host, workspace):
     assert git_command(host, workspace, "check-ignore", "--no-index", ".terraform.lock.hcl").rc == 0
+
+
+# -----------------------------------------------------------------------------
+# SOPS inputs
+# -----------------------------------------------------------------------------
+
+
+WORKLOADS = (
+    "10-gateway-api", "11-istio-base", "12-istiod", "13-istio-gateway", "20-cert-manager",
+    "21-letsencrypt", "30-openebs", "31-cnpg", "40-forgejo", "41-forgejo-runner",
+)
+
+
+@pytest.mark.parametrize("name", WORKLOADS)
+def test_encrypted_inputs_are_user_owned_decryptable_and_not_ignored(host, workspace, name):
+    user, directory = workspace
+    relative = f"{name}/terraform.tfvars.sops.yaml"
+    item = host.file(f"{directory}/{relative}")
+    assert item.is_file
+    assert item.user == user.name and item.gid == user.gid
+    assert item.mode == 0o644
+    assert "sops" in yaml.safe_load(item.content_string)
+    assert git_command(host, workspace, "check-ignore", "--no-index", relative).rc == 1
+    with host.sudo(user.name):
+        result = host.run(shlex.join([
+            "env", f"HOME={user.home}", f"SOPS_AGE_KEY_FILE={user.home}/.config/sops/age/keys.txt",
+            "/usr/local/bin/sops", "--decrypt", "--output", "/dev/null", f"{directory}/{relative}",
+        ]))
+    assert result.rc == 0
+
+
+@pytest.mark.parametrize("name", WORKLOADS)
+def test_workload_merges_sops_inputs_last(name):
+    path = Path(__file__).resolve().parents[1] / "files/gitops" / name / "terragrunt.hcl"
+    text = path.read_text()
+    assert 'inputs = merge(' in text
+    assert text.index('yamldecode(file("terraform.tfvars.yaml"))') < text.index(
+        'yamldecode(sops_decrypt_file("terraform.tfvars.sops.yaml"))'
+    )
+
+
+def test_sops_policy_and_encrypted_files_are_seeded_only_once():
+    role = Path(__file__).resolve().parents[1]
+    policy = yaml.safe_load((role / "tasks/22-sops.yml").read_text())
+    copy = next(task["ansible.builtin.copy"] for task in policy if "ansible.builtin.copy" in task)
+    assert copy["force"] is False
+    assert "gitops__age_recipient.stdout_lines" in copy["content"]
+    assert "AGE-SECRET-KEY" not in copy["content"]
+    inputs = yaml.safe_load((role / "tasks/31-sops-files.yml").read_text())[0]["ansible.builtin.command"]
+    assert inputs["creates"].endswith("/terraform.tfvars.sops.yaml")
+    assert inputs["stdin"] == "{}"
+    assert "--output" in inputs["argv"]
+    assert inputs["argv"][-1] == "/dev/stdin"

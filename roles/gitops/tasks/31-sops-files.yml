@@ -1,0 +1,52 @@
+---
+# -----------------------------------------------------------------------------
+# Encrypted inputs
+# -----------------------------------------------------------------------------
+# Ciphertext depends on the host's recipients, so generate empty input maps on
+# the host rather than shipping shared ciphertext. Never rewrite existing files
+# or migrate plaintext inputs implicitly; SOPS values override plain inputs.
+# -----------------------------------------------------------------------------
+
+- name: SOPS | Initialize missing encrypted workload inputs
+  become: true
+  become_user: "{{ gitops_user }}"
+  environment:
+    HOME: "{{ ansible_facts.getent_passwd[gitops_user][4] }}"
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/sops
+      - --encrypt
+      - --input-type
+      - yaml
+      - --output-type
+      - yaml
+      - --config
+      - "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops/.sops.yaml"
+      - --filename-override
+      - "{{ item.path | dirname }}/terraform.tfvars.sops.yaml"
+      - --output
+      - "{{ item.path | dirname }}/terraform.tfvars.sops.yaml"
+      - /dev/stdin
+    stdin: "{}"
+    chdir: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops"
+    creates: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops/{{ item.path | dirname }}/terraform.tfvars.sops.yaml"
+  loop: >-
+    {{ query('community.general.filetree', role_path ~ '/files/gitops/')
+       | selectattr('state', 'equalto', 'file') | selectattr('path', 'match', '^[^/]+/terragrunt[.]hcl$') | list }}
+  loop_control:
+    label: "{{ item.path | dirname }}/terraform.tfvars.sops.yaml"
+
+- name: SOPS | Set encrypted input ownership and permissions
+  become: true
+  ansible.builtin.file:
+    path: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops/{{ item.path | dirname }}/terraform.tfvars.sops.yaml"
+    state: file
+    owner: "{{ gitops_user }}"
+    group: "{{ ansible_facts.getent_passwd[gitops_user][2] }}"
+    mode: "0644"
+  when: not ansible_check_mode
+  loop: >-
+    {{ query('community.general.filetree', role_path ~ '/files/gitops/')
+       | selectattr('state', 'equalto', 'file') | selectattr('path', 'match', '^[^/]+/terragrunt[.]hcl$') | list }}
+  loop_control:
+    label: "{{ item.path | dirname }}/terraform.tfvars.sops.yaml"

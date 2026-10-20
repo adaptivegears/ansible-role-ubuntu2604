@@ -4,6 +4,8 @@ Creates `~/gitops` for `gitops_user`, defaulting to the invoking/SSH user. The d
 
 Run locally with `ansible-playbook andreygubarev.com.gitops`; use `-e gitops_user=operator` to select another existing user. The playbook does not apply other roles or cluster workloads.
 
+First apply the independent `terraform` role for the same user to install SOPS/age and prepare an age identity. GitOps seeds a public `.sops.yaml` policy and an encrypted empty `terraform.tfvars.sops.yaml` in each workload, only when absent. Existing policies and encrypted inputs are preserved. Terragrunt merges regular YAML first and decrypted SOPS values last. No plaintext secrets are migrated automatically; keep the age private key outside Git and back it up separately. SOPS does not encrypt OpenTofu state or saved plans.
+
 The role copies `files/gitops/` into the workspace on every run, including dotfiles, without deleting host-only files. Matching code files are overwritten, including uncommitted local edits. Each `terraform.tfvars.yaml` is created only if missing and is never overwritten; it contains user overrides, while defaults belong in the HCL variable declarations. Newly added workloads receive their own initial YAML even when the repository already exists.
 
 Git is installed and the workspace is initialized as a repository before copying the scaffold. After copying, the first application creates a baseline commit using the command-local identity `Ansible <ansible@localhost>`; existing Git settings are not changed. An existing `.git` prevents reinitialization, and an existing `HEAD` prevents another automatic commit. Subsequent overlays remain uncommitted for review with `git status` and `git diff`.

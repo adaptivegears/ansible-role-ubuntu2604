@@ -19,3 +19,9 @@
 
 - name: Direnv | Import Bash integration
   ansible.builtin.import_tasks: 30-direnv.yml
+
+- name: SOPS | Import installation
+  ansible.builtin.import_tasks: 40-sops.yml
+
+- name: Age | Import installation and user identity
+  ansible.builtin.import_tasks: 41-age.yml

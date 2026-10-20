@@ -1,0 +1,34 @@
+---
+# -----------------------------------------------------------------------------
+# SOPS
+# -----------------------------------------------------------------------------
+# The independent terraform role prepares tools and a private age identity for
+# the workspace owner. Seed only a public recipient policy here; existing rules
+# may include other recipients or KMS and must not be overwritten.
+# -----------------------------------------------------------------------------
+
+- name: SOPS | Read workspace owner's public age recipient
+  become: true
+  become_user: "{{ gitops_user }}"
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/age-keygen
+      - -y
+      - "{{ ansible_facts.getent_passwd[gitops_user][4] }}/.config/sops/age/keys.txt"
+  register: gitops__age_recipient
+  check_mode: false
+  changed_when: false
+
+- name: SOPS | Seed missing workspace encryption policy
+  become: true
+  ansible.builtin.copy:
+    dest: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops/.sops.yaml"
+    content: |
+      # Source: https://github.com/andreygubarev/ansible-collection
+      creation_rules:
+        - path_regex: '(^|/)terraform[.]tfvars[.]sops[.]yaml$'
+          age: {{ gitops__age_recipient.stdout_lines | join(',') | to_json }}
+    force: false
+    owner: "{{ gitops_user }}"
+    group: "{{ ansible_facts.getent_passwd[gitops_user][2] }}"
+    mode: "0644"

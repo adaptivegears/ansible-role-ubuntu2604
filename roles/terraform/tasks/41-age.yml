@@ -1,0 +1,115 @@
+---
+# -----------------------------------------------------------------------------
+# Age
+# -----------------------------------------------------------------------------
+# Upstream publishes archive SHA256 digests in GitHub release metadata, not in a
+# separate checksum file. Keep the selected user's identity at SOPS' standard
+# path; generation refuses replacement and never prints the private identity.
+# -----------------------------------------------------------------------------
+
+- name: Age | Install tools and prepare user identity
+  become: true
+  tags: [age, sops]
+  block:
+    - name: Age | Record release archive name
+      ansible.builtin.set_fact:
+        terraform__age_archive: >-
+          age-v{{ terraform__vars.age_version }}-linux-{{ 'amd64' if ansible_facts['architecture'] == 'x86_64' else 'arm64' }}.tar.gz
+
+    - name: Age | Read release checksums
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/FiloSottile/age/releases/tags/v{{ terraform__vars.age_version }}"
+        return_content: true
+      register: terraform__age_release
+      check_mode: false
+
+    - name: Age | Require an upstream SHA256 digest
+      ansible.builtin.assert:
+        that:
+          - terraform__age_asset.digest is string
+          - terraform__age_asset.digest is match('^sha256:[0-9a-f]{64}$')
+        fail_msg: "The selected age release must provide a SHA256 digest for {{ terraform__age_archive }}."
+      vars:
+        terraform__age_asset: "{{ terraform__age_release.json.assets | selectattr('name', 'equalto', terraform__age_archive) | first }}"
+
+    - name: Age | Ensure download and installation directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - /var/cache/ansible-terraform
+        - "/usr/local/lib/age/{{ terraform__vars.age_version }}"
+        - /usr/local/bin
+
+    - name: Age | Download and verify release archive
+      ansible.builtin.get_url:
+        url: "https://github.com/FiloSottile/age/releases/download/v{{ terraform__vars.age_version }}/{{ terraform__age_archive }}"
+        dest: "/var/cache/ansible-terraform/{{ terraform__age_archive }}"
+        checksum: "{{ terraform__age_asset.digest }}"
+        owner: root
+        group: root
+        mode: "0644"
+      vars:
+        terraform__age_asset: "{{ terraform__age_release.json.assets | selectattr('name', 'equalto', terraform__age_archive) | first }}"
+
+    - name: Age | Extract versioned binaries
+      ansible.builtin.unarchive:
+        src: "/var/cache/ansible-terraform/{{ terraform__age_archive }}"
+        dest: "/usr/local/lib/age/{{ terraform__vars.age_version }}"
+        remote_src: true
+        include:
+          - age/age
+          - age/age-keygen
+        extra_opts:
+          - --strip-components=1
+        creates: "/usr/local/lib/age/{{ terraform__vars.age_version }}/age-keygen"
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Age | Expose binaries on PATH
+      ansible.builtin.file:
+        src: "/usr/local/lib/age/{{ terraform__vars.age_version }}/{{ item }}"
+        dest: "/usr/local/bin/{{ item }}"
+        state: link
+        owner: root
+        group: root
+        force: true
+      loop:
+        - age
+        - age-keygen
+
+    - name: Age | Ensure private SOPS configuration directories exist
+      ansible.builtin.file:
+        path: "{{ terraform__home }}/.config/{{ item }}"
+        state: directory
+        owner: "{{ terraform__vars.user }}"
+        group: "{{ terraform__group }}"
+        mode: "0700"
+      loop:
+        - sops
+        - sops/age
+
+    - name: Age | Generate identity only when absent
+      become: true
+      become_user: "{{ terraform__vars.user }}"
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/age-keygen
+          - -o
+          - "{{ terraform__home }}/.config/sops/age/keys.txt"
+        creates: "{{ terraform__home }}/.config/sops/age/keys.txt"
+      register: terraform__age_identity
+      no_log: true
+
+    - name: Age | Protect existing and generated identity
+      ansible.builtin.file:
+        path: "{{ terraform__home }}/.config/sops/age/keys.txt"
+        state: file
+        owner: "{{ terraform__vars.user }}"
+        group: "{{ terraform__group }}"
+        mode: "0600"
+      when: not ansible_check_mode or terraform__age_identity is not changed

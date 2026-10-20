@@ -27,6 +27,8 @@ INITIAL_SETTINGS = {
     "tenv_version": "latest",
     "opentofu_version": "1.12.x",
     "terragrunt_version": "1.1.x",
+    "sops_version": "3.13.3",
+    "age_version": "1.3.2",
 }
 
 
@@ -77,7 +79,10 @@ def test_configuration_defaults_and_complete_snapshot(configuration_contract):
     context.update({name: evaluate(value, context) for name, value in exact.items()})
     expression = tasks["Configuration | Prepare complete settings snapshot"]["ansible.builtin.set_fact"]["terraform__vars"]
     actual = evaluate(expression, context)
-    expected = {**saved, "opentofu_version": "1.12.9", "_source": ROLE_SOURCE_URL}
+    expected = {
+        **saved, "opentofu_version": "1.12.9", "sops_version": "3.13.3",
+        "age_version": "1.3.2", "_source": ROLE_SOURCE_URL,
+    }
     assert actual == expected
     copy = tasks["Configuration | Save complete desired settings"]["ansible.builtin.copy"]
     assert copy["dest"] == SETTINGS_FACT
@@ -85,10 +90,21 @@ def test_configuration_defaults_and_complete_snapshot(configuration_contract):
     names = [task["name"] for task in ordered]
     for name in (
         "Configuration | Validate required string settings",
+        "Configuration | Validate encryption tool versions",
         "Configuration | Read tool owner account",
         "Configuration | Assert stable exact versions were found",
     ):
         assert names.index(name) < names.index("Configuration | Ensure local facts directory exists")
+
+
+@pytest.mark.parametrize("overrides, expected", (
+    ({}, ("3.12.2", "1.3.1")),
+    ({"terraform_age_version": "1.3.2"}, ("3.12.2", "1.3.2")),
+))
+def test_saved_encryption_versions_are_reused(configuration_contract, overrides, expected):
+    _ordered, _tasks, _defaults, _environment, _evaluate, resolve = configuration_contract
+    context = resolve({"sops_version": "3.12.2", "age_version": "1.3.1"}, overrides)
+    assert (context["terraform_sops_version"], context["terraform_age_version"]) == expected
 
 
 def test_release_selection_stays_in_minor_series_and_excludes_prereleases(configuration_contract):
@@ -120,6 +136,12 @@ def test_release_selection_stays_in_minor_series_and_excludes_prereleases(config
         ("Validate required string settings", "user", "ubuntu", True),
         ("Validate required string settings", "user", "", False),
         ("Validate required string settings", "user", False, False),
+        ("Validate encryption tool versions", "sops_version", "3.13.3", True),
+        ("Validate encryption tool versions", "sops_version", "latest", False),
+        ("Validate encryption tool versions", "sops_version", "v3.13.3", False),
+        ("Validate encryption tool versions", "age_version", "1.3.2", True),
+        ("Validate encryption tool versions", "age_version", "1.3.x", False),
+        ("Validate encryption tool versions", "age_version", "1.3.2-rc1", False),
         ("Validate tenv version", "tenv_version", "latest", True),
         ("Validate tenv version", "tenv_version", "4.15.1", True),
         ("Validate tenv version", "tenv_version", "v4.15.1", False),
@@ -150,7 +172,7 @@ def saved_settings(host):
     settings = json.loads(fact.content_string)
     assert settings["user"]
     assert settings["_source"] == ROLE_SOURCE_URL
-    for name in ("tenv_version", "opentofu_version", "terragrunt_version"):
+    for name in ("tenv_version", "opentofu_version", "terragrunt_version", "sops_version", "age_version"):
         assert re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", settings[name])
     return settings
 
@@ -160,7 +182,7 @@ def saved_settings(host):
 # -----------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("package", ("bash", "ca-certificates", "direnv"))
+@pytest.mark.parametrize("package", ("bash", "ca-certificates", "direnv", "gzip", "tar"))
 def test_prerequisite_package_is_installed(host, package):
     assert host.package(package).is_installed
 
@@ -234,6 +256,48 @@ def test_terragrunt_can_run_opentofu(host, saved_settings):
         assert "OpenTofu v" + saved_settings["opentofu_version"] in output
     finally:
         user_command(host, saved_settings, "rm", "-rf", directory)
+
+
+# -----------------------------------------------------------------------------
+# SOPS and age
+# -----------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("binary, tool", (("sops", "sops"), ("age", "age"), ("age-keygen", "age")))
+def test_encryption_binary_is_system_wide_and_versioned(host, saved_settings, binary, tool):
+    target = f"/usr/local/lib/{tool}/{saved_settings[tool + '_version']}/{binary}"
+    link = host.file(f"/usr/local/bin/{binary}")
+    assert link.is_symlink and link.linked_to == target
+    executable = host.file(target)
+    assert executable.is_file
+    assert executable.user == "root" and executable.group == "root"
+    assert executable.mode == 0o755
+    arguments = ["/usr/local/bin/" + binary, "--version"]
+    if binary == "sops":
+        arguments.append("--disable-version-check")
+    assert saved_settings[tool + "_version"] in user_command(host, saved_settings, *arguments)
+
+
+def test_age_identity_is_private_and_usable_by_selected_user(host, saved_settings):
+    user = host.user(saved_settings["user"])
+    for name in ("sops", "sops/age", "sops/age/keys.txt"):
+        item = host.file(f"{user.home}/.config/{name}")
+        assert item.user == user.name and item.gid == user.gid
+        assert item.mode == (0o600 if name.endswith("keys.txt") else 0o700)
+    recipient = user_command(
+        host, saved_settings, "/usr/local/bin/age-keygen", "-y", f"{user.home}/.config/sops/age/keys.txt",
+    )
+    assert recipient
+    assert all(line.startswith("age1") for line in recipient.splitlines())
+
+
+def test_age_generation_never_replaces_existing_key():
+    role = Path(__file__).resolve().parents[1]
+    tasks = yaml.safe_load((role / "tasks/41-age.yml").read_text())[0]["block"]
+    generation = next(task for task in tasks if task["name"] == "Age | Generate identity only when absent")
+    assert generation["ansible.builtin.command"]["creates"] == "{{ terraform__home }}/.config/sops/age/keys.txt"
+    assert generation["no_log"] is True
+    assert generation["become_user"] == "{{ terraform__vars.user }}"
 
 
 # -----------------------------------------------------------------------------

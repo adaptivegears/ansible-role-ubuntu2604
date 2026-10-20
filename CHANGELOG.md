@@ -4,6 +4,8 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.18] - 2026-10-20
+
 ### Added
 - **SOPS and age tooling**: Install checksummed SOPS `3.13.3` and age `1.3.2` binaries for amd64/arm64, persisting exact version settings. Generate the selected user's private age identity only when absent, outside Git, without logging or storing it in facts.
 - **Encrypted GitOps inputs**: Seed a recipient-based `.sops.yaml` policy and encrypted empty `terraform.tfvars.sops.yaml` maps only when missing. Merge decrypted values after ordinary workload inputs. Preserve existing policies, keys, ciphertext, and plaintext overrides; no secret migration or history rewrite is automatic.

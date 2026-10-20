@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.13] - 2026-10-20
+
+### Added
+- **cert-manager workload**: Add `20-cert-manager`, defaulting to cert-manager `v1.21.2` from the upstream OCI chart registry. Manage the namespace and CRDs with local state and the current kubeconfig context, enable Gateway API integration through `config.gatewayAPI.enabled`, and declare Terragrunt ordering after Gateway API. No Issuer, ClusterIssuer, or ACME account is created; workload application remains manual.
+
 ## [2026.10.12] - 2026-10-20
 
 ### Added

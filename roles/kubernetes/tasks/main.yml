@@ -53,6 +53,22 @@
     kubernetes__cluster_facts: >-
       {{ ansible_facts.get('ansible_local', {}).get('kubernetes', {}).get('cluster', {}) }}
 
+- name: Prerequisite | Select cluster name
+  ansible.builtin.set_fact:
+    kubernetes__cluster_name: >-
+      {{ kubernetes_cluster_name | default(kubernetes__cluster_facts.get('cluster_name', '')) }}
+
+- name: Prerequisite | Assert cluster name is known
+  ansible.builtin.assert:
+    that:
+      - kubernetes__cluster_name is string
+      - kubernetes__cluster_name | trim | length > 0
+    fail_msg: >-
+      kubernetes_cluster_name is required on the first run. Set a non-empty name,
+      for example -e kubernetes_cluster_name=my-cluster. Later runs reuse the name
+      stored in /etc/ansible/facts.d/kubernetes.fact.
+    success_msg: "Kubernetes cluster name: {{ kubernetes__cluster_name }}"
+
 - name: Prerequisite | Assert immutable cluster identity matches stored facts
   ansible.builtin.assert:
     that:
@@ -60,14 +76,14 @@
       - kubernetes__cluster_facts.get('kubernetes_version', '') | length > 0
       - kubernetes__cluster_facts.get('pod_subnet', '') | length > 0
       - kubernetes__cluster_facts.get('service_subnet', '') | length > 0
-      - kubernetes__cluster_facts['cluster_name'] == kubernetes_cluster_name
+      - kubernetes__cluster_facts['cluster_name'] == kubernetes__cluster_name
       - kubernetes__cluster_facts['kubernetes_version'] == kubernetes_version
       - kubernetes__cluster_facts['pod_subnet'] == kubernetes_pod_subnet
       - kubernetes__cluster_facts['service_subnet'] == kubernetes_service_subnet
     fail_msg: >-
       Refusing to proceed because immutable Kubernetes cluster identity does not
       match /etc/ansible/facts.d/kubernetes.fact. Stored cluster name={{ kubernetes__cluster_facts.get('cluster_name', '<missing>') }},
-      requested cluster name={{ kubernetes_cluster_name }}; stored Kubernetes version={{ kubernetes__cluster_facts.get('kubernetes_version', '<missing>') }},
+      requested cluster name={{ kubernetes__cluster_name }}; stored Kubernetes version={{ kubernetes__cluster_facts.get('kubernetes_version', '<missing>') }},
       requested Kubernetes version={{ kubernetes_version }}; stored pod subnet={{ kubernetes__cluster_facts.get('pod_subnet', '<missing>') }},
       requested pod subnet={{ kubernetes_pod_subnet }}; stored service subnet={{ kubernetes__cluster_facts.get('service_subnet', '<missing>') }},
       requested service subnet={{ kubernetes_service_subnet }}. Rebuilding the cluster or using an explicit upgrade workflow is required to change these values.
@@ -92,7 +108,7 @@
       # Source: https://github.com/andreygubarev/ansible-collection
 
       [cluster]
-      cluster_name={{ kubernetes_cluster_name }}
+      cluster_name={{ kubernetes__cluster_name }}
       kubernetes_version={{ kubernetes_version }}
       pod_subnet={{ kubernetes_pod_subnet }}
       service_subnet={{ kubernetes_service_subnet }}
@@ -532,7 +548,7 @@
       ---
       apiVersion: kubeadm.k8s.io/v1beta4
       kind: ClusterConfiguration
-      clusterName: "{{ kubernetes_cluster_name }}"
+      clusterName: "{{ kubernetes__cluster_name }}"
       # Pinned to the installed kubeadm binary so config uploads and manifest
       # regeneration never resolve a version label over the network and never
       # generate manifests at a version other than the cluster's.

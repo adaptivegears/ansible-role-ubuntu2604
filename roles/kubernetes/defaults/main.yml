@@ -1,6 +1,5 @@
 ---
 kubernetes_version: "1.37"
-kubernetes_cluster_name: "kubernetes"
 kubernetes_advertise_address: "{{ ansible_facts.get('default_ipv4', {}).get('address', '') }}"
 kubernetes_pod_subnet: "10.244.0.0/16"
 kubernetes_service_subnet: "10.96.0.0/16"

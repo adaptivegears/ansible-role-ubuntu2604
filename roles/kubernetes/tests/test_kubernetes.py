@@ -3,13 +3,95 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 import pytest
+import yaml
+from jinja2 import Environment
 
 
 def grep_literal(value: str) -> str:
     """Escape a literal for the POSIX grep regexes used by File.contains()."""
     return re.sub(r"([][\\.^$*])", r"\\\1", value)
+
+
+# -----------------------------------------------------------------------------
+# Cluster name input and local-fact reuse
+# -----------------------------------------------------------------------------
+
+
+@pytest.fixture
+def cluster_name_contract():
+    role = Path(__file__).resolve().parents[1]
+    tasks = yaml.safe_load((role / "tasks/main.yml").read_text())
+    return role, tasks, {task["name"]: task for task in tasks}, Environment()
+
+
+@pytest.mark.parametrize(
+    "saved_name, overrides, expected, accepted",
+    (
+        (None, {}, "", False),
+        (None, {"kubernetes_cluster_name": "my-cluster"}, "my-cluster", True),
+        ("my-cluster", {}, "my-cluster", True),
+        ("kubernetes", {}, "kubernetes", True),
+        ("my-cluster", {"kubernetes_cluster_name": "my-cluster"}, "my-cluster", True),
+        ("my-cluster", {"kubernetes_cluster_name": "other-cluster"}, "other-cluster", False),
+        ("my-cluster", {"kubernetes_cluster_name": ""}, "", False),
+        (None, {"kubernetes_cluster_name": "   "}, "   ", False),
+        (None, {"kubernetes_cluster_name": False}, False, False),
+        (None, {"kubernetes_cluster_name": 0}, 0, False),
+        (None, {"kubernetes_cluster_name": None}, None, False),
+    ),
+)
+def test_cluster_name_required_and_immutable_policy(
+    cluster_name_contract, saved_name, overrides, expected, accepted
+):
+    _role, _tasks, tasks, environment = cluster_name_contract
+    saved = {} if saved_name is None else {
+        "cluster_name": saved_name,
+        "kubernetes_version": "1.37",
+        "pod_subnet": "10.244.0.0/16",
+        "service_subnet": "10.96.0.0/16",
+    }
+    context = {
+        "kubernetes__cluster_facts": saved,
+        "kubernetes_version": "1.37",
+        "kubernetes_pod_subnet": "10.244.0.0/16",
+        "kubernetes_service_subnet": "10.96.0.0/16",
+        **overrides,
+    }
+    selection = tasks["Prerequisite | Select cluster name"]["ansible.builtin.set_fact"]["kubernetes__cluster_name"]
+    value = environment.compile_expression(selection.strip()[2:-2].strip())(**context)
+    assert value == expected
+    assert type(value) is type(expected)
+    context["kubernetes__cluster_name"] = value
+
+    conditions = tasks["Prerequisite | Assert cluster name is known"]["ansible.builtin.assert"]["that"]
+    valid = all(environment.compile_expression(condition)(**context) for condition in conditions)
+    if valid and saved:
+        conditions = tasks["Prerequisite | Assert immutable cluster identity matches stored facts"]["ansible.builtin.assert"]["that"]
+        valid = all(environment.compile_expression(condition)(**context) for condition in conditions)
+    assert valid is accepted
+
+
+def test_cluster_name_is_optional_only_after_first_storage(cluster_name_contract):
+    role, ordered, tasks, environment = cluster_name_contract
+    assert "kubernetes_cluster_name" not in yaml.safe_load((role / "defaults/main.yml").read_text())
+    names = [task["name"] for task in ordered]
+    for check in (
+        "Prerequisite | Assert cluster name is known",
+        "Prerequisite | Assert immutable cluster identity matches stored facts",
+    ):
+        assert names.index(check) < names.index("Prerequisite | Ensure local facts directory exists")
+        assert names.index(check) < names.index("Prerequisite | Store immutable cluster networking facts")
+
+    for task_name, prefix, expected in (
+        ("Prerequisite | Store immutable cluster networking facts", "cluster_name=", "cluster_name=my-cluster"),
+        ("Kubeadm | Configure cluster", "clusterName:", 'clusterName: "my-cluster"'),
+    ):
+        content = tasks[task_name]["ansible.builtin.copy"]["content"]
+        line = next(line for line in content.splitlines() if line.startswith(prefix))
+        assert environment.from_string(line).render(kubernetes__cluster_name="my-cluster") == expected
 
 
 # -----------------------------------------------------------------------------

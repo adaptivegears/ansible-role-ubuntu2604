@@ -12,8 +12,10 @@ Provision a single-node Kubernetes cluster on Ubuntu 26.04, using containerd, ku
 ## Local playbook
 
 ```bash
-ansible-playbook andreygubarev.com.kubernetes
+ansible-playbook andreygubarev.com.kubernetes -e kubernetes_cluster_name=my-cluster
 ```
+
+A non-empty cluster name is mandatory on the first run, with no interactive prompt. Later runs reuse the name from `/etc/ansible/facts.d/kubernetes.fact` without repeating the variable. An explicit different name is rejected before mutation; custom version and subnet overrides still need to be repeated.
 
 The playbook targets localhost without inventory or SSH. Kubeconfig is copied to the invoking user's home directory, even when role tasks use sudo. Add `-K` if sudo requires a password.
 
@@ -26,6 +28,8 @@ The Kubernetes API advertises the host's default IPv4 address. Override `kuberne
 - name: Provision a single-node Kubernetes cluster
   hosts: kubernetes
   become: true
+  vars:
+    kubernetes_cluster_name: my-cluster
   roles:
     - andreygubarev.com.kubernetes
 ```

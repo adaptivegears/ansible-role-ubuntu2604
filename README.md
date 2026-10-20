@@ -28,14 +28,16 @@ Run either included playbook on the Ubuntu 26.04 machine you want to configure. 
 
 ```bash
 ansible-playbook andreygubarev.com.ubuntu2604
-ansible-playbook andreygubarev.com.kubernetes
+ansible-playbook andreygubarev.com.kubernetes -e kubernetes_cluster_name=my-cluster
 ```
 
 The playbooks are independent: Kubernetes does not automatically apply the Ubuntu role. Its kubeconfig defaults to the invoking user's home directory. See the [Kubernetes quickstart](docs/kubernetes/getting-started/quickstart.md).
 
 Use root or a user with sudo privileges; add `-K` if sudo requires a password. The Ubuntu role additionally requires SSH authorized keys because it disables password authentication. When run as root, it automatically preserves root SSH access regardless of `ubuntu2604_ssh_allow_root_login`; no extra parameter is needed. Sudo escalation from a non-root account does not trigger this override.
 
-Optionally choose a hostname once with `-e ubuntu2604_hostname=worker-1`. The Ubuntu role remembers it in a local fact and reuses it when omitted on later runs; without an explicit or saved name, the current hostname is left unchanged. Other variables do not yet use this persistence mechanism.
+Optionally choose a hostname once with `-e ubuntu2604_hostname=worker-1`. The Ubuntu role remembers it in a local fact and reuses it when omitted on later runs; without an explicit or saved name, the current hostname is left unchanged. Other Ubuntu variables do not yet use this persistence mechanism.
+
+Kubernetes requires `kubernetes_cluster_name` on the first run, with no default or interactive prompt. Later runs reuse the stored name, so `ansible-playbook andreygubarev.com.kubernetes` is sufficient for a default-configured cluster. Explicit attempts to rename it are rejected. Custom Kubernetes versions and subnets still need to be supplied on subsequent runs.
 
 For remote provisioning over SSH, use the role in your own playbook:
 

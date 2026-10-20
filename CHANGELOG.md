@@ -4,6 +4,9 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Breaking Changes
+- **Required initial cluster name**: `kubernetes_cluster_name` no longer defaults to `kubernetes`. Supply a non-empty string on the first run; later runs reuse the stored cluster name automatically. An explicitly different name is rejected before mutation without overwriting the local fact. Custom version and subnet overrides retain their existing behavior.
+
 ## [2026.10.4] - 2026-10-20
 
 ### Added

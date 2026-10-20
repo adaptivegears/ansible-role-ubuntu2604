@@ -8,6 +8,7 @@ Provision a single-node Kubernetes cluster on the Ubuntu 26.04 machine running A
 - ansible-core 2.20 or newer installed on that host
 - Root or sudo access; add `-K` if sudo requires a password
 - A stable address for the Kubernetes API
+- An explicit `kubernetes_cluster_name` on the first run; there is no default or interactive prompt
 
 The role works independently or on hosts already prepared by `andreygubarev.com.ubuntu2604`. It does not automatically apply the Ubuntu role.
 
@@ -26,13 +27,22 @@ For development from a repository checkout, use `make deps` instead. It installs
 No inventory or SSH connection is needed:
 
 ```bash
+ansible-playbook andreygubarev.com.kubernetes -e kubernetes_cluster_name=my-cluster
+```
+
+The first run requires a non-empty cluster name and stores it in a local fact. Later runs reuse that name automatically, so this is sufficient:
+
+```bash
 ansible-playbook andreygubarev.com.kubernetes
 ```
+
+An explicitly supplied different name is rejected without changing the stored identity. Only the name gains this fallback; repeat any custom Kubernetes version or subnet overrides as before.
 
 The API server advertises the host's default IPv4 address, and kubeconfig is copied to the invoking user's home directory. If either default is wrong, override it explicitly:
 
 ```bash
 ansible-playbook andreygubarev.com.kubernetes \
+  -e kubernetes_cluster_name=my-cluster \
   -e kubernetes_advertise_address=203.0.113.10 \
   -e kubernetes_kubeconfig_user=ubuntu
 ```
@@ -76,6 +86,6 @@ node1.example.com ansible_user=ubuntu
 ```
 
 ```bash
-ansible-playbook -i inventory.ini kubernetes.yml
+ansible-playbook -i inventory.ini kubernetes.yml -e kubernetes_cluster_name=my-cluster
 make test ANSIBLE_ROLE_DIR=roles/kubernetes
 ```

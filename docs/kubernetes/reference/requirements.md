@@ -18,6 +18,7 @@ System, software, and network requirements for `andreygubarev.com.kubernetes`.
 | Root or sudo | Required for package installation, kernel settings, and kubeadm; add `-K` if sudo requires a password. |
 | Existing kubeconfig user | Defaults to the invoking account in the local playbook, or the Ansible SSH user for remote roles; override `kubernetes_kubeconfig_user` if needed. |
 | Stable API address | Defaults to the host default IPv4 address; override `kubernetes_advertise_address` on multi-interface hosts. |
+| Cluster name | Set `kubernetes_cluster_name` on the first run; subsequent runs reuse the stored immutable name. |
 
 ## Network access
 

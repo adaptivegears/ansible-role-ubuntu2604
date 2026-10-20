@@ -1,0 +1,37 @@
+---
+# -----------------------------------------------------------------------------
+# APT
+# -----------------------------------------------------------------------------
+# Own Canonical archive sources after cloud-init for deterministic APT without
+# cloud-provider probing. Ubuntu 26.04 serves arm64 from normal archive/security
+# endpoints, so amd64 and arm64 hosts share the same provider-neutral sources.
+# -----------------------------------------------------------------------------
+
+- name: APT | Remove legacy mirror list files
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  tags: apt
+  loop:
+    - /etc/apt/ubuntu-mirrors.txt
+    - /etc/apt/ubuntu-security-mirrors.txt
+
+- name: APT | Configure Ubuntu archive sources
+  become: true
+  ansible.builtin.template:
+    src: ubuntu.sources.j2
+    dest: /etc/apt/sources.list.d/ubuntu.sources
+    mode: "0644"
+  tags: apt
+  register: ubuntu2604__apt_sources
+
+- name: APT | Update package cache
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+    # Force refresh after source changes; otherwise reuse recent metadata to spare archives.
+    cache_valid_time: "{{ 0 if ubuntu2604__apt_sources is changed else 3600 }}"
+  # Cache refreshes are preconditions, not configuration drift.
+  changed_when: false
+  tags: apt

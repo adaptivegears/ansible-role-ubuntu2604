@@ -2,7 +2,9 @@
 
 Provider-neutral Ansible role for Ubuntu 26.04 container-worker VMs, included in the `andreygubarev.com` collection.
 
-See the repository [quickstart](../../docs/getting-started/quickstart.md) and [configuration reference](../../docs/reference/configuration.md).
+[Quickstart](../../docs/getting-started/quickstart.md) · [Configuration](../../docs/reference/configuration.md) · [Task index](tasks/main.yml)
+
+Tasks use numbered `XX-section.yml` files; `main.yml` declares their static import order.
 
 ## License
 

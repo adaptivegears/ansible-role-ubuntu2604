@@ -1,0 +1,20 @@
+---
+# -----------------------------------------------------------------------------
+# Time
+# -----------------------------------------------------------------------------
+# Use UTC for cross-region log correlation; keep Ubuntu's chrony stack.
+# -----------------------------------------------------------------------------
+
+- name: Time | Set timezone to UTC
+  become: true
+  community.general.timezone:
+    name: "{{ ubuntu2604_timezone }}"
+  tags: time
+
+- name: Time | Ensure chrony time synchronization is active
+  become: true
+  ansible.builtin.systemd_service:
+    name: chrony
+    state: started
+    enabled: true
+  tags: time

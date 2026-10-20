@@ -4,6 +4,9 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed
+- **Ubuntu task layout**: Split the role into numbered task files with explicit static imports in `tasks/main.yml`. Task order, tags, conditions, and handler behavior are unchanged.
+
 ### Breaking Changes
 - **Required initial cluster name**: `kubernetes_cluster_name` no longer defaults to `kubernetes`. Supply a non-empty string on the first run; later runs reuse the stored cluster name automatically. An explicitly different name is rejected before mutation without overwriting the local fact. Custom version and subnet overrides retain their existing behavior.
 

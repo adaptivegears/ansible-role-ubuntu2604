@@ -1,0 +1,48 @@
+---
+# -----------------------------------------------------------------------------
+# Package cleanup
+# -----------------------------------------------------------------------------
+# Remove image packages outside the container-worker baseline.
+# -----------------------------------------------------------------------------
+
+- name: APT | Remove container-worker irrelevant packages
+  become: true
+  ansible.builtin.apt:
+    name:
+      # Cellular modem support probes physical hardware absent from container-worker VMs.
+      - modemmanager
+      # Firmware, removable-disk, and Thunderbolt daemons are for physical or
+      # desktop-style hosts; on container-worker VMs they add idle services and deps.
+      - fwupd
+      - udisks2
+      - bolt
+      # Multipath and iSCSI belong to broad SAN-capable server images, not the
+      # local virtual disks expected by this role.
+      - multipath-tools
+      - open-iscsi
+      # GUI/package-management authorization helpers keep PackageKit and polkit
+      # daemons alive; repositories and packages are managed directly by Ansible.
+      - software-properties-common
+      - packagekit
+      - polkitd
+      # Crash-reporting packages are for interactive Ubuntu bug reporting, not
+      # production VM recovery where logs and core policies are managed separately.
+      - apport
+      - apport-core-dump-handler
+      # One-shot entropy and network event hook helpers have no steady-state role
+      # here, so keeping their enabled units only adds boot/runtime noise.
+      - pollinate
+      - networkd-dispatcher
+      # Ubuntu Pro and desktop-style update notification plumbing are not used by
+      # this self-managed container-worker baseline.
+      - ubuntu-pro-client
+      - ubuntu-pro-client-l10n
+      - update-manager-core
+      - update-notifier-common
+      - ubuntu-minimal
+      # The role favors on-demand incident tools over periodic sar collection.
+      - sysstat
+    state: absent
+    purge: true
+    lock_timeout: 600
+  tags: [apt, packages]

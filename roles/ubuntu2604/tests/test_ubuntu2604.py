@@ -65,7 +65,7 @@ HOSTNAME_CLOUD_CONFIG = "/etc/cloud/cloud.cfg.d/99-ubuntu2604-hostname.cfg"
 
 @pytest.fixture
 def hostname_contract():
-    tasks_file = Path(__file__).resolve().parents[1] / "tasks/main.yml"
+    tasks_file = Path(__file__).resolve().parents[1] / "tasks/01-hostname.yml"
     tasks = yaml.safe_load(tasks_file.read_text())
     block = next(task for task in tasks if task["name"] == "Hostname | Configure hostname")
     environment = Environment()
@@ -715,7 +715,7 @@ def sshd_effective_config(host):
     ),
 )
 def test_root_ssh_login_policy_rendering(user, allow_root_login, expected):
-    tasks_file = Path(__file__).resolve().parents[1] / "tasks/main.yml"
+    tasks_file = Path(__file__).resolve().parents[1] / "tasks/62-ssh-config.yml"
     tasks = yaml.safe_load(tasks_file.read_text())
     content = next(
         task["ansible.builtin.copy"]["content"]

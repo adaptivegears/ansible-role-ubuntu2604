@@ -45,7 +45,9 @@ Every changed line should trace directly to the user request or to keeping that 
 
 ## Ansible style
 
-- Keep role tasks in `roles/ubuntu2604/tasks/main.yml` until the file becomes too large to navigate.
+- Keep `roles/ubuntu2604/tasks/main.yml` as an explicit, ordered list of static `ansible.builtin.import_tasks` entries.
+- Keep Ubuntu tasks in numbered `XX-section.yml` files: tens group related areas, units identify their parts.
+- Preserve task-level tags and execution order when splitting files; do not auto-discover task files.
 - Group tasks with comment sections using full-width separators and a short rationale:
 
   ```yaml

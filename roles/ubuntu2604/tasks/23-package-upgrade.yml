@@ -1,0 +1,44 @@
+---
+# -----------------------------------------------------------------------------
+# Package upgrade
+# -----------------------------------------------------------------------------
+# Keep package maintenance and reboot reporting together without rebooting.
+# -----------------------------------------------------------------------------
+
+- name: APT | Upgrade packages and clean unused package data
+  become: true
+  ansible.builtin.apt:
+    # Wait out cloud-init/unattended APT startup work instead of failing on dpkg locks.
+    lock_timeout: 600
+    # Use safe upgrades to keep rebuilt VMs current without removals.
+    upgrade: safe
+    # Remove orphans so old image/provisioning packages stop consuming disk.
+    autoremove: true
+    # Drop obsolete downloads while preserving cache entries useful later.
+    autoclean: true
+  tags: [apt, upgrade, packages]
+
+- name: APT | Check reboot requirement marker
+  become: true
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: ubuntu2604__reboot_required
+  tags: [apt, upgrade, packages]
+
+- name: APT | Read reboot requirement packages
+  become: true
+  ansible.builtin.command: cat /var/run/reboot-required.pkgs
+  register: ubuntu2604__reboot_required_packages
+  failed_when: false
+  changed_when: false
+  when: ubuntu2604__reboot_required.stat.exists
+  tags: [apt, upgrade, packages]
+
+- name: APT | Report reboot requirement
+  ansible.builtin.debug:
+    msg:
+      - Host reboot is required after package upgrades.
+      - >-
+        Packages: {{ ubuntu2604__reboot_required_packages.stdout_lines | default([]) | join(', ') }}
+  when: ubuntu2604__reboot_required.stat.exists
+  tags: [apt, upgrade, packages]

@@ -59,7 +59,7 @@ For remote port changes, connect on the current port while applying `ubuntu2604_
 | Time / DNS | Use the stock chrony service and systemd-resolved stub; fallback DNS `1.1.1.1`, `1.0.0.1` does not replace per-link resolvers |
 | Login | Clear MOTD and mask `motd-news.timer` |
 
-Exact values and package lists are defined in [tasks](../../roles/ubuntu2604/tasks/main.yml) and verified by [testinfra](../../roles/ubuntu2604/tests/test_ubuntu2604.py). The role does not manage application logrotate policy or replace the time-sync stack.
+Exact values and package lists are defined in [numbered task files](../../roles/ubuntu2604/tasks/) and verified by [testinfra](../../roles/ubuntu2604/tests/test_ubuntu2604.py). The role does not manage application logrotate policy or replace the time-sync stack.
 
 ## Tags
 

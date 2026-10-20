@@ -4,6 +4,8 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.20] - 2026-10-20
+
 ### Fixed
 - **Durable GitOps state**: Generate local backends from shared `root.hcl` with absolute per-workload paths under `~/.local/state/gitops/`, including named workspaces, rather than placing resource state in Terragrunt caches. Prepare private state directories and reject scaffold updates when legacy cached state requires migration. Existing deployments must migrate their states explicitly before clearing caches or updating the scaffold; the role does not initialize backends or migrate state automatically.
 

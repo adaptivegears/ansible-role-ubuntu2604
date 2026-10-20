@@ -8,7 +8,12 @@ Ubuntu 26.04 on amd64 or arm64, ansible-core ≥ 2.20, and root or sudo access.
 
 ## Install or update
 
+Install the minimal Ansible package on Ubuntu 26.04, then the collection:
+
 ```bash
+sudo apt-get update -q
+sudo apt-get install -yq --no-install-recommends ansible-core
+
 ansible-galaxy collection install andreygubarev.com --upgrade
 ```
 

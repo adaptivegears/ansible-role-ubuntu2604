@@ -2,16 +2,31 @@
 # -----------------------------------------------------------------------------
 # Files
 # -----------------------------------------------------------------------------
-# Overlay the scaffold without deleting host-only files, state, or caches. Later
-# copies intentionally overwrite matching files and remain visible in Git.
+# Overlay code without deleting host-only files, state, or caches. User inputs
+# in terraform.tfvars.yaml are seeded only when missing; defaults live in HCL.
 # -----------------------------------------------------------------------------
 
-- name: Files | Copy GitOps scaffold into the user workspace
+- name: Files | Ensure scaffold directories exist
+  become: true
+  ansible.builtin.file:
+    path: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops/{{ item.path }}"
+    state: directory
+    owner: "{{ gitops_user }}"
+    group: "{{ ansible_facts.getent_passwd[gitops_user][2] }}"
+    mode: "0700"
+  loop: "{{ query('community.general.filetree', role_path ~ '/files/gitops/') | selectattr('state', 'equalto', 'directory') | list }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Files | Update scaffold files and seed missing user inputs
   become: true
   ansible.builtin.copy:
-    src: gitops/
-    dest: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops/"
+    src: "{{ item.src }}"
+    dest: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops/{{ item.path }}"
     owner: "{{ gitops_user }}"
     group: "{{ ansible_facts.getent_passwd[gitops_user][2] }}"
     mode: preserve
-    directory_mode: "0700"
+    force: "{{ (item.path | basename) != 'terraform.tfvars.yaml' }}"
+  loop: "{{ query('community.general.filetree', role_path ~ '/files/gitops/') | selectattr('state', 'equalto', 'file') | list }}"
+  loop_control:
+    label: "{{ item.path }}"

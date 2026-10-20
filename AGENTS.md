@@ -51,6 +51,12 @@ Every changed line should trace directly to the user request or to keeping that 
 - Keep public settings in `defaults/main.yml` with local-fact fallbacks. Initially resolve latest stable tenv, OpenTofu 1.12.x, and Terragrunt 1.1.x to exact versions; validate and save the complete configuration before installation. Reuse saved versions unless explicitly overridden.
 - User tool versions live in `~/.tenv`; system proxies live in `/usr/local/bin`. Configure only the selected user's Bash direnv hook and never authorize `.envrc` files automatically.
 
+## GitOps role target
+
+- The `gitops` role prepares `~/gitops` for `gitops_user`, overlays bundled code without deleting host-only data, and commits the initial Git baseline once. Later updates remain uncommitted.
+- Create `terraform.tfvars.yaml` only if missing; preserve existing user overrides. Keep defaults in HCL variable declarations.
+- The local playbook does not apply other roles or run OpenTofu/Terragrunt. Never authorize `.envrc` automatically.
+
 ## Ansible style
 
 - Keep each role's `tasks/main.yml` as an explicit, ordered list of static `ansible.builtin.import_tasks` entries.

@@ -41,7 +41,7 @@ lint: deps ## Run ansible-lint against the collection
 
 .PHONY: syntax
 syntax: deps ## Check the installed collection playbooks syntax
-	ANSIBLE_COLLECTIONS_PATH=$(ANSIBLE_COLLECTIONS_PATH) $(ANSIBLE_PLAYBOOK) --syntax-check andreygubarev.com.ubuntu2604 andreygubarev.com.kubernetes andreygubarev.com.terraform
+	ANSIBLE_COLLECTIONS_PATH=$(ANSIBLE_COLLECTIONS_PATH) $(ANSIBLE_PLAYBOOK) --syntax-check andreygubarev.com.ubuntu2604 andreygubarev.com.kubernetes andreygubarev.com.terraform andreygubarev.com.gitops
 
 .PHONY: test
 test: deps ## Test all roles in a fresh Incus VM

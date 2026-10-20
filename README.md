@@ -25,6 +25,7 @@ Run on the machine to configure. No inventory or SSH connection is required; add
 ansible-playbook andreygubarev.com.ubuntu2604 -e ubuntu2604_hostname=worker-1
 ansible-playbook andreygubarev.com.kubernetes -e kubernetes_cluster_name=my-cluster
 ansible-playbook andreygubarev.com.terraform
+ansible-playbook andreygubarev.com.gitops
 ```
 
 | Role / playbook | Purpose | Documentation |
@@ -32,12 +33,15 @@ ansible-playbook andreygubarev.com.terraform
 | `andreygubarev.com.ubuntu2604` | Container-host baseline | [Quickstart](docs/getting-started/quickstart.md) · [Configuration](docs/reference/configuration.md) |
 | `andreygubarev.com.kubernetes` | Single-node kubeadm cluster | [Quickstart](docs/kubernetes/getting-started/quickstart.md) · [Configuration](docs/kubernetes/reference/configuration.md) |
 | `andreygubarev.com.terraform` | direnv, tenv, OpenTofu, and Terragrunt | [Quickstart](docs/terraform/getting-started/quickstart.md) · [Configuration](docs/terraform/reference/configuration.md) |
+| `andreygubarev.com.gitops` | Host-local GitOps workspace and workload scaffold | [Usage](roles/gitops/README.md) |
 
 The playbooks are independent. None automatically applies another role.
 
 - Ubuntu requires `ubuntu2604_hostname` once and remembers the complete validated configuration, including defaults. Future runs need no repeated overrides; supply a new value once to change a setting.
 - Kubernetes requires `kubernetes_cluster_name` once and remembers the complete configuration, including the initial API address and kubeconfig owner. Cluster name, Kubernetes minor version, and cluster CIDRs remain immutable.
 - Terraform tooling defaults to the invoking user, latest stable tenv, OpenTofu 1.12.x, and Terragrunt 1.1.x. Exact resolved versions are remembered. OpenTofu/Terragrunt are installed through tenv in the user's `~/.tenv`; direnv is hooked into Bash, but `.envrc` authorization remains manual. HashiCorp Terraform is not installed.
+
+- GitOps prepares `~/gitops` for the invoking user (`gitops_user` overrides the account), initializes Git, and records the initial baseline once. Later code overlays remain uncommitted. User `terraform.tfvars.yaml` files are created only if missing; workload application and direnv authorization remain manual.
 
 **Ubuntu baseline:** requires SSH authorized keys, disables password authentication, removes all snap data, and regenerates SSH host keys on first configuration. Review the quickstart before use.
 

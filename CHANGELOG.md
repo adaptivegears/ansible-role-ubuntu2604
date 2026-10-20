@@ -4,6 +4,14 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.10] - 2026-10-20
+
+### Added
+- **Local GitOps playbook**: Run `ansible-playbook andreygubarev.com.gitops` to prepare the invoking user's workspace without applying other roles or workloads. The playbook is included in syntax checks and documented alongside the existing entry points.
+
+### Fixed
+- **GitOps user overrides**: Create each workload's `terraform.tfvars.yaml` only when absent instead of overwriting local inputs during code updates. Defaults remain in HCL; new workload directories still receive their initial YAML in an existing workspace.
+
 ## [2026.10.9] - 2026-10-20
 
 ### Added

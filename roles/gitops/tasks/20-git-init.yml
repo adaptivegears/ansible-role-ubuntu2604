@@ -1,0 +1,30 @@
+---
+# -----------------------------------------------------------------------------
+# Git initialization
+# -----------------------------------------------------------------------------
+# Prepare the repository before copying files. An existing .git is left intact;
+# the initial commit is a separate step after the scaffold has been copied.
+# -----------------------------------------------------------------------------
+
+- name: Git | Install Git
+  become: true
+  ansible.builtin.apt:
+    name: git
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+    install_recommends: false
+
+- name: Git | Initialize the workspace repository
+  become: true
+  become_user: "{{ gitops_user }}"
+  environment:
+    HOME: "{{ ansible_facts.getent_passwd[gitops_user][4] }}"
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/git
+      - init
+      - --initial-branch=main
+    chdir: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops"
+    creates: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops/.git"
+  when: not ansible_check_mode

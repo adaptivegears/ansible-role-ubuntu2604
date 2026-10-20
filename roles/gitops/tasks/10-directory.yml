@@ -1,0 +1,21 @@
+---
+# -----------------------------------------------------------------------------
+# Directory
+# -----------------------------------------------------------------------------
+# Resolve the account's home instead of using HOME, which escalation may change.
+# Keep the workspace private because OpenTofu state may contain sensitive values.
+# -----------------------------------------------------------------------------
+
+- name: Directory | Read workspace owner account
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ gitops_user }}"
+
+- name: Directory | Create user GitOps workspace
+  become: true
+  ansible.builtin.file:
+    path: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops"
+    state: directory
+    owner: "{{ gitops_user }}"
+    group: "{{ ansible_facts.getent_passwd[gitops_user][2] }}"
+    mode: "0700"

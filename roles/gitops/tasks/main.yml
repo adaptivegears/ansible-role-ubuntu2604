@@ -1,0 +1,12 @@
+---
+- name: Directory | Import workspace creation
+  ansible.builtin.import_tasks: 10-directory.yml
+
+- name: Git | Import repository initialization
+  ansible.builtin.import_tasks: 20-git-init.yml
+
+- name: Files | Import scaffold overlay
+  ansible.builtin.import_tasks: 30-files.yml
+
+- name: Git | Import initial baseline commit
+  ansible.builtin.import_tasks: 40-git-baseline.yml

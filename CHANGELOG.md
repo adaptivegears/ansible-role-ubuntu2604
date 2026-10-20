@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.11] - 2026-10-20
+
+### Added
+- **Istio workloads**: Add separate `11-istio-base` and `12-istiod` workloads, defaulting to Istio `1.31.2`, with local state and the current kubeconfig context. Manage the namespace directly through `kbst/kustomization`; Terragrunt records Istiod's ordering dependencies on Gateway API and base. Preserve the small resource requests and disabled Gateway Deployment/Service provisioning, using current chart values and DNS auto-allocation defaults.
+- **GitOps Helm installation**: Install Helm `3.22.1` system-wide for amd64/arm64 from an upstream SHA256-verified archive. Expose `/usr/local/bin/helm`, allow exact Helm 3 version overrides through `gitops_helm_version`, and reject Helm 4 because the embedded Kustomize requires Helm 3. Workload application remains manual.
+
+### Changed
+- **Gateway API channel**: Default to Standard CRDs `1.6.3` instead of Experimental `1.5.0`. Review the plan before applying to an existing workspace: resources exclusive to the Experimental bundle may be removed.
+
 ## [2026.10.10] - 2026-10-20
 
 ### Added

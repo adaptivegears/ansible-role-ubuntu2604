@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.16] - 2026-10-20
+
+### Added
+- **Istio edge gateway and ACME**: Add `13-istio-gateway` with manually linked Gateway API, host ports 80/443/22, and single-node Recreate updates; add `21-letsencrypt` for HTTP-01 through its HTTP listener. The gateway annotation lets cert-manager own the origin certificate and private key. Move and verify administrative SSH before occupying port 22.
+- **Forgejo and Actions**: Add `40-forgejo` with chart `17.3.1` (Forgejo `15.0.10`), rootless deployment, a 100 GiB Retain data PVC, a single-instance 20 GiB CNPG database, HTTPS/SSH routes, LFS, packages/registry, and Actions. Add `41-forgejo-runner` with official Runner `13.2.0`, Docker `29.9.1` DinD, one concurrent job, ephemeral cache/storage, and no CPU/RAM limits. Runner jobs are trusted-only, use a Pod-local Docker socket, and receive no Kubernetes API credentials automatically. Keep deployment-specific identities in host overrides and ignore credential-bearing YAML files; sensitive values remain in plaintext local state. Bootstrap is sequential with manual runner registration. No live-host changes or workload application are automated.
+
 ## [2026.10.15] - 2026-10-20
 
 ### Added

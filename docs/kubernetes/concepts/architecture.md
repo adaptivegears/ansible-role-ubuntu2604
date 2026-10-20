@@ -13,7 +13,8 @@ The node name defaults to the OS hostname at initialization. Set it beforehand; 
 - `/etc/kubernetes/admin.conf` marks initialization; full `kubeadm init` bootstrap is skipped when it exists.
 - `/etc/kubernetes/kubeadm-config.yaml` is rendered on every run using the installed kubeadm version.
 - Non-identity changes are uploaded to the `kubeadm-config` ConfigMap, followed by static-manifest regeneration and a readiness check. Expect a brief API outage.
-- Cluster name, Kubernetes minor version, and cluster CIDRs are immutable and recorded in local facts. Only the name is reused automatically when omitted.
+- All public settings are validated and saved before application. Subsequent runs reuse the full snapshot, including defaults, API address, and kubeconfig owner.
+- Cluster name, Kubernetes minor version, and cluster CIDRs are immutable; conflicting overrides are rejected before facts are written. Legacy INI facts retain the same `cluster` namespace when converted to JSON.
 - API server `GOGC=50` reduces GC headroom; optional `GOMEMLIMIT` requires workload-specific tuning.
 
 ## Security and networking

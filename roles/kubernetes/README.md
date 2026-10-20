@@ -6,7 +6,9 @@ Single-node kubeadm cluster on Ubuntu 26.04 with containerd, Flannel, and metric
 ansible-playbook andreygubarev.com.kubernetes -e kubernetes_cluster_name=my-cluster
 ```
 
-Runs locally; add `-K` if sudo requires a password. Cluster name is required once, then reused from local facts. Other overrides must be supplied on subsequent runs. Kubeconfig defaults to the invoking user's home directory. The Ubuntu baseline is not applied automatically.
+Runs locally; add `-K` if sudo requires a password. Cluster name is required once. All public settings remain in `defaults/main.yml`; the complete validated configuration is saved before application and reused on subsequent runs. Initial API address and kubeconfig owner are remembered too. Conflicting identity changes are rejected. The Ubuntu baseline is not applied automatically.
+
+[Task index](tasks/main.yml) uses explicit static imports of numbered `XX-section.yml` files. Preflight and configuration use `always`, including selective runs.
 
 [Quickstart and remote usage](../../docs/kubernetes/getting-started/quickstart.md) · [Configuration](../../docs/kubernetes/reference/configuration.md) · [Architecture](../../docs/kubernetes/concepts/architecture.md)
 

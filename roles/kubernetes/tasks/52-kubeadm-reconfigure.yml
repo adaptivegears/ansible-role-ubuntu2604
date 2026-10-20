@@ -1,0 +1,51 @@
+---
+# -----------------------------------------------------------------------------
+# Control-plane reconfiguration
+# -----------------------------------------------------------------------------
+# Converge existing manifests on configuration changes and wait for readiness.
+# -----------------------------------------------------------------------------
+
+- name: Kubeadm | Upload configuration to cluster
+  become: true
+  ansible.builtin.command:
+    cmd: kubeadm init phase upload-config kubeadm --config /etc/kubernetes/kubeadm-config.yaml
+  changed_when: true
+  when:
+    - kubernetes__admin_conf.stat.exists
+    - kubernetes__kubeadm_config is changed
+  tags: kubeadm
+
+- name: Kubeadm | Regenerate control-plane manifests
+  become: true
+  ansible.builtin.command:
+    cmd: kubeadm init phase control-plane all --config /etc/kubernetes/kubeadm-config.yaml
+  changed_when: true
+  when:
+    - kubernetes__admin_conf.stat.exists
+    - kubernetes__kubeadm_config is changed
+  tags: kubeadm
+
+- name: Kubeadm | Wait for control-plane restart
+  # Kubelet needs a moment to pick up the regenerated static pod manifests and
+  # terminate the old API server; polling /readyz immediately can catch the old
+  # process and report readiness before the restart has even begun.
+  ansible.builtin.pause:
+    seconds: 30
+  when:
+    - kubernetes__admin_conf.stat.exists
+    - kubernetes__kubeadm_config is changed
+  tags: kubeadm
+
+- name: Kubeadm | Wait for API server readiness
+  become: true
+  ansible.builtin.command:
+    cmd: kubectl --kubeconfig /etc/kubernetes/admin.conf get --raw /readyz
+  register: kubernetes__apiserver_readyz
+  until: kubernetes__apiserver_readyz.rc == 0
+  retries: 30
+  delay: 5
+  changed_when: false
+  when:
+    - kubernetes__admin_conf.stat.exists
+    - kubernetes__kubeadm_config is changed
+  tags: kubeadm

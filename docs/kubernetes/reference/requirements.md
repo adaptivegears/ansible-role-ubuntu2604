@@ -2,7 +2,8 @@
 
 - Ubuntu 26.04 on amd64 or arm64; ansible-core ≥ 2.20.
 - Root or sudo access; add `-K` if sudo requires a password.
-- A stable API address and an existing kubeconfig owner account.
+- A stable IPv4 API address outside the pod/service CIDRs, and an existing kubeconfig owner account.
+- Valid, non-overlapping IPv4 pod and service networks.
 - `kubernetes_cluster_name` supplied on the first run.
 - `community.general`, installed with the collection or by `make deps`.
 

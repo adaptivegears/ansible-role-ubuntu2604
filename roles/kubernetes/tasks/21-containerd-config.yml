@@ -1,0 +1,75 @@
+---
+# -----------------------------------------------------------------------------
+# Containerd configuration
+# -----------------------------------------------------------------------------
+# Validate and apply runtime settings before Kubernetes starts.
+# -----------------------------------------------------------------------------
+
+- name: Containerd | Ensure configuration directories exist
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /etc/containerd
+    - /etc/containerd/conf.d
+  tags: containerd
+
+- name: Containerd | Configure root configuration
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/containerd/config.toml
+    content: |
+      # Managed by ansible-role-kubernetes
+      # Source: https://github.com/andreygubarev/ansible-collection
+
+      # Ubuntu 26.04's containerd package starts from built-in defaults and ships
+      # no /etc/containerd tree; this tiny root config preserves those defaults
+      # while activating role-owned drop-ins.
+      version = 3
+      imports = ["/etc/containerd/conf.d/*.toml"]
+    owner: root
+    group: root
+    mode: "0644"
+  register: kubernetes__containerd_root_config
+  tags: containerd
+
+- name: Containerd | Configure Kubernetes runtime settings
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/containerd/conf.d/99-kubernetes.toml
+    content: |
+      # Managed by ansible-role-kubernetes
+      # Source: https://github.com/andreygubarev/ansible-collection
+
+      [plugins."io.containerd.cri.v1.images".pinned_images]
+        sandbox = "registry.k8s.io/pause:3.10.2"
+
+      [plugins."io.containerd.cri.v1.runtime".containerd.runtimes.runc]
+        runtime_type = "io.containerd.runc.v2"
+
+      [plugins."io.containerd.cri.v1.runtime".containerd.runtimes.runc.options]
+        SystemdCgroup = true
+    owner: root
+    group: root
+    mode: "0644"
+  register: kubernetes__containerd_kubernetes_config
+  tags: containerd
+
+- name: Containerd | Validate runtime configuration
+  become: true
+  ansible.builtin.command:
+    cmd: containerd --config /etc/containerd/config.toml config dump
+  changed_when: false
+  tags: containerd
+
+- name: Containerd | Ensure runtime is active
+  become: true
+  ansible.builtin.systemd_service:
+    name: containerd
+    state: "{{ (kubernetes__containerd_root_config.changed or kubernetes__containerd_kubernetes_config.changed) | ternary('restarted', 'started') }}"
+    enabled: true
+  tags: containerd

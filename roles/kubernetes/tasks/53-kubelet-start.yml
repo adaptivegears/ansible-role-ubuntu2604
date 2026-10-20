@@ -1,0 +1,14 @@
+---
+# -----------------------------------------------------------------------------
+# Kubelet startup
+# -----------------------------------------------------------------------------
+# Start kubelet after kubeadm has written the control-plane configuration.
+# -----------------------------------------------------------------------------
+
+- name: Kubelet | Ensure service is active
+  become: true
+  ansible.builtin.systemd_service:
+    name: kubelet
+    state: started
+    enabled: true
+  tags: kubelet

@@ -2,7 +2,7 @@
 
 ## Variables
 
-| Variable | Default | Effect |
+| Variable | Initial fallback | Effect |
 |---|---|---|
 | `kubernetes_cluster_name` | Required once | Immutable cluster name; reused from local facts |
 | `kubernetes_version` | `1.37` | Immutable minor version for the upstream APT repository |
@@ -15,21 +15,25 @@
 | `kubernetes_flannel_manifest_url` | [Flannel v0.28.10 manifest](https://github.com/flannel-io/flannel/releases/download/v0.28.10/kube-flannel.yml) | Applied only when Flannel is absent |
 | `kubernetes_metrics_server_version` | `v0.9.0` | Release applied on installation or image-version drift |
 
-See [defaults](../../../roles/kubernetes/defaults/main.yml) for exact expressions. An overly restrictive `GOMEMLIMIT` can cause GC thrashing.
+All ten public variables remain in [defaults/main.yml](../../../roles/kubernetes/defaults/main.yml). Precedence is **explicit Ansible input → saved settings → fallback defaults**. Values are strings; empty strings are allowed only for the two GC overrides. Kubernetes minor versions use `major.minor` format. An overly restrictive `GOMEMLIMIT` can cause GC thrashing.
+
+## Persistence
+
+The complete validated configuration, including initial API address and kubeconfig owner, is saved before application to `/etc/ansible/facts.d/kubernetes.fact`. Later runs need no repeated overrides; changed role defaults do not reset a host. Failed application retains the desired state for retry; `--check` does not write it.
+
+The file is JSON under `cluster`, available as `ansible_facts['ansible_local']['kubernetes']['cluster']`. Existing INI identity facts are read automatically and expanded on the next valid run; supply previous custom values for other settings once when upgrading. Unknown fact keys and sections are preserved.
 
 ## `kubernetes_cluster_name`
 
-No role default or interactive prompt. The first run requires an explicit non-empty string and fails before mutation if it is missing.
-
-Later runs reuse `/etc/ansible/facts.d/kubernetes.fact`, available as `ansible_facts['ansible_local']['kubernetes']['cluster']['cluster_name']`. Names stored by earlier versions remain valid. Explicit empty/non-string values or a different name are rejected; the stored identity is not overwritten.
-
-Only the name is reused automatically. Keep all other overrides in inventory/playbooks or supply them on every run.
+Required on first use, without an interactive prompt. Its public default resolves the saved name or an empty, invalid first-run value. Explicit empty/non-string values or a different stored name are rejected before writing.
 
 ## Immutable identity
 
 Cluster name, Kubernetes minor version, pod CIDR, and service CIDR are recorded on the first run and checked before mutation. Changing them requires a rebuild or a separate upgrade/migration procedure; this role provides neither.
 
 Non-identity control-plane changes regenerate kubeadm manifests and briefly restart the API server. The configuration uses the installed kubeadm version, not a network-resolved version label. See [architecture](../concepts/architecture.md).
+
+OS/cloud-init checks and configuration processing use `always`, including selective runs; do not skip it. Inspect the [task index](../../../roles/kubernetes/tasks/main.yml) or use `--list-tasks` / `--list-tags`.
 
 ## Example
 

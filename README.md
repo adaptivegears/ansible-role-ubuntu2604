@@ -29,7 +29,7 @@ ansible-playbook andreygubarev.com.kubernetes -e kubernetes_cluster_name=my-clus
 The playbooks are independent. Kubernetes does not automatically apply the Ubuntu role.
 
 - Ubuntu requires `ubuntu2604_hostname` once and remembers the complete validated configuration, including defaults. Future runs need no repeated overrides; supply a new value once to change a setting.
-- Kubernetes requires `kubernetes_cluster_name` once, then reuses it from local facts. Renaming is rejected; other Kubernetes overrides still need to be supplied on each run or kept in inventory/playbooks.
+- Kubernetes requires `kubernetes_cluster_name` once and remembers the complete configuration, including the initial API address and kubeconfig owner. Cluster name, Kubernetes minor version, and cluster CIDRs remain immutable.
 
 **Ubuntu baseline:** requires SSH authorized keys, disables password authentication, removes all snap data, and regenerates SSH host keys on first configuration. Review the quickstart before use.
 

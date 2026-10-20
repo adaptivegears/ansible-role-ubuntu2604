@@ -1,0 +1,34 @@
+---
+# -----------------------------------------------------------------------------
+# Kernel
+# -----------------------------------------------------------------------------
+# Kubernetes networking relies on overlay filesystems, bridge packet filtering,
+# and IPv4 forwarding being present before kubelet and CNI components start.
+# -----------------------------------------------------------------------------
+
+- name: Kernel | Persist Kubernetes kernel modules
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/99-kubernetes.conf
+    content: |
+      # Managed by ansible-role-kubernetes
+      # Source: https://github.com/andreygubarev/ansible-collection
+
+      # Require OverlayFS explicitly for containerd overlay snapshotters.
+      overlay
+      # Route bridged pod traffic through host netfilter policy.
+      br_netfilter
+    owner: root
+    group: root
+    mode: "0644"
+  tags: kernel
+
+- name: Kernel | Load Kubernetes kernel modules
+  become: true
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - overlay
+    - br_netfilter
+  tags: kernel

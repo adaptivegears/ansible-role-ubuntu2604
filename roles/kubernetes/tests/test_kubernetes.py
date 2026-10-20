@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
 import pytest
 import yaml
+from ansible.plugins.filter.core import FilterModule
 from jinja2 import Environment
 
 
@@ -16,15 +18,48 @@ def grep_literal(value: str) -> str:
 
 
 # -----------------------------------------------------------------------------
-# Cluster name input and local-fact reuse
+# Configuration and local facts
 # -----------------------------------------------------------------------------
 
 
+SETTINGS_FACT = "/etc/ansible/facts.d/kubernetes.fact"
+DEFAULT_CLUSTER_SETTINGS = {
+    "cluster_name": "my-cluster",
+    "kubernetes_version": "1.37",
+    "advertise_address": "10.0.0.10",
+    "pod_subnet": "10.244.0.0/16",
+    "service_subnet": "10.96.0.0/16",
+    "kubeconfig_user": "ubuntu",
+    "apiserver_gogc": "50",
+    "apiserver_gomemlimit": "",
+    "flannel_manifest_url": "https://github.com/flannel-io/flannel/releases/download/v0.28.10/kube-flannel.yml",
+    "metrics_server_version": "v0.9.0",
+}
+
+
 @pytest.fixture
-def cluster_name_contract():
+def configuration_contract():
     role = Path(__file__).resolve().parents[1]
-    tasks = yaml.safe_load((role / "tasks/main.yml").read_text())
-    return role, tasks, {task["name"]: task for task in tasks}, Environment()
+    tasks = yaml.safe_load((role / "tasks/01-configuration.yml").read_text())[0]["block"]
+    defaults = yaml.safe_load((role / "defaults/main.yml").read_text())
+    environment = Environment()
+    filters = FilterModule().filters()
+    environment.filters.update({name: filters[name] for name in ("combine", "to_nice_json")})
+
+    def resolve(saved, overrides):
+        context = {
+            "kubernetes__facts": saved,
+            "ansible_facts": {"default_ipv4": {"address": "10.0.0.10"}},
+            "ansible_user": "ubuntu",
+        }
+        context.update({
+            name: environment.compile_expression(value.strip()[2:-2].strip())(**context)
+            for name, value in defaults.items()
+        })
+        context.update(overrides)
+        return context
+
+    return role, tasks, {task["name"]: task for task in tasks}, environment, resolve
 
 
 @pytest.mark.parametrize(
@@ -44,54 +79,86 @@ def cluster_name_contract():
     ),
 )
 def test_cluster_name_required_and_immutable_policy(
-    cluster_name_contract, saved_name, overrides, expected, accepted
+    configuration_contract, saved_name, overrides, expected, accepted
 ):
-    _role, _tasks, tasks, environment = cluster_name_contract
+    _role, _ordered, tasks, environment, resolve = configuration_contract
     saved = {} if saved_name is None else {
         "cluster_name": saved_name,
         "kubernetes_version": "1.37",
         "pod_subnet": "10.244.0.0/16",
         "service_subnet": "10.96.0.0/16",
     }
-    context = {
-        "kubernetes__cluster_facts": saved,
-        "kubernetes_version": "1.37",
-        "kubernetes_pod_subnet": "10.244.0.0/16",
-        "kubernetes_service_subnet": "10.96.0.0/16",
-        **overrides,
-    }
-    selection = tasks["Prerequisite | Select cluster name"]["ansible.builtin.set_fact"]["kubernetes__cluster_name"]
-    value = environment.compile_expression(selection.strip()[2:-2].strip())(**context)
-    assert value == expected
-    assert type(value) is type(expected)
-    context["kubernetes__cluster_name"] = value
-
-    conditions = tasks["Prerequisite | Assert cluster name is known"]["ansible.builtin.assert"]["that"]
+    context = resolve(saved, overrides)
+    assert context["kubernetes_cluster_name"] == expected
+    assert type(context["kubernetes_cluster_name"]) is type(expected)
+    conditions = tasks["Configuration | Validate required cluster name"]["ansible.builtin.assert"]["that"]
     valid = all(environment.compile_expression(condition)(**context) for condition in conditions)
     if valid and saved:
-        conditions = tasks["Prerequisite | Assert immutable cluster identity matches stored facts"]["ansible.builtin.assert"]["that"]
+        conditions = tasks["Configuration | Assert immutable cluster identity matches stored facts"]["ansible.builtin.assert"]["that"]
         valid = all(environment.compile_expression(condition)(**context) for condition in conditions)
     assert valid is accepted
 
 
-def test_cluster_name_is_optional_only_after_first_storage(cluster_name_contract):
-    role, ordered, tasks, environment = cluster_name_contract
-    assert "kubernetes_cluster_name" not in yaml.safe_load((role / "defaults/main.yml").read_text())
+def test_complete_settings_snapshot_and_validation_order(configuration_contract):
+    role, ordered, tasks, environment, resolve = configuration_contract
+    saved = {"cluster_name": "my-cluster", "kubernetes_version": "1.36", "other_setting": "keep"}
+    context = resolve(saved, {"kubernetes_apiserver_gogc": ""})
+    expected = {**DEFAULT_CLUSTER_SETTINGS, **saved, "apiserver_gogc": ""}
+    expression = tasks["Configuration | Prepare complete settings snapshot"]["ansible.builtin.set_fact"]["kubernetes__vars"]
+    actual = environment.compile_expression(expression.strip()[2:-2].strip())(**context)
+    assert actual == expected
     names = [task["name"] for task in ordered]
     for check in (
-        "Prerequisite | Assert cluster name is known",
-        "Prerequisite | Assert immutable cluster identity matches stored facts",
+        "Configuration | Validate required cluster name",
+        "Configuration | Assert immutable cluster identity matches stored facts",
+        "Configuration | Validate IPv4 cluster networking",
+        "Configuration | Read kubeconfig owner account",
     ):
-        assert names.index(check) < names.index("Prerequisite | Ensure local facts directory exists")
-        assert names.index(check) < names.index("Prerequisite | Store immutable cluster networking facts")
+        assert names.index(check) < names.index("Configuration | Ensure local facts directory exists")
+    copy = tasks["Configuration | Save complete desired settings"]["ansible.builtin.copy"]
+    assert copy["dest"] == SETTINGS_FACT
+    content = environment.from_string(copy["content"]).render(
+        ansible_facts={"ansible_local": {"kubernetes": {"other_section": {"keep": True}}}},
+        kubernetes__vars=actual,
+    )
+    assert json.loads(content) == {
+        "cluster": expected,
+        "_source": "https://github.com/andreygubarev/ansible-collection",
+        "other_section": {"keep": True},
+    }
+    defaults = yaml.safe_load((role / "defaults/main.yml").read_text())
+    assert len(defaults) == 10 and "kubernetes_cluster_name" in defaults
 
-    for task_name, prefix, expected in (
-        ("Prerequisite | Store immutable cluster networking facts", "cluster_name=", "cluster_name=my-cluster"),
-        ("Kubeadm | Configure cluster", "clusterName:", 'clusterName: "my-cluster"'),
-    ):
-        content = tasks[task_name]["ansible.builtin.copy"]["content"]
-        line = next(line for line in content.splitlines() if line.startswith(prefix))
-        assert environment.from_string(line).render(kubernetes__cluster_name="my-cluster") == expected
+
+@pytest.mark.parametrize("gogc, limit", (("50", ""), ("", ""), ("", "1536MiB"), ("0", "off")))
+def test_optional_gc_settings_are_preserved(configuration_contract, gogc, limit):
+    role, _ordered, _tasks, environment, resolve = configuration_contract
+    context = resolve(
+        {**DEFAULT_CLUSTER_SETTINGS, "apiserver_gogc": gogc, "apiserver_gomemlimit": limit}, {}
+    )
+    context["kubernetes__kubeadm_version"] = {"stdout": "v1.37.1"}
+    tasks = yaml.safe_load((role / "tasks/50-kubeadm-config.yml").read_text())
+    template = next(task["ansible.builtin.copy"]["content"] for task in tasks if "ansible.builtin.copy" in task)
+    documents = yaml.safe_load_all(environment.from_string(template).render(**context))
+    cluster = next(document for document in documents if document["kind"] == "ClusterConfiguration")
+    expected = {name: value for name, value in (("GOGC", gogc), ("GOMEMLIMIT", limit)) if value != ""}
+    actual = {item["name"]: item["value"] for item in cluster["apiServer"].get("extraEnvs", [])}
+    assert actual == expected
+    assert cluster["clusterName"] == "my-cluster"
+
+
+@pytest.fixture
+def saved_settings(host):
+    fact = host.file(SETTINGS_FACT)
+    assert fact.exists
+    assert fact.user == "root" and fact.group == "root"
+    assert fact.mode == 0o644
+    settings = json.loads(fact.content_string)["cluster"]
+    for key in DEFAULT_CLUSTER_SETTINGS:
+        assert isinstance(settings[key], str)
+        if key not in ("apiserver_gogc", "apiserver_gomemlimit"):
+            assert settings[key]
+    return settings
 
 
 # -----------------------------------------------------------------------------
@@ -263,6 +330,13 @@ def test_kubernetes_repository_is_configured(host):
 KUBEADM_CONFIG = "/etc/kubernetes/kubeadm-config.yaml"
 
 
+def kubeadm_cluster_configuration(host):
+    return next(
+        document for document in yaml.safe_load_all(host.file(KUBEADM_CONFIG).content_string)
+        if document["kind"] == "ClusterConfiguration"
+    )
+
+
 def test_kubeadm_admin_config_exists(host):
     config = host.file("/etc/kubernetes/admin.conf")
 
@@ -275,14 +349,12 @@ def test_kubeadm_config_uses_systemd_cgroups(host):
     assert host.file(KUBEADM_CONFIG).contains(r"^cgroupDriver: systemd$")
 
 
-def test_kubeadm_config_records_cluster_identity(host):
-    config = host.file(KUBEADM_CONFIG)
-
-    assert config.contains(r'^clusterName: "[^"[:space:]][^"]*"$')
-    assert config.contains(r'^controlPlaneEndpoint: "[^"[:space:]][^"]*:6443"$')
-    assert config.contains(r'^  advertiseAddress: "[^"[:space:]][^"]*"$')
-    assert config.contains(r'^  podSubnet: "[^"[:space:]][^"]*"$')
-    assert config.contains(r'^  serviceSubnet: "[^"[:space:]][^"]*"$')
+def test_kubeadm_config_records_saved_cluster_identity(host, saved_settings):
+    config = kubeadm_cluster_configuration(host)
+    assert config["clusterName"] == saved_settings["cluster_name"]
+    assert config["controlPlaneEndpoint"] == saved_settings["advertise_address"] + ":6443"
+    assert config["networking"]["podSubnet"] == saved_settings["pod_subnet"]
+    assert config["networking"]["serviceSubnet"] == saved_settings["service_subnet"]
 
 
 def test_kubeadm_config_pins_kubernetes_version(host):
@@ -291,54 +363,30 @@ def test_kubeadm_config_pins_kubernetes_version(host):
     )
 
 
-def test_kubeadm_config_bounds_apiserver_gc(host):
-    config = host.file(KUBEADM_CONFIG)
+@pytest.mark.parametrize("name, setting", (("GOGC", "apiserver_gogc"), ("GOMEMLIMIT", "apiserver_gomemlimit")))
+def test_saved_apiserver_gc_settings_are_applied(host, saved_settings, name, setting):
+    expected = saved_settings[setting] or None
+    config = kubeadm_cluster_configuration(host)
+    configured = {item["name"]: item["value"] for item in config["apiServer"].get("extraEnvs", [])}
+    assert configured.get(name) == expected
 
-    assert config.contains(r"^  extraEnvs:$")
-    assert config.contains(r"^    - name: GOGC$")
-    assert config.contains(r'^      value: "50"$')
+    manifest = yaml.safe_load(host.file("/etc/kubernetes/manifests/kube-apiserver.yaml").content_string)
+    static = {item["name"]: item.get("value") for item in manifest["spec"]["containers"][0].get("env", [])}
+    assert static.get(name) == expected
 
-
-def test_apiserver_static_pod_bounds_gc(host):
-    manifest = host.file("/etc/kubernetes/manifests/kube-apiserver.yaml")
-
-    assert manifest.exists
-    assert manifest.contains(r"^[[:space:]]*- name: GOGC$")
-    assert manifest.contains(r'^[[:space:]]*value: "50"$')
-
-
-def test_running_apiserver_bounds_gc(host):
-    value = host.check_output(
+    pods = json.loads(host.check_output(
         "kubectl --kubeconfig /etc/kubernetes/admin.conf "
-        "get pods -n kube-system -l component=kube-apiserver "
-        "-o jsonpath='{.items[0].spec.containers[0].env[?(@.name==\"GOGC\")].value}'"
-    )
+        "get pods -n kube-system -l component=kube-apiserver -o json"
+    ))
+    running = {item["name"]: item.get("value") for item in pods["items"][0]["spec"]["containers"][0].get("env", [])}
+    assert running.get(name) == expected
 
-    assert value == "50"
-
-
-def test_cluster_configuration_configmap_records_apiserver_gc_env(host):
-    cluster_configuration = host.check_output(
+    uploaded = yaml.safe_load(host.check_output(
         "kubectl --kubeconfig /etc/kubernetes/admin.conf "
-        "get configmap kubeadm-config -n kube-system "
-        "-o jsonpath='{.data.ClusterConfiguration}'"
-    )
-
-    assert "GOGC" in cluster_configuration
-
-
-def test_immutable_cluster_identity_is_stored_as_local_fact(host):
-    facts = host.file("/etc/ansible/facts.d/kubernetes.fact")
-
-    assert facts.exists
-    assert facts.user == "root"
-    assert facts.group == "root"
-    assert facts.mode == 0o644
-    assert facts.contains(r"^\[cluster\]$")
-    assert facts.contains(r"^cluster_name=[^[:space:]][^[:space:]]*$")
-    assert facts.contains(r"^kubernetes_version=[^[:space:]][^[:space:]]*$")
-    assert facts.contains(r"^pod_subnet=[^[:space:]][^[:space:]]*$")
-    assert facts.contains(r"^service_subnet=[^[:space:]][^[:space:]]*$")
+        "get configmap kubeadm-config -n kube-system -o jsonpath='{.data.ClusterConfiguration}'"
+    ))
+    stored = {item["name"]: item["value"] for item in uploaded["apiServer"].get("extraEnvs", [])}
+    assert stored.get(name) == expected
 
 
 def test_kubelet_service_is_active_and_enabled(host):
@@ -370,16 +418,14 @@ def test_flannel_daemonset_exists(host):
     )
 
 
-def test_metrics_server_image_is_version_pinned(host):
+def test_metrics_server_image_matches_saved_version(host, saved_settings):
     image = host.check_output(
         "kubectl --kubeconfig /etc/kubernetes/admin.conf "
         "get deployment metrics-server -n kube-system "
         "-o jsonpath='{.spec.template.spec.containers[0].image}'"
     )
 
-    assert re.fullmatch(
-        r"registry\.k8s\.io/metrics-server/metrics-server:v\d+\.\d+\.\d+", image
-    )
+    assert image == "registry.k8s.io/metrics-server/metrics-server:" + saved_settings["metrics_server_version"]
 
 
 def test_metrics_server_deployment_exists(host):

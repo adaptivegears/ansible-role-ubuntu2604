@@ -1,0 +1,53 @@
+---
+# -----------------------------------------------------------------------------
+# Metrics server
+# -----------------------------------------------------------------------------
+# Single-node kubeadm clusters use self-signed kubelet serving certificates; the
+# metrics server is patched for that private-node trade-off so kubectl top works.
+# -----------------------------------------------------------------------------
+
+- name: Metrics server | Read deployed version
+  become: true
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --kubeconfig /etc/kubernetes/admin.conf
+      get deployment metrics-server -n kube-system
+      -o jsonpath={.spec.template.spec.containers[0].image}
+  register: kubernetes__metrics_server_image
+  failed_when: false
+  changed_when: false
+  tags: metrics_server
+
+- name: Metrics server | Install
+  become: true
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --kubeconfig /etc/kubernetes/admin.conf
+      apply -f https://github.com/kubernetes-sigs/metrics-server/releases/download/{{ kubernetes_metrics_server_version }}/components.yaml
+  changed_when: true
+  when: >-
+    kubernetes__metrics_server_image.rc != 0
+    or (kubernetes__metrics_server_image.stdout.split(':') | last) != kubernetes_metrics_server_version
+  tags: metrics_server
+
+- name: Metrics server | Read container arguments
+  become: true
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --kubeconfig /etc/kubernetes/admin.conf get deployment metrics-server
+      -n kube-system -o jsonpath='{.spec.template.spec.containers[0].args}'
+  register: kubernetes__metrics_server_args
+  changed_when: false
+  tags: metrics_server
+
+- name: Metrics server | Allow self-signed kubelet serving certificates
+  become: true
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --kubeconfig /etc/kubernetes/admin.conf patch deployment metrics-server
+      -n kube-system
+      --type=json
+      -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'
+  changed_when: true
+  when: "'--kubelet-insecure-tls' not in kubernetes__metrics_server_args.stdout"
+  tags: metrics_server

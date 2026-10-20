@@ -1,0 +1,26 @@
+---
+# -----------------------------------------------------------------------------
+# Base packages
+# -----------------------------------------------------------------------------
+# Install repository prerequisites after configuration validation and cloud-init.
+# -----------------------------------------------------------------------------
+
+- name: Prerequisite | Update package cache
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  changed_when: false
+
+- name: Prerequisite | Install base packages
+  become: true
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+    state: present
+    install_recommends: false
+    lock_timeout: 600
+  tags: packages

@@ -1,0 +1,146 @@
+---
+# -----------------------------------------------------------------------------
+# Configuration
+# -----------------------------------------------------------------------------
+# Resolve public defaults from local facts and validate before writing desired
+# state. Existing cluster identity cannot be changed by a variable or new default.
+# -----------------------------------------------------------------------------
+
+- name: Configuration | Validate and save desired settings
+  tags: always
+  block:
+    - name: Configuration | Validate required cluster name
+      ansible.builtin.assert:
+        that:
+          - kubernetes_cluster_name is string
+          - kubernetes_cluster_name | trim | length > 0
+        fail_msg: >-
+          Set a non-empty kubernetes_cluster_name on the first run, for example
+          -e kubernetes_cluster_name=my-cluster. Later runs reuse the saved name.
+
+    - name: Configuration | Validate required string settings
+      ansible.builtin.assert:
+        that:
+          - lookup('ansible.builtin.vars', item) is string
+          - lookup('ansible.builtin.vars', item) | trim | length > 0
+        fail_msg: "{{ item }} must be a non-empty string."
+      loop:
+        - kubernetes_version
+        - kubernetes_advertise_address
+        - kubernetes_pod_subnet
+        - kubernetes_service_subnet
+        - kubernetes_kubeconfig_user
+        - kubernetes_flannel_manifest_url
+        - kubernetes_metrics_server_version
+
+    - name: Configuration | Validate optional string settings
+      ansible.builtin.assert:
+        that:
+          - lookup('ansible.builtin.vars', item) is string
+        fail_msg: "{{ item }} must be a string; an empty string disables the override."
+      loop:
+        - kubernetes_apiserver_gogc
+        - kubernetes_apiserver_gomemlimit
+
+    - name: Configuration | Validate Kubernetes minor version
+      ansible.builtin.assert:
+        that:
+          - kubernetes_version is match('^[0-9]+[.][0-9]+$')
+        fail_msg: "kubernetes_version must be a quoted minor version, for example '1.37'."
+
+    - name: Configuration | Assert immutable cluster identity matches stored facts
+      ansible.builtin.assert:
+        that:
+          - kubernetes__facts.get('cluster_name', '') | length > 0
+          - kubernetes__facts.get('kubernetes_version', '') | length > 0
+          - kubernetes__facts.get('pod_subnet', '') | length > 0
+          - kubernetes__facts.get('service_subnet', '') | length > 0
+          - kubernetes__facts['cluster_name'] == kubernetes_cluster_name
+          - kubernetes__facts['kubernetes_version'] == kubernetes_version
+          - kubernetes__facts['pod_subnet'] == kubernetes_pod_subnet
+          - kubernetes__facts['service_subnet'] == kubernetes_service_subnet
+        fail_msg: >-
+          Refusing to change immutable Kubernetes cluster identity in /etc/ansible/facts.d/kubernetes.fact.
+          Stored cluster name={{ kubernetes__facts.get('cluster_name', '<missing>') }}, requested={{ kubernetes_cluster_name }};
+          stored Kubernetes version={{ kubernetes__facts.get('kubernetes_version', '<missing>') }}, requested={{ kubernetes_version }};
+          stored pod subnet={{ kubernetes__facts.get('pod_subnet', '<missing>') }}, requested={{ kubernetes_pod_subnet }};
+          stored service subnet={{ kubernetes__facts.get('service_subnet', '<missing>') }}, requested={{ kubernetes_service_subnet }}.
+          Rebuild the cluster or use a separate upgrade/migration workflow.
+      when: kubernetes__facts | length > 0
+
+    - name: Configuration | Validate IPv4 cluster networking
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_facts['python']['executable'] }}"
+          - -c
+          - |
+            import ipaddress
+            import sys
+            address = ipaddress.IPv4Address(sys.argv[1])
+            pods = ipaddress.IPv4Network(sys.argv[2])
+            services = ipaddress.IPv4Network(sys.argv[3])
+            if pods.overlaps(services):
+                sys.exit("Pod and service CIDRs must not overlap.")
+            if address in pods or address in services:
+                sys.exit("The API advertise address must be outside pod and service CIDRs.")
+          - "{{ kubernetes_advertise_address }}"
+          - "{{ kubernetes_pod_subnet }}"
+          - "{{ kubernetes_service_subnet }}"
+      check_mode: false
+      changed_when: false
+
+    - name: Configuration | Read kubeconfig owner account
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ kubernetes_kubeconfig_user }}"
+
+    - name: Configuration | Record kubeconfig owner account details
+      ansible.builtin.set_fact:
+        kubernetes__kubeconfig_user: "{{ kubernetes_kubeconfig_user }}"
+        kubernetes__kubeconfig_home: "{{ ansible_facts.getent_passwd[kubernetes_kubeconfig_user][4] }}"
+        kubernetes__kubeconfig_group: "{{ ansible_facts.getent_passwd[kubernetes_kubeconfig_user][2] }}"
+
+    - name: Configuration | Prepare complete settings snapshot
+      ansible.builtin.set_fact:
+        kubernetes__vars: >-
+          {{ kubernetes__facts | combine({
+            'cluster_name': kubernetes_cluster_name,
+            'kubernetes_version': kubernetes_version,
+            'advertise_address': kubernetes_advertise_address,
+            'pod_subnet': kubernetes_pod_subnet,
+            'service_subnet': kubernetes_service_subnet,
+            'kubeconfig_user': kubernetes_kubeconfig_user,
+            'apiserver_gogc': kubernetes_apiserver_gogc,
+            'apiserver_gomemlimit': kubernetes_apiserver_gomemlimit,
+            'flannel_manifest_url': kubernetes_flannel_manifest_url,
+            'metrics_server_version': kubernetes_metrics_server_version
+          }) }}
+
+    - name: Configuration | Ensure local facts directory exists
+      become: true
+      ansible.builtin.file:
+        path: /etc/ansible/facts.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Configuration | Save complete desired settings
+      become: true
+      ansible.builtin.copy:
+        dest: /etc/ansible/facts.d/kubernetes.fact
+        content: >-
+          {{ ansible_facts.get('ansible_local', {}).get('kubernetes', {})
+             | combine({'cluster': kubernetes__vars, '_source': 'https://github.com/andreygubarev/ansible-collection'})
+             | to_nice_json }}
+        owner: root
+        group: root
+        mode: "0644"
+      register: kubernetes__facts_file
+
+    - name: Configuration | Refresh local facts
+      ansible.builtin.setup:
+        filter: ansible_local
+      when:
+        - kubernetes__facts_file is changed
+        - not ansible_check_mode

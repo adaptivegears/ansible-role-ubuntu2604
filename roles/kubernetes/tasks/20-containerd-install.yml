@@ -1,0 +1,18 @@
+---
+# -----------------------------------------------------------------------------
+# Containerd
+# -----------------------------------------------------------------------------
+# kubeadm and kubelet need a CRI runtime with systemd cgroups so pod accounting
+# matches Ubuntu's unified cgroup hierarchy and service manager behavior.
+# -----------------------------------------------------------------------------
+
+- name: Containerd | Install runtime packages
+  become: true
+  ansible.builtin.apt:
+    name:
+      - containerd
+      - containernetworking-plugins
+    state: present
+    install_recommends: true
+    lock_timeout: 600
+  tags: [containerd, packages]

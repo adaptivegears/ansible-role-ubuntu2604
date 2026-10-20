@@ -1,2 +1,3 @@
 ---
-# Internal variables are derived in tasks/main.yml.
+# Keep the existing cluster namespace so legacy INI facts remain readable.
+kubernetes__facts: "{{ ansible_facts.get('ansible_local', {}).get('kubernetes', {}).get('cluster', {}) }}"

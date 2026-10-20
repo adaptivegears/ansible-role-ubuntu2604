@@ -42,12 +42,13 @@ Every changed line should trace directly to the user request or to keeping that 
 ## Kubernetes role target
 
 - The `kubernetes` role provisions a standalone single-node kubeadm cluster on Ubuntu 26.04.
+- Keep public settings in `defaults/main.yml` with local-fact fallbacks. Validate and save the complete desired configuration; reject changes to stored cluster identity before writing.
 - Both included playbooks target localhost; the Kubernetes playbook does not automatically apply the Ubuntu role.
 
 ## Ansible style
 
-- Keep `roles/ubuntu2604/tasks/main.yml` as an explicit, ordered list of static `ansible.builtin.import_tasks` entries.
-- Keep Ubuntu tasks in numbered `XX-section.yml` files: tens group related areas, units identify their parts.
+- Keep each role's `tasks/main.yml` as an explicit, ordered list of static `ansible.builtin.import_tasks` entries.
+- Keep tasks in numbered `XX-section.yml` files: tens group related areas, units identify their parts.
 - Preserve task-level tags and execution order when splitting files; do not auto-discover task files.
 - Group tasks with comment sections using full-width separators and a short rationale:
 

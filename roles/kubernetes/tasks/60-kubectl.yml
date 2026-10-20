@@ -1,0 +1,28 @@
+---
+# -----------------------------------------------------------------------------
+# Kubectl
+# -----------------------------------------------------------------------------
+# Put cluster credentials in the operator's existing account instead of assuming
+# a site-specific admin user exists on freshly provisioned hosts.
+# -----------------------------------------------------------------------------
+
+- name: Kubectl | Ensure kubeconfig directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ kubernetes__kubeconfig_home }}/.kube"
+    state: directory
+    owner: "{{ kubernetes__kubeconfig_user }}"
+    group: "{{ kubernetes__kubeconfig_group }}"
+    mode: "0755"
+  tags: kubectl
+
+- name: Kubectl | Install kubeconfig for operator user
+  become: true
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "{{ kubernetes__kubeconfig_home }}/.kube/config"
+    remote_src: true
+    owner: "{{ kubernetes__kubeconfig_user }}"
+    group: "{{ kubernetes__kubeconfig_group }}"
+    mode: "0600"
+  tags: kubectl

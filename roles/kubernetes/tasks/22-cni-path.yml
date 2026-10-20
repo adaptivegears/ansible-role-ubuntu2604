@@ -1,0 +1,42 @@
+---
+# -----------------------------------------------------------------------------
+# CNI path
+# -----------------------------------------------------------------------------
+# Expose packaged Debian CNI binaries at the path expected by Kubernetes.
+# -----------------------------------------------------------------------------
+
+- name: Containerd | Check packaged CNI path
+  ansible.builtin.stat:
+    path: /usr/lib/cni
+  register: kubernetes__usr_lib_cni
+  tags: containerd
+
+- name: Containerd | Check Kubernetes CNI path
+  ansible.builtin.stat:
+    path: /opt/cni/bin
+  register: kubernetes__opt_cni_bin
+  tags: containerd
+
+- name: Containerd | Ensure Kubernetes CNI parent exists
+  become: true
+  ansible.builtin.file:
+    path: /opt/cni
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - kubernetes__usr_lib_cni.stat.exists
+    - not kubernetes__opt_cni_bin.stat.exists
+  tags: containerd
+
+- name: Containerd | Link Debian-style CNI path for Kubernetes
+  become: true
+  ansible.builtin.file:
+    src: /usr/lib/cni
+    dest: /opt/cni/bin
+    state: link
+  when:
+    - kubernetes__usr_lib_cni.stat.exists
+    - not kubernetes__opt_cni_bin.stat.exists
+  tags: containerd

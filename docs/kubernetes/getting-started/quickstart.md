@@ -13,15 +13,15 @@ ansible-playbook andreygubarev.com.kubernetes -e kubernetes_cluster_name=my-clus
 
 No inventory or SSH transport is required. Add `-K` if sudo requires a password. The Ubuntu baseline role is not applied automatically.
 
-A non-empty cluster name is required on the first run; there is no prompt. Later runs reuse the saved name:
+A non-empty cluster name is required on the first run; there is no prompt. The complete validated configuration is saved before application, so later runs need no overrides:
 
 ```bash
 ansible-playbook andreygubarev.com.kubernetes
 ```
 
-Renaming is rejected before changes. Other overrides, including custom Kubernetes versions and CIDRs, must still be supplied on each run or stored in inventory/playbooks.
+Renaming or changing stored version/CIDRs is rejected before writing. Other desired settings can be changed with an explicit override. Invalid input leaves facts untouched; failed application retains desired settings for retry.
 
-The API uses the default IPv4 address; kubeconfig is copied to the invoking user's home directory. Override either explicitly if needed:
+On first use, the API defaults to the host IPv4 address and kubeconfig owner defaults to the invoking user. Both choices are then remembered. Override either explicitly if needed:
 
 ```bash
 ansible-playbook andreygubarev.com.kubernetes \
@@ -29,6 +29,8 @@ ansible-playbook andreygubarev.com.kubernetes \
   -e kubernetes_advertise_address=203.0.113.10 \
   -e kubernetes_kubeconfig_user=ubuntu
 ```
+
+Legacy INI identity facts are supported; repeat other previous custom settings once when upgrading. Configuration processing runs with `always`, even when selecting tags; do not skip it.
 
 Choose the node hostname before initialization. Cluster name, Kubernetes minor version, and cluster CIDRs are immutable. Flannel does not enforce NetworkPolicy; metrics-server accepts self-signed kubelet certificates. Review [configuration](../reference/configuration.md) and [architecture](../concepts/architecture.md) before deployment.
 

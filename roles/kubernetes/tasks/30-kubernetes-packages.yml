@@ -1,0 +1,71 @@
+---
+# -----------------------------------------------------------------------------
+# Packages
+# -----------------------------------------------------------------------------
+# Use Kubernetes' upstream repository for kubeadm/kubelet/kubectl so the node can
+# track a chosen minor release instead of Ubuntu archive package cadence.
+# -----------------------------------------------------------------------------
+
+- name: Packages | Ensure APT keyring directory exists
+  become: true
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: packages
+
+- name: Packages | Install Kubernetes repository key
+  become: true
+  ansible.builtin.get_url:
+    url: "https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version }}/deb/Release.key"
+    dest: /etc/apt/keyrings/kubernetes.asc
+    owner: root
+    group: root
+    mode: "0644"
+  register: kubernetes__apt_key
+  tags: packages
+
+- name: Packages | Configure Kubernetes repository
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/kubernetes.sources
+    content: |
+      # Managed by ansible-role-kubernetes
+      # Source: https://github.com/andreygubarev/ansible-collection
+
+      Types: deb
+      URIs: https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version }}/deb/
+      Suites: /
+      Signed-By: /etc/apt/keyrings/kubernetes.asc
+    owner: root
+    group: root
+    mode: "0644"
+  register: kubernetes__apt_source
+  tags: packages
+
+- name: Packages | Install Kubernetes packages
+  become: true
+  ansible.builtin.apt:
+    name:
+      - kubeadm
+      - kubectl
+      - kubelet
+    state: present
+    install_recommends: true
+    update_cache: true
+    cache_valid_time: "{{ (kubernetes__apt_key is changed or kubernetes__apt_source is changed) | ternary(0, 3600) }}"
+    lock_timeout: 600
+  tags: packages
+
+- name: Packages | Hold Kubernetes packages
+  become: true
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    - kubeadm
+    - kubectl
+    - kubelet
+  tags: packages

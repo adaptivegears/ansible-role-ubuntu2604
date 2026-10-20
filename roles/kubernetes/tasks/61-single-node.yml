@@ -1,0 +1,18 @@
+---
+# -----------------------------------------------------------------------------
+# Single-node scheduling
+# -----------------------------------------------------------------------------
+# A one-node cluster has no workers, so ordinary workloads must be allowed onto
+# the control-plane node after kubeadm applies its protective taint.
+# -----------------------------------------------------------------------------
+
+- name: Single-node scheduling | Allow pods on control-plane
+  become: true
+  ansible.builtin.command:
+    cmd: kubectl --kubeconfig /etc/kubernetes/admin.conf taint nodes --all node-role.kubernetes.io/control-plane-
+  register: kubernetes__untaint
+  changed_when: "'untainted' in kubernetes__untaint.stdout"
+  failed_when:
+    - kubernetes__untaint.rc != 0
+    - "'not found' not in kubernetes__untaint.stderr"
+  tags: scheduling

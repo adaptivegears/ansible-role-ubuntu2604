@@ -1,0 +1,32 @@
+---
+# -----------------------------------------------------------------------------
+# Swap
+# -----------------------------------------------------------------------------
+# Kubelet expects memory pressure to be handled by cgroups and Kubernetes
+# eviction policy; host swap makes pod latency and OOM behavior unpredictable.
+# -----------------------------------------------------------------------------
+
+- name: Swap | Disable active swap
+  become: true
+  ansible.builtin.command: swapoff -a
+  changed_when: false
+  tags: swap
+
+- name: Swap | Check for active swap entries in fstab
+  become: true
+  ansible.builtin.command:
+    cmd: grep -E "^[[:space:]]*[^#[:space:]][^[:space:]]*[[:space:]]+[^[:space:]]+[[:space:]]+swap[[:space:]]" /etc/fstab
+  register: kubernetes__fstab_active_swap
+  failed_when: false
+  changed_when: false
+  tags: swap
+
+- name: Swap | Remove swap entries from fstab
+  become: true
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^(?!#)(.*\sswap\s.*)$'
+    replace: '# Disabled by ansible-role-kubernetes (https://github.com/andreygubarev/ansible-collection): \1'
+    backup: true
+  when: kubernetes__fstab_active_swap.rc == 0
+  tags: swap

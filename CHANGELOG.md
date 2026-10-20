@@ -5,11 +5,13 @@ All notable changes to this project are documented here. Format follows [Keep a 
 ## [Unreleased]
 
 ### Changed
+- **Kubernetes task layout**: Split the role into numbered task files with static imports. Application task order and behavior are preserved; preflight/configuration run with `always`.
 - **Ubuntu task layout**: Split the role into numbered task files with explicit static imports in `tasks/main.yml`. Task order, tags, conditions, and handler behavior are unchanged.
 
 ### Breaking Changes
+- **Kubernetes desired configuration**: All ten public variables retain their names in `defaults/main.yml` and reuse a full validated snapshot, including initial API address and kubeconfig owner. Legacy INI facts are automatically expanded to JSON under the existing `cluster` namespace. Immutable identity conflicts, invalid IPv4 networking, or missing users fail before writing; repeat other previous custom settings once when upgrading.
 - **Ubuntu desired configuration**: Hostname is now required on first use. All seven public variables remain in `defaults/main.yml` with saved-value fallbacks. The complete validated configuration, including defaults, is persisted before application and reused on later runs. Old hostname-only facts remain readable; existing custom values for other settings should be supplied once when upgrading.
-- **Required initial cluster name**: `kubernetes_cluster_name` no longer defaults to `kubernetes`. Supply a non-empty string on the first run; later runs reuse the stored cluster name automatically. An explicitly different name is rejected before mutation without overwriting the local fact. Custom version and subnet overrides retain their existing behavior.
+- **Required initial cluster name**: `kubernetes_cluster_name` no longer defaults to `kubernetes`. Supply a non-empty string on the first run; later runs reuse the stored cluster name automatically. An explicitly different name is rejected before mutation without overwriting the local fact. Stored cluster identity remains immutable.
 
 ## [2026.10.4] - 2026-10-20
 

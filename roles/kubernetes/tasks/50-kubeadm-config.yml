@@ -1,0 +1,101 @@
+---
+# -----------------------------------------------------------------------------
+# Kubeadm
+# -----------------------------------------------------------------------------
+# /etc/kubernetes/kubeadm-config.yaml is the declarative control-plane
+# configuration. The first run initializes the cluster from it exactly once
+# (re-running kubeadm init over an existing control plane can destroy cluster
+# state, so the admin kubeconfig is the initialization marker). Later runs
+# converge the running control plane on file changes through kubeadm's
+# reconfigure flow: upload the config to the kubeadm-config ConfigMap so
+# kubeadm upgrade preserves it, regenerate the control-plane static pod
+# manifests, and wait for the API server to come back.
+# -----------------------------------------------------------------------------
+
+- name: Kubeadm | Check if cluster is already initialized
+  become: true
+  ansible.builtin.stat:
+    path: /etc/kubernetes/admin.conf
+  register: kubernetes__admin_conf
+  tags: kubeadm
+
+- name: Kubeadm | Ensure configuration directory exists
+  become: true
+  ansible.builtin.file:
+    path: /etc/kubernetes
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: kubeadm
+
+- name: Kubeadm | Pull control-plane images
+  become: true
+  ansible.builtin.command:
+    cmd: kubeadm config images pull
+  changed_when: true
+  when: not kubernetes__admin_conf.stat.exists
+  tags: kubeadm
+
+- name: Kubeadm | Read installed kubeadm version
+  become: true
+  ansible.builtin.command:
+    cmd: kubeadm version -o short
+  register: kubernetes__kubeadm_version
+  check_mode: false
+  changed_when: false
+  tags: kubeadm
+
+- name: Kubeadm | Configure cluster
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/kubernetes/kubeadm-config.yaml
+    content: |
+      ---
+      # Managed by ansible-role-kubernetes
+      # Source: https://github.com/andreygubarev/ansible-collection
+      apiVersion: kubeadm.k8s.io/v1beta4
+      kind: InitConfiguration
+      localAPIEndpoint:
+        advertiseAddress: "{{ kubernetes_advertise_address }}"
+        bindPort: 6443
+      nodeRegistration:
+        criSocket: unix:///var/run/containerd/containerd.sock
+      ---
+      apiVersion: kubeadm.k8s.io/v1beta4
+      kind: ClusterConfiguration
+      clusterName: "{{ kubernetes_cluster_name }}"
+      # Pinned to the installed kubeadm binary so config uploads and manifest
+      # regeneration never resolve a version label over the network and never
+      # generate manifests at a version other than the cluster's.
+      kubernetesVersion: "{{ kubernetes__kubeadm_version.stdout }}"
+      controlPlaneEndpoint: "{{ kubernetes_advertise_address }}:6443"
+      networking:
+        podSubnet: "{{ kubernetes_pod_subnet }}"
+        serviceSubnet: "{{ kubernetes_service_subnet }}"
+      apiServer:
+        certSANs:
+          - "{{ kubernetes_advertise_address }}"
+        extraArgs:
+          - name: bind-address
+            value: "{{ kubernetes_advertise_address }}"
+      {% if kubernetes_apiserver_gogc or kubernetes_apiserver_gomemlimit %}
+        extraEnvs:
+      {% if kubernetes_apiserver_gogc %}
+          - name: GOGC
+            value: "{{ kubernetes_apiserver_gogc }}"
+      {% endif %}
+      {% if kubernetes_apiserver_gomemlimit %}
+          - name: GOMEMLIMIT
+            value: "{{ kubernetes_apiserver_gomemlimit }}"
+      {% endif %}
+      {% endif %}
+      ---
+      apiVersion: kubelet.config.k8s.io/v1beta1
+      kind: KubeletConfiguration
+      cgroupDriver: systemd
+    owner: root
+    group: root
+    mode: "0644"
+  register: kubernetes__kubeadm_config
+  tags: kubeadm

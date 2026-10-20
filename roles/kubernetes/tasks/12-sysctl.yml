@@ -1,0 +1,31 @@
+---
+# -----------------------------------------------------------------------------
+# Sysctls
+# -----------------------------------------------------------------------------
+# Enable bridge filtering and forwarding after their kernel modules are loaded.
+# -----------------------------------------------------------------------------
+
+- name: Kernel | Configure Kubernetes sysctls
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-kubernetes.conf
+    content: |
+      # Managed by ansible-role-kubernetes
+      # Source: https://github.com/andreygubarev/ansible-collection
+
+      # Send bridged pod IPv4 packets through iptables so Kubernetes Services work.
+      net.bridge.bridge-nf-call-iptables = 1
+      # Keep IPv6 bridge filtering aligned when dual-stack support is added later.
+      net.bridge.bridge-nf-call-ip6tables = 1
+      # Let pods and Services route through the node network namespace.
+      net.ipv4.ip_forward = 1
+    owner: root
+    group: root
+    mode: "0644"
+  tags: kernel
+
+- name: Kernel | Apply Kubernetes sysctls
+  become: true
+  ansible.builtin.command: sysctl --load /etc/sysctl.d/99-kubernetes.conf
+  changed_when: false
+  tags: kernel

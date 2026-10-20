@@ -27,6 +27,7 @@ The scaffold includes `.envrc`, pinned OpenTofu/Terragrunt versions, and a `.git
 - `32-k8up`: The `k8up-system` namespace, K8up CRDs/operator, and global Backblaze B2/Restic configuration. Only annotated PVCs are eligible; no Backup or Schedule resources are created.
 - `40-forgejo`: Rootless Forgejo, a CNPG database, persistent storage, HTTPS/SSH routes, and Actions.
 - `41-forgejo-runner`: A trusted-code-only Forgejo Runner with a privileged DinD sidecar and no automatic Kubernetes API access.
+- `42-forgejo-backup`: A K8up Schedule for online backups of only the `forgejo-data` PVC, with a dedicated repository bucket/prefix and shared operator endpoint/credentials.
 
 The role installs Helm `3.22.1` system-wide at `/usr/local/bin/helm`, linked to a versioned binary under `/usr/local/lib/helm/`. Downloads for amd64/arm64 are verified against the upstream SHA256 checksum. Override `gitops_helm_version` with an exact Helm 3 version; Helm 4 is not accepted because the Kustomize version embedded in `kbst/kustomization` requires Helm 3. Installing Helm does not install or apply charts.
 
@@ -39,6 +40,8 @@ OpenEBS defaults to `4.6.2`; override `openebs_version` in its `terraform.tfvars
 CloudNativePG defaults to chart `0.29.1` (operator `1.30.1`); override the chart version through `cnpg_version` in its `terraform.tfvars.yaml`. The operator has no ordering dependencies on OpenEBS or cert-manager; provision storage before creating PostgreSQL clusters separately.
 
 K8up defaults to chart/CRDs `4.10.0` (operator `v2.16.0`); override `k8up_version` to keep chart and CRDs aligned. Set `b2_bucket` and any `b2_endpoint` override in ordinary YAML; put `b2_access_key_id`, `b2_secret_access_key`, and `k8up_repo_password` only in SOPS YAML. Credentials use a Kubernetes Secret; changing them restarts the operator. Helm cleanup hooks are excluded rather than deployed as ordinary Jobs/RBAC. Back up the Restic password separately. Configure backup schedules and annotate selected PVCs explicitly; copying a live PostgreSQL data volume is not a substitute for a database-consistent CNPG backup. K8up has no ordering dependencies on OpenEBS or CNPG.
+
+Set `b2_bucket` in `42-forgejo-backup/terraform.tfvars.yaml` to a dedicated stable repository path such as `backup-bucket/k8up/forgejo`; each run creates a new Restic snapshot in that same repository, not a dated prefix. Forgejo PVC backups default to daily at 03:00 UTC; override `backup_schedule` in the same YAML. Apply the updated `40-forgejo` first: it owns the PVC and adds its backup annotation/selection label. `42-forgejo-backup` depends on K8up and Forgejo, creates only the Schedule, and does not adopt the PVC, stop Forgejo, or configure snapshot pruning. Backup jobs read the volume as root via a read-only mount; this is a live file backup, not an atomic snapshot. No additional credentials are needed.
 
 For Terragrunt `run --all`, Istiod declares ordering dependencies on Gateway API and Istio base; cert-manager depends on Gateway API so its CRDs are present when the controller starts. Single-workload commands do not apply dependencies automatically: apply Gateway API before cert-manager, apply Gateway API and base before Istiod, and destroy cert-manager and Istiod before their dependencies.
 

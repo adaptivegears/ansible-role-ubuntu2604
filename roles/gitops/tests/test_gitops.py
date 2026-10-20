@@ -133,7 +133,7 @@ def test_workspace_is_private_and_user_owned(host, workspace):
 
 @pytest.mark.parametrize("name", (
     "13-istio-gateway", "20-cert-manager", "21-letsencrypt", "30-openebs", "31-cnpg",
-    "32-k8up", "40-forgejo", "41-forgejo-runner",
+    "32-k8up", "40-forgejo", "41-forgejo-runner", "42-forgejo-backup",
 ))
 def test_workload_directory_is_private_and_user_owned(host, workspace, name):
     user, directory = workspace
@@ -156,6 +156,7 @@ def test_workload_directory_is_private_and_user_owned(host, workspace, name):
     "21-letsencrypt/terraform.tf", "21-letsencrypt/terraform.tfvars.yaml", "21-letsencrypt/terragrunt.hcl",
     "40-forgejo/terraform.tf", "40-forgejo/terraform.tfvars.yaml", "40-forgejo/terragrunt.hcl",
     "41-forgejo-runner/terraform.tf", "41-forgejo-runner/terraform.tfvars.yaml", "41-forgejo-runner/terragrunt.hcl",
+    "42-forgejo-backup/terraform.tf", "42-forgejo-backup/terraform.tfvars.yaml", "42-forgejo-backup/terragrunt.hcl",
 ))
 def test_scaffold_file_is_user_owned(host, workspace, name):
     user, directory = workspace
@@ -241,7 +242,7 @@ def test_legacy_state_guard_distinguishes_resource_state_from_backend_metadata(c
 
 WORKLOADS = (
     "10-gateway-api", "11-istio-base", "12-istiod", "13-istio-gateway", "20-cert-manager",
-    "21-letsencrypt", "30-openebs", "31-cnpg", "32-k8up", "40-forgejo", "41-forgejo-runner",
+    "21-letsencrypt", "30-openebs", "31-cnpg", "32-k8up", "40-forgejo", "41-forgejo-runner", "42-forgejo-backup",
 )
 
 
@@ -301,6 +302,32 @@ def test_k8up_uses_matching_crds_and_secret_backed_credentials():
             r'name\s*=\s*"' + environment + r'"\s+valueFrom\s*=\s*\{\s+secretKeyRef\s*=\s*'
             + r'\{\s*name\s*=\s*"k8up-credentials",\s*key\s*=\s*"' + key + r'"', text,
         )
+
+
+# -----------------------------------------------------------------------------
+# Forgejo PVC backups
+# -----------------------------------------------------------------------------
+
+
+def test_forgejo_backup_targets_only_the_app_pvc_without_hooks_or_pruning():
+    root = Path(__file__).resolve().parents[1] / "files/gitops"
+    text = (root / "42-forgejo-backup/terraform.tf").read_text()
+    owner = (root / "40-forgejo/terraform.tf").read_text()
+    dependencies = (root / "42-forgejo-backup/terragrunt.hcl").read_text()
+    assert 'default     = "CRON_TZ=UTC 0 3 * * *"' in text
+    assert 'kind       = "Schedule"' in text and 'namespace = "forgejo"' in text
+    assert 'variable "b2_bucket"' in text
+    assert 'backend = { s3 = { bucket = var.b2_bucket } }' in text
+    assert 'labelSelectors = [{' in text
+    for resource in (text, owner):
+        assert '"app.kubernetes.io/component" = "forgejo-data"' in resource
+    assert '"k8up.io/backup" = "true"' in owner
+    assert 'runAsUser  = 0' in text
+    assert 'runAsGroup = 0' in text
+    assert not re.search(r'^\s*(prune|check|restore|archive)\s*=', text, re.M)
+    assert 'PersistentVolumeClaim' not in text and 'PreBackupPod' not in text
+    assert 'postgresql.cnpg.io' not in text
+    assert 'paths = ["../32-k8up", "../40-forgejo"]' in dependencies
 
 
 # -----------------------------------------------------------------------------

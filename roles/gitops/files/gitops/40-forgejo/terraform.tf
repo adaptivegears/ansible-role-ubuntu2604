@@ -150,6 +150,9 @@ data "kustomization_overlay" "this" {
         claimName    = "forgejo-data"
         storageClass = "openebs-hostpath-retain"
         size         = var.forgejo_storage_size
+        # This workload owns the PVC; backup scheduling belongs to 42-forgejo-backup.
+        annotations = { "k8up.io/backup" = "true" }
+        labels      = { "app.kubernetes.io/component" = "forgejo-data" }
       }
       httpRoute = {
         enabled   = true

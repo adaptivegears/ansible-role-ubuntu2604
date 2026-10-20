@@ -4,6 +4,9 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- **Forgejo PVC backups**: Add `42-forgejo-backup` with a daily 03:00 UTC K8up Schedule for only `forgejo-data`, an explicit dedicated repository bucket/prefix, and inherited global endpoint/credentials. The existing Forgejo workload owns the PVC's backup annotation/selection label. Backup jobs use read-only mounts with root access for complete file coverage; no application shutdown, hooks, database backup, or snapshot pruning is configured.
+
 ## [2026.10.21] - 2026-10-20
 
 ### Added

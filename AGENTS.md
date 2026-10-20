@@ -80,6 +80,10 @@ Every changed line should trace directly to the user request or to keeping that 
 - Run verification through `make test`, which uses pytest/testinfra with xdist parallelism and SSH ControlPersist connection reuse, checks repeat application for `changed=0`, and verifies persistence after reboot.
 - Delete successful test VMs; retain failed or interrupted runs and their diagnostics under `.cache/`. Do not target existing hosts or instances.
 
+## Releases
+
+- A release includes updating `galaxy.yml` and `CHANGELOG.md`, committing and pushing the changes, and creating and pushing the matching numeric version tag without a `v` prefix. Do not leave tag creation as a separate manual step; pushing the tag triggers Galaxy publication.
+
 ## Makefile style
 
 - Prefix Ansible-related knobs with `ANSIBLE_` and testinfra-related knobs with `TESTINFRA_`.

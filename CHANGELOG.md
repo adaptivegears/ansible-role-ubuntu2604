@@ -4,6 +4,8 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.7] - 2026-10-20
+
 ### Changed
 - **Incus integration tests**: `make test` now provisions a fresh Ubuntu 26.04 VM, applies Ubuntu followed by Kubernetes, runs both testinfra suites, checks repeat application for idempotence, and verifies persistence after reboot. Successful VMs are removed; failed runs retain diagnostics. Existing hosts and `inventory.ini` are no longer targeted.
 

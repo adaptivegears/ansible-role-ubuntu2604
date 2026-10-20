@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.12] - 2026-10-20
+
+### Added
+- **Kubernetes k9s installation**: Install k9s `0.51.0` system-wide from the official amd64/arm64 Debian package after upstream SHA256 verification, without Snap. Validate and persist `kubernetes_k9s_version` with the complete desired configuration; explicit version overrides take precedence over saved settings. The `k9s` tag supports selective installation on configured hosts, using the operator's existing kubeconfig.
+
 ## [2026.10.11] - 2026-10-20
 
 ### Added

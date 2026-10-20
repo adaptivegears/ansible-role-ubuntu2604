@@ -16,6 +16,8 @@ The scaffold includes `.envrc`, pinned OpenTofu/Terragrunt versions, and a `.git
 - `11-istio-base`: The `istio-system` namespace and Istio base chart.
 - `12-istiod`: The Istio control plane, with automatic Gateway Deployment/Service provisioning disabled.
 
-The Istio workloads require Helm at `/usr/local/bin/helm`; neither this role nor the Terraform tooling role installs it yet. Both charts default to Istio `1.31.2`; keep their `istio_version` overrides aligned.
+The role installs Helm `3.22.1` system-wide at `/usr/local/bin/helm`, linked to a versioned binary under `/usr/local/lib/helm/`. Downloads for amd64/arm64 are verified against the upstream SHA256 checksum. Override `gitops_helm_version` with an exact Helm 3 version; Helm 4 is not accepted because the Kustomize version embedded in `kbst/kustomization` requires Helm 3. Installing Helm does not install or apply charts.
+
+Both Istio charts default to `1.31.2`; keep their `istio_version` overrides aligned.
 
 For Terragrunt `run --all`, Istiod declares ordering dependencies on Gateway API and Istio base. Single-workload commands do not apply dependencies automatically: apply Gateway API and base before Istiod, and destroy Istiod before base.

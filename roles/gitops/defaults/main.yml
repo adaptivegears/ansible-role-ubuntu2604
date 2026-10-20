@@ -1,2 +1,4 @@
 ---
 gitops_user: "{{ ansible_user | default(ansible_ssh_user | default(ansible_facts['user_id'])) }}"
+# The Kustomize version embedded in kbst/kustomization requires Helm 3.
+gitops_helm_version: "3.22.1"

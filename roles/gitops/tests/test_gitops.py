@@ -25,6 +25,20 @@ def test_git_is_installed(host):
     assert host.package("git").is_installed
 
 
+def test_helm_is_system_wide_and_usable_by_workspace_owner(host, workspace):
+    link = host.file("/usr/local/bin/helm")
+    assert link.is_symlink
+    version = re.fullmatch(r"/usr/local/lib/helm/(3\.[0-9]+\.[0-9]+)/helm", link.linked_to)
+    assert version
+    binary = host.file(link.linked_to)
+    assert binary.is_file
+    assert binary.user == "root" and binary.group == "root"
+    assert binary.mode == 0o755
+    user, _directory = workspace
+    with host.sudo(user.name):
+        assert host.check_output("/usr/local/bin/helm version --short").startswith("v" + version.group(1) + "+")
+
+
 def test_workspace_is_private_and_user_owned(host, workspace):
     user, directory = workspace
     folder = host.file(directory)

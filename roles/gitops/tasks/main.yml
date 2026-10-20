@@ -5,6 +5,9 @@
 - name: Git | Import repository initialization
   ansible.builtin.import_tasks: 20-git-init.yml
 
+- name: Helm | Import installation
+  ansible.builtin.import_tasks: 21-helm.yml
+
 - name: Files | Import scaffold overlay
   ansible.builtin.import_tasks: 30-files.yml
 

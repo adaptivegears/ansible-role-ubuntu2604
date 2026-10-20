@@ -1,0 +1,84 @@
+---
+# -----------------------------------------------------------------------------
+# Helm
+# -----------------------------------------------------------------------------
+# kbst/kustomization renders charts through an external Helm 3 binary. Verify
+# upstream checksums and keep the installation versioned without running charts.
+# -----------------------------------------------------------------------------
+
+- name: Helm | Validate compatible version
+  ansible.builtin.assert:
+    that:
+      - gitops_helm_version is string
+      - gitops_helm_version is match('^3[.][0-9]+[.][0-9]+$')
+    fail_msg: "gitops_helm_version must be an exact Helm 3 version without a v prefix."
+
+- name: Helm | Validate supported architecture
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['architecture'] in ['x86_64', 'aarch64']
+    fail_msg: "Helm installation supports amd64 and arm64 hosts."
+
+- name: Helm | Record archive architecture
+  ansible.builtin.set_fact:
+    gitops__helm_arch: "{{ 'amd64' if ansible_facts['architecture'] == 'x86_64' else 'arm64' }}"
+
+- name: Helm | Install download and extraction prerequisites
+  become: true
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - gzip
+      - tar
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+    install_recommends: false
+
+- name: Helm | Ensure download and installation directories exist
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /var/cache/ansible-gitops
+    - "/usr/local/lib/helm/{{ gitops_helm_version }}"
+    - /usr/local/bin
+
+- name: Helm | Download and verify release archive
+  become: true
+  ansible.builtin.get_url:
+    url: "https://get.helm.sh/helm-v{{ gitops_helm_version }}-linux-{{ gitops__helm_arch }}.tar.gz"
+    dest: "/var/cache/ansible-gitops/helm-v{{ gitops_helm_version }}-linux-{{ gitops__helm_arch }}.tar.gz"
+    checksum: "sha256:https://get.helm.sh/helm-v{{ gitops_helm_version }}-linux-{{ gitops__helm_arch }}.tar.gz.sha256sum"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Helm | Extract versioned binary
+  become: true
+  ansible.builtin.unarchive:
+    src: "/var/cache/ansible-gitops/helm-v{{ gitops_helm_version }}-linux-{{ gitops__helm_arch }}.tar.gz"
+    dest: "/usr/local/lib/helm/{{ gitops_helm_version }}"
+    remote_src: true
+    include:
+      - "linux-{{ gitops__helm_arch }}/helm"
+    extra_opts:
+      - --strip-components=1
+    creates: "/usr/local/lib/helm/{{ gitops_helm_version }}/helm"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Helm | Expose binary on PATH
+  become: true
+  ansible.builtin.file:
+    src: "/usr/local/lib/helm/{{ gitops_helm_version }}/helm"
+    dest: /usr/local/bin/helm
+    state: link
+    owner: root
+    group: root
+    force: true

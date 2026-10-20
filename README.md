@@ -41,7 +41,7 @@ The playbooks are independent. None automatically applies another role.
 - Kubernetes requires `kubernetes_cluster_name` once and remembers the complete configuration, including the initial API address and kubeconfig owner. Cluster name, Kubernetes minor version, and cluster CIDRs remain immutable.
 - Terraform tooling defaults to the invoking user, latest stable tenv, OpenTofu 1.12.x, and Terragrunt 1.1.x. Exact resolved versions are remembered. OpenTofu/Terragrunt are installed through tenv in the user's `~/.tenv`; direnv is hooked into Bash, but `.envrc` authorization remains manual. HashiCorp Terraform is not installed.
 
-- GitOps prepares `~/gitops` for the invoking user (`gitops_user` overrides the account), initializes Git, and records the initial baseline once. Later code overlays remain uncommitted. User `terraform.tfvars.yaml` files are created only if missing; workload application and direnv authorization remain manual.
+- GitOps installs Git and Helm 3, prepares `~/gitops` for the invoking user (`gitops_user` overrides the account), initializes Git, and records the initial baseline once. Later code overlays remain uncommitted. User `terraform.tfvars.yaml` files are created only if missing; workload application and direnv authorization remain manual.
 
 **Ubuntu baseline:** requires SSH authorized keys, disables password authentication, removes all snap data, and regenerates SSH host keys on first configuration. Review the quickstart before use.
 

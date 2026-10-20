@@ -53,7 +53,7 @@ Every changed line should trace directly to the user request or to keeping that 
 
 ## GitOps role target
 
-- The `gitops` role prepares `~/gitops` for `gitops_user`, overlays bundled code without deleting host-only data, and commits the initial Git baseline once. Later updates remain uncommitted.
+- The `gitops` role installs Git and a checksummed system-wide Helm 3 binary, prepares `~/gitops` for `gitops_user`, overlays bundled code without deleting host-only data, and commits the initial Git baseline once. Later updates remain uncommitted. Helm 4 is incompatible with the Kustomize version embedded in `kbst/kustomization`.
 - Create `terraform.tfvars.yaml` only if missing; preserve existing user overrides. Keep defaults in HCL variable declarations.
 - The local playbook does not apply other roles or run OpenTofu/Terragrunt. Never authorize `.envrc` automatically.
 

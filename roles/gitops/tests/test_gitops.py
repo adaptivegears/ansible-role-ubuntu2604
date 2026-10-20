@@ -48,7 +48,10 @@ def test_workspace_is_private_and_user_owned(host, workspace):
     assert folder.mode == 0o700
 
 
-@pytest.mark.parametrize("name", ("20-cert-manager", "30-openebs", "31-cnpg"))
+@pytest.mark.parametrize("name", (
+    "13-istio-gateway", "20-cert-manager", "21-letsencrypt", "30-openebs", "31-cnpg",
+    "40-forgejo", "41-forgejo-runner",
+))
 def test_workload_directory_is_private_and_user_owned(host, workspace, name):
     user, directory = workspace
     folder = host.file(f"{directory}/{name}")
@@ -65,6 +68,10 @@ def test_workload_directory_is_private_and_user_owned(host, workspace, name):
     "30-openebs/terraform.tf", "30-openebs/terraform.tfvars.yaml",
     "30-openebs/terragrunt.hcl",
     "31-cnpg/terraform.tf", "31-cnpg/terraform.tfvars.yaml", "31-cnpg/terragrunt.hcl",
+    "13-istio-gateway/terraform.tf", "13-istio-gateway/terraform.tfvars.yaml", "13-istio-gateway/terragrunt.hcl",
+    "21-letsencrypt/terraform.tf", "21-letsencrypt/terraform.tfvars.yaml", "21-letsencrypt/terragrunt.hcl",
+    "40-forgejo/terraform.tf", "40-forgejo/terraform.tfvars.yaml", "40-forgejo/terragrunt.hcl",
+    "41-forgejo-runner/terraform.tf", "41-forgejo-runner/terraform.tfvars.yaml", "41-forgejo-runner/terragrunt.hcl",
 ))
 def test_scaffold_file_is_user_owned(host, workspace, name):
     user, directory = workspace
@@ -96,6 +103,8 @@ IGNORED_PATHS = (
     ".terragrunt-cache/module",
     "terraform.tfstate",
     "terraform.tfstate.backup",
+    "40-forgejo/terraform.tfvars.yaml",
+    "41-forgejo-runner/terraform.tfvars.yaml",
 )
 
 

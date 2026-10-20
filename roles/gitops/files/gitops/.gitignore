@@ -4,3 +4,7 @@
 .terragrunt-cache/
 *.tfstate
 *.tfstate.*
+
+# These user overrides contain the admin password and runner credentials.
+/40-forgejo/terraform.tfvars.yaml
+/41-forgejo-runner/terraform.tfvars.yaml

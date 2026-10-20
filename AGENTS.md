@@ -54,8 +54,10 @@ Every changed line should trace directly to the user request or to keeping that 
 ## GitOps role target
 
 - The `gitops` role installs Git and a checksummed system-wide Helm 3 binary, prepares `~/gitops` for `gitops_user`, overlays bundled code without deleting host-only data, and commits the initial Git baseline once. Later updates remain uncommitted. Helm 4 is incompatible with the Kustomize version embedded in `kbst/kustomization`.
-- Create `terraform.tfvars.yaml` only if missing; preserve existing user overrides. Keep defaults in HCL variable declarations.
+- Create `terraform.tfvars.yaml` only if missing; preserve existing user overrides. Keep defaults in HCL variable declarations. Keep public documentation brief and reusable, without per-server runbooks. Deployment-specific hostnames, addresses, account names, and email belong in host overrides, not bundled defaults or instructions.
 - The local playbook does not apply other roles or run OpenTofu/Terragrunt. Never authorize `.envrc` automatically.
+- Forgejo bootstrap is manual and sequential: gateway, ACME issuer, Forgejo/database, then runner registration and runner. Free host port 22 by moving and verifying administrative SSH before applying the gateway.
+- Ignore Forgejo and runner `terraform.tfvars.yaml` in the host workspace because they contain credentials; sensitive values still reside in plaintext local state. Runner jobs are trusted-only, use a privileged DinD sidecar without a node runtime socket, and receive no Kubernetes API credentials automatically.
 
 ## Ansible style
 

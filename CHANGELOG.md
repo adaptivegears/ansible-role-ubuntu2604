@@ -4,6 +4,8 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.17] - 2026-10-20
+
 ### Added
 - **Kubernetes split DNS**: Validate and persist `kubernetes_coredns_rewrites`, an optional mapping of canonical hostnames to internal DNS names. The `coredns` tag reconciles only a marked exact-name rewrite block in kubeadm's existing Corefile, preserving other settings and relying on CoreDNS reload. Empty mappings remove managed rewrites; public DNS and application URLs are unchanged.
 

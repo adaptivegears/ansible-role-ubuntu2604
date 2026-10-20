@@ -1,0 +1,54 @@
+---
+# -----------------------------------------------------------------------------
+# Git baseline
+# -----------------------------------------------------------------------------
+# Commit the initial scaffold once so later overlays can be reviewed as changes.
+# Check HEAD so an interrupted first commit can be retried. The bootstrap identity
+# applies only to this command, not the user's Git settings.
+# -----------------------------------------------------------------------------
+
+- name: Git | Create the initial workspace baseline
+  become: true
+  become_user: "{{ gitops_user }}"
+  environment:
+    HOME: "{{ ansible_facts.getent_passwd[gitops_user][4] }}"
+  when: not ansible_check_mode
+  block:
+    - name: Git | Check for an existing baseline commit
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/git
+          - rev-parse
+          - --verify
+          - --quiet
+          - HEAD
+        chdir: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops"
+      register: gitops__head
+      changed_when: false
+      failed_when: gitops__head.rc not in [0, 1]
+
+    - name: Git | Stage the initial workspace
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/git
+          - add
+          - --all
+        chdir: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops"
+      changed_when: true
+      when: gitops__head.rc == 1
+
+    - name: Git | Commit the initial workspace
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/git
+          - -c
+          - user.name=Ansible
+          - -c
+          - user.email=ansible@localhost
+          - commit
+          - --no-gpg-sign
+          - -m
+          - Initialize GitOps workspace
+        chdir: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops"
+      changed_when: true
+      when: gitops__head.rc == 1

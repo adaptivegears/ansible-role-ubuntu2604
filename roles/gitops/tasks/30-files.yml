@@ -1,0 +1,17 @@
+---
+# -----------------------------------------------------------------------------
+# Files
+# -----------------------------------------------------------------------------
+# Overlay the scaffold without deleting host-only files, state, or caches. Later
+# copies intentionally overwrite matching files and remain visible in Git.
+# -----------------------------------------------------------------------------
+
+- name: Files | Copy GitOps scaffold into the user workspace
+  become: true
+  ansible.builtin.copy:
+    src: gitops/
+    dest: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops/"
+    owner: "{{ gitops_user }}"
+    group: "{{ ansible_facts.getent_passwd[gitops_user][2] }}"
+    mode: preserve
+    directory_mode: "0700"

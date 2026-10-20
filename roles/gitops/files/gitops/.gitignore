@@ -1,0 +1,5 @@
+# Local OpenTofu state and runtime caches must not enter Git.
+.terraform/
+.terragrunt-cache/
+*.tfstate
+*.tfstate.*

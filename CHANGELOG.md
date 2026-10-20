@@ -4,6 +4,8 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.21] - 2026-10-20
+
 ### Added
 - **K8up backup operator**: Add `32-k8up` with matching chart/CRDs `4.10.0` (operator `v2.16.0`), the `k8up-system` namespace, and global Backblaze B2/Restic settings. Credentials come from SOPS-backed Kubernetes Secret references; credential changes restart the operator. PVC selection is opt-in, Helm cleanup hooks are excluded, and no backup schedules or PVC annotations are created automatically.
 

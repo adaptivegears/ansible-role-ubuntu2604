@@ -74,5 +74,5 @@ def test_runtime_state_and_caches_are_ignored(host, workspace):
     assert result.stdout.splitlines() == list(IGNORED_PATHS)
 
 
-def test_provider_lock_file_is_not_ignored(host, workspace):
-    assert git_command(host, workspace, "check-ignore", "--no-index", ".terraform.lock.hcl").rc == 1
+def test_provider_lock_file_is_ignored(host, workspace):
+    assert git_command(host, workspace, "check-ignore", "--no-index", ".terraform.lock.hcl").rc == 0

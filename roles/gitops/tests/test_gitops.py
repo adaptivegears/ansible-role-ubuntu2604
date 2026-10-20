@@ -145,7 +145,7 @@ def test_workload_directory_is_private_and_user_owned(host, workspace, name):
 
 
 @pytest.mark.parametrize("name", (
-    ".envrc", ".gitignore", ".sops.yaml", ".opentofu-version", ".terragrunt-version",
+    ".envrc", ".gitignore", ".sops.yaml", "root.hcl", ".opentofu-version", ".terragrunt-version",
     "20-cert-manager/terraform.tf", "20-cert-manager/terraform.tfvars.yaml",
     "20-cert-manager/terragrunt.hcl",
     "30-openebs/terraform.tf", "30-openebs/terraform.tfvars.yaml",
@@ -193,6 +193,7 @@ def test_repository_has_a_baseline_commit(host, workspace):
 IGNORED_PATHS = (
     ".terraform/provider",
     ".terragrunt-cache/module",
+    "backend.tf",
     "terraform.tfstate",
     "terraform.tfstate.backup",
     "40-forgejo/terraform.tfvars.yaml",
@@ -211,14 +212,71 @@ def test_provider_lock_file_is_ignored(host, workspace):
 
 
 # -----------------------------------------------------------------------------
-# SOPS inputs
+# Durable local state
 # -----------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("cached_paths, accepted", (
+    ([], True),
+    (["/home/operator/gitops/.terragrunt-cache/unit/.terraform/terraform.tfstate"], True),
+    (["/home/operator/gitops/.terragrunt-cache/unit/terraform.tfstate"], False),
+    (["/home/operator/gitops/.terragrunt-cache/unit/terraform.tfstate.backup"], False),
+    (["/home/operator/gitops/.terragrunt-cache/unit/terraform.tfstate.d/staging/terraform.tfstate"], False),
+))
+def test_legacy_state_guard_distinguishes_resource_state_from_backend_metadata(cached_paths, accepted):
+    role = Path(__file__).resolve().parents[1]
+    tasks = yaml.safe_load((role / "tasks/11-state.yml").read_text())[0]["block"]
+    guard = next(task for task in tasks if task["name"] == "State | Require explicit migration of legacy state")
+    environment = Environment()
+    environment.tests["search"] = AnsibleTestModule().tests()["search"]
+    context = {"gitops__cached_states": {"files": [{"path": path} for path in cached_paths]}}
+    conditions = guard["ansible.builtin.assert"]["that"]
+    assert all(environment.compile_expression(condition)(**context) for condition in conditions) is accepted
+    ordered = yaml.safe_load((role / "tasks/main.yml").read_text())
+    imports = [task["ansible.builtin.import_tasks"] for task in ordered]
+    assert imports.index("11-state.yml") < imports.index("30-files.yml")
+    directories = next(task for task in tasks if task["name"] == "State | Create private permanent state directories")
+    assert directories["ansible.builtin.file"]["mode"] == "0700"
+    assert "/.local/state/gitops/" in directories["ansible.builtin.file"]["path"]
 
 
 WORKLOADS = (
     "10-gateway-api", "11-istio-base", "12-istiod", "13-istio-gateway", "20-cert-manager",
     "21-letsencrypt", "30-openebs", "31-cnpg", "40-forgejo", "41-forgejo-runner",
 )
+
+
+@pytest.mark.parametrize("name", WORKLOADS)
+def test_state_directories_are_private_and_outside_checkout(host, workspace, name):
+    user, _directory = workspace
+    base = user.home + "/.local/state/gitops"
+    for path in (base, base + "/" + name, base + "/" + name + "/workspaces"):
+        item = host.file(path)
+        assert item.is_directory
+        assert item.user == user.name and item.gid == user.gid
+        assert item.mode == 0o700
+    state = host.file(base + "/" + name + "/terraform.tfstate")
+    if state.exists:
+        assert state.is_file
+        assert state.user == user.name and state.gid == user.gid
+        assert state.mode == 0o600
+
+
+@pytest.mark.parametrize("name", WORKLOADS)
+def test_workload_inherits_absolute_state_backend(name):
+    root = Path(__file__).resolve().parents[1] / "files/gitops"
+    hcl = (root / name / "terragrunt.hcl").read_text()
+    assert 'include "root"' in hcl and 'find_in_parent_folders("root.hcl")' in hcl
+    assert 'backend "local"' not in (root / name / "terraform.tf").read_text()
+    shared = (root / "root.hcl").read_text()
+    assert re.search(r'backend\s*=\s*"local"', shared)
+    assert '${get_env("HOME")}/.local/state/gitops/${path_relative_to_include()}/terraform.tfstate' in shared
+    assert '${get_env("HOME")}/.local/state/gitops/${path_relative_to_include()}/workspaces' in shared
+
+
+# -----------------------------------------------------------------------------
+# SOPS inputs
+# -----------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("name", WORKLOADS)

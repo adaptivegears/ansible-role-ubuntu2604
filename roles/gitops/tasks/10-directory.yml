@@ -3,7 +3,7 @@
 # Directory
 # -----------------------------------------------------------------------------
 # Resolve the account's home instead of using HOME, which escalation may change.
-# Keep the workspace private because OpenTofu state may contain sensitive values.
+# Keep the workspace private because inputs and saved plans may contain secrets.
 # -----------------------------------------------------------------------------
 
 - name: Directory | Read workspace owner account

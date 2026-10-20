@@ -1,0 +1,51 @@
+---
+# -----------------------------------------------------------------------------
+# Durable state
+# -----------------------------------------------------------------------------
+# A relative local backend can leave authoritative state in disposable caches.
+# Refuse to overlay the new backend until legacy state has been migrated; never
+# mistake backend metadata under .terraform for authoritative resource state.
+# -----------------------------------------------------------------------------
+
+- name: State | Prepare durable state storage
+  become: true
+  block:
+    - name: State | Inspect existing Terragrunt cache
+      ansible.builtin.stat:
+        path: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops/.terragrunt-cache"
+      register: gitops__cache
+
+    - name: State | Find legacy cached state
+      ansible.builtin.find:
+        paths: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/gitops/.terragrunt-cache"
+        patterns: "terraform.tfstate*"
+        recurse: true
+        hidden: true
+        file_type: file
+      register: gitops__cached_states
+      when: gitops__cache.stat.exists
+
+    - name: State | Require explicit migration of legacy state
+      ansible.builtin.assert:
+        that:
+          - >-
+            gitops__cached_states.files | default([])
+            | rejectattr('path', 'search', '/[.]terraform/') | list | length == 0
+        fail_msg: >-
+          Authoritative state exists in the Terragrunt cache. Stop and migrate it
+          to ~/.local/state/gitops/<workload>/ before updating the scaffold.
+          Do not delete the cache to bypass this check: it contains live state.
+
+    - name: State | Create private permanent state directories
+      ansible.builtin.file:
+        path: "{{ ansible_facts.getent_passwd[gitops_user][4] }}/.local/state/gitops/{{ item }}"
+        state: directory
+        owner: "{{ gitops_user }}"
+        group: "{{ ansible_facts.getent_passwd[gitops_user][2] }}"
+        mode: "0700"
+      loop: "{{ [''] + gitops__state_workloads + (gitops__state_workloads | map('regex_replace', '$', '/workspaces') | list) }}"
+      vars:
+        gitops__state_workloads: >-
+          {{ query('community.general.filetree', role_path ~ '/files/gitops/')
+             | selectattr('state', 'equalto', 'file') | selectattr('path', 'match', '^[^/]+/terragrunt[.]hcl$')
+             | map(attribute='path') | map('dirname') | list }}

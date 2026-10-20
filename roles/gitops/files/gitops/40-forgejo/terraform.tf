@@ -5,10 +5,6 @@
 terraform {
   required_version = "~> 1.12.0"
 
-  backend "local" {
-    path = "terraform.tfstate"
-  }
-
   required_providers {
     kustomization = {
       source  = "kbst/kustomization"

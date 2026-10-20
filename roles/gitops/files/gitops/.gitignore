@@ -1,5 +1,6 @@
 # Local OpenTofu state, provider lock files, and runtime caches must not enter Git.
 .terraform.lock.hcl
+backend.tf
 .terraform/
 .terragrunt-cache/
 *.tfstate

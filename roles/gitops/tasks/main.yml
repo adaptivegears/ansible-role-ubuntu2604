@@ -2,6 +2,9 @@
 - name: Directory | Import workspace creation
   ansible.builtin.import_tasks: 10-directory.yml
 
+- name: State | Import durable backend storage
+  ansible.builtin.import_tasks: 11-state.yml
+
 - name: Git | Import repository initialization
   ansible.builtin.import_tasks: 20-git-init.yml
 

@@ -1,6 +1,6 @@
 # GitOps
 
-Creates `~/gitops` for `gitops_user`, defaulting to the invoking/SSH user. The directory belongs to that user and their primary group, with mode `0700` to protect potentially sensitive OpenTofu state.
+Creates `~/gitops` for `gitops_user`, defaulting to the invoking/SSH user. The directory belongs to that user and their primary group, with mode `0700` to protect instance-specific inputs and saved plans.
 
 Run locally with `ansible-playbook andreygubarev.com.gitops`; use `-e gitops_user=operator` to select another existing user. The playbook does not apply other roles or cluster workloads. Set `gitops_git_user_name` and `gitops_git_user_email` on first use; both are mandatory and saved in the repository's `.git/config`. Later runs reuse those values unless explicitly overridden. Global Git identity and auto-detected system identity are not used as fallbacks.
 
@@ -10,7 +10,9 @@ The role copies `files/gitops/` into the workspace on every run, including dotfi
 
 Git is installed and the workspace is initialized as a repository before copying the scaffold. After copying, the first application creates a baseline commit using the validated repository identity; global Git settings are not changed. An existing `.git` prevents reinitialization, and an existing `HEAD` prevents another automatic commit. Subsequent overlays remain uncommitted for review with `git status` and `git diff`.
 
-The scaffold includes `.envrc`, pinned OpenTofu/Terragrunt versions, and a `.gitignore` excluding local state and runtime caches. The provider lock file is also ignored. The role does not authorize direnv or run OpenTofu/Terragrunt commands.
+Shared `root.hcl` generates a local backend with absolute paths under `~/.local/state/gitops/<workload>/`, including a separate directory for named workspaces. State directories are private (`0700`) and independent of checkout/cache paths. Renaming a workload changes its state identity and requires migration. Existing authoritative state in the default Terragrunt cache blocks scaffold updates until explicitly migrated; never delete that cache to bypass the guard.
+
+The scaffold includes `.envrc`, pinned OpenTofu/Terragrunt versions, and a `.gitignore` excluding generated backend files, local state and runtime caches. The provider lock file is also ignored. The role does not authorize direnv or run OpenTofu/Terragrunt commands.
 
 ## Workloads
 

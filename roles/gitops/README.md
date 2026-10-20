@@ -15,9 +15,12 @@ The scaffold includes `.envrc`, pinned OpenTofu/Terragrunt versions, and a `.git
 - `10-gateway-api`: Standard Gateway API CRDs.
 - `11-istio-base`: The `istio-system` namespace and Istio base chart.
 - `12-istiod`: The Istio control plane, with automatic Gateway Deployment/Service provisioning disabled.
+- `20-cert-manager`: The `cert-manager` namespace and cert-manager chart, including CRDs and Gateway API integration. No Issuer, ClusterIssuer, or ACME account is created.
 
 The role installs Helm `3.22.1` system-wide at `/usr/local/bin/helm`, linked to a versioned binary under `/usr/local/lib/helm/`. Downloads for amd64/arm64 are verified against the upstream SHA256 checksum. Override `gitops_helm_version` with an exact Helm 3 version; Helm 4 is not accepted because the Kustomize version embedded in `kbst/kustomization` requires Helm 3. Installing Helm does not install or apply charts.
 
 Both Istio charts default to `1.31.2`; keep their `istio_version` overrides aligned.
 
-For Terragrunt `run --all`, Istiod declares ordering dependencies on Gateway API and Istio base. Single-workload commands do not apply dependencies automatically: apply Gateway API and base before Istiod, and destroy Istiod before base.
+cert-manager defaults to `v1.21.2` from the upstream OCI registry; override `cert_manager_version` in its `terraform.tfvars.yaml`. Gateway API integration uses `config.gatewayAPI.enabled`, replacing the deprecated `enableGatewayAPI` setting.
+
+For Terragrunt `run --all`, Istiod declares ordering dependencies on Gateway API and Istio base; cert-manager depends on Gateway API so its CRDs are present when the controller starts. Single-workload commands do not apply dependencies automatically: apply Gateway API before cert-manager, apply Gateway API and base before Istiod, and destroy cert-manager and Istiod before their dependencies.

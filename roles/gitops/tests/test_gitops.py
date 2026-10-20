@@ -48,7 +48,20 @@ def test_workspace_is_private_and_user_owned(host, workspace):
     assert folder.mode == 0o700
 
 
-@pytest.mark.parametrize("name", (".envrc", ".gitignore", ".opentofu-version", ".terragrunt-version"))
+def test_cert_manager_directory_is_private_and_user_owned(host, workspace):
+    user, directory = workspace
+    folder = host.file(directory + "/20-cert-manager")
+    assert folder.is_directory
+    assert folder.user == user.name
+    assert folder.gid == user.gid
+    assert folder.mode == 0o700
+
+
+@pytest.mark.parametrize("name", (
+    ".envrc", ".gitignore", ".opentofu-version", ".terragrunt-version",
+    "20-cert-manager/terraform.tf", "20-cert-manager/terraform.tfvars.yaml",
+    "20-cert-manager/terragrunt.hcl",
+))
 def test_scaffold_file_is_user_owned(host, workspace, name):
     user, directory = workspace
     item = host.file(f"{directory}/{name}")

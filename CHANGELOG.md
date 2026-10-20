@@ -4,6 +4,8 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.5] - 2026-10-20
+
 ### Changed
 - **Kubernetes task layout**: Split the role into numbered task files with static imports. Application task order and behavior are preserved; preflight/configuration run with `always`.
 - **Ubuntu task layout**: Split the role into numbered task files with explicit static imports in `tasks/main.yml`. Task order, tags, conditions, and handler behavior are unchanged.

@@ -1,7 +1,7 @@
 ---
 namespace: andreygubarev
 name: com
-version: 2026.10.5
+version: 2026.10.6
 readme: README.md
 authors:
   - Andrey Gubarev
@@ -23,6 +23,7 @@ build_ignore:
   - .cache
   - .env
   - .envrc
+  - .github
   - .gitignore
   - .pytest_cache
   - .venv

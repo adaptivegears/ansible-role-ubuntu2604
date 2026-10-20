@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.6] - 2026-10-20
+
+### Added
+- **Automated Galaxy publishing**: GitHub Actions runs `make publish` when a numeric version tag without a `v` prefix is pushed, after checking that the tag matches `galaxy.yml`. Authentication uses the repository secret `GALAXY_API_KEY`.
+
 ## [2026.10.5] - 2026-10-20
 
 ### Changed

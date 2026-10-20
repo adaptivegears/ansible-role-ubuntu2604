@@ -51,13 +51,31 @@ make test ANSIBLE_ROLE_DIR=roles/kubernetes TESTINFRA_HOSTS=local://
 
 ## Publish
 
-Obtain a [Galaxy API token](https://galaxy.ansible.com/ui/token/) with access to the `andreygubarev` namespace. Store it outside the repository in `~/.ansible/galaxy_token` with permissions `0600`:
+Obtain a [Galaxy API token](https://galaxy.ansible.com/ui/token/) with access to the `andreygubarev` namespace.
+
+### GitHub Actions
+
+Add the token as the repository Actions secret `GALAXY_API_KEY`. The workflow in `.github/workflows/ci.yml` publishes to Galaxy when a numeric version tag is pushed, without a `v` prefix.
+
+Update `version` in `galaxy.yml` and `CHANGELOG.md`, commit the release, then tag that commit and push:
+
+```bash
+git tag 2026.10.6
+git push origin HEAD
+git push origin 2026.10.6
+```
+
+The tag must exactly match `version` in `galaxy.yml`. The workflow runs `make publish`, which checks the collection, builds a fresh artifact, and waits for Galaxy import validation. Published versions are immutable; rerunning a successful publication does not overwrite them.
+
+### Local publishing
+
+Store the token outside the repository in `~/.ansible/galaxy_token` with permissions `0600`:
 
 ```yaml
 token: <your-galaxy-api-token>
 ```
 
-Increment `version` in `galaxy.yml`, then run `make publish`. It publishes a fresh artifact for that version and waits for import validation. Published versions are immutable.
+Increment `version` in `galaxy.yml`, then run `make publish`.
 
 ## Project
 

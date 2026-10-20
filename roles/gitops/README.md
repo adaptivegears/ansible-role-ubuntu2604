@@ -17,6 +17,7 @@ The scaffold includes `.envrc`, pinned OpenTofu/Terragrunt versions, and a `.git
 - `12-istiod`: The Istio control plane, with automatic Gateway Deployment/Service provisioning disabled.
 - `20-cert-manager`: The `cert-manager` namespace and cert-manager chart, including CRDs and Gateway API integration. No Issuer, ClusterIssuer, or ACME account is created.
 - `30-openebs`: The `openebs` namespace and OpenEBS LocalPV Hostpath provisioner. `openebs-hostpath` is the default StorageClass; `openebs-hostpath-retain` provides an explicit Retain alternative.
+- `31-cnpg`: The `cnpg-system` namespace and cluster-wide CloudNativePG operator, including CRDs. No PostgreSQL clusters or databases are created.
 
 The role installs Helm `3.22.1` system-wide at `/usr/local/bin/helm`, linked to a versioned binary under `/usr/local/lib/helm/`. Downloads for amd64/arm64 are verified against the upstream SHA256 checksum. Override `gitops_helm_version` with an exact Helm 3 version; Helm 4 is not accepted because the Kustomize version embedded in `kbst/kustomization` requires Helm 3. Installing Helm does not install or apply charts.
 
@@ -25,5 +26,7 @@ Both Istio charts default to `1.31.2`; keep their `istio_version` overrides alig
 cert-manager defaults to `v1.21.2` from the upstream OCI registry; override `cert_manager_version` in its `terraform.tfvars.yaml`. Gateway API integration uses `config.gatewayAPI.enabled`, replacing the deprecated `enableGatewayAPI` setting.
 
 OpenEBS defaults to `4.6.2`; override `openebs_version` in its `terraform.tfvars.yaml`. LVM, ZFS, Rawfile, Mayastor, Loki (including MinIO), and Alloy are disabled. Both Hostpath classes use `/var/openebs/local` and `WaitForFirstConsumer`; the default class uses `Delete`, while the Retain class keeps volumes after PVC deletion for manual recovery. Local storage is not replicated or backed up by this workload. Other default StorageClasses are not modified; review them before applying to avoid multiple defaults. OpenEBS has no ordering dependencies on the other workloads.
+
+CloudNativePG defaults to chart `0.29.1` (operator `1.30.1`); override the chart version through `cnpg_version` in its `terraform.tfvars.yaml`. The operator has no ordering dependencies on OpenEBS or cert-manager; provision storage before creating PostgreSQL clusters separately.
 
 For Terragrunt `run --all`, Istiod declares ordering dependencies on Gateway API and Istio base; cert-manager depends on Gateway API so its CRDs are present when the controller starts. Single-workload commands do not apply dependencies automatically: apply Gateway API before cert-manager, apply Gateway API and base before Istiod, and destroy cert-manager and Istiod before their dependencies.

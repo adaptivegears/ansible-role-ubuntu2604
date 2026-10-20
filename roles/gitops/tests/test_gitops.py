@@ -48,7 +48,7 @@ def test_workspace_is_private_and_user_owned(host, workspace):
     assert folder.mode == 0o700
 
 
-@pytest.mark.parametrize("name", ("20-cert-manager", "30-openebs"))
+@pytest.mark.parametrize("name", ("20-cert-manager", "30-openebs", "31-cnpg"))
 def test_workload_directory_is_private_and_user_owned(host, workspace, name):
     user, directory = workspace
     folder = host.file(f"{directory}/{name}")
@@ -64,6 +64,7 @@ def test_workload_directory_is_private_and_user_owned(host, workspace, name):
     "20-cert-manager/terragrunt.hcl",
     "30-openebs/terraform.tf", "30-openebs/terraform.tfvars.yaml",
     "30-openebs/terragrunt.hcl",
+    "31-cnpg/terraform.tf", "31-cnpg/terraform.tfvars.yaml", "31-cnpg/terragrunt.hcl",
 ))
 def test_scaffold_file_is_user_owned(host, workspace, name):
     user, directory = workspace

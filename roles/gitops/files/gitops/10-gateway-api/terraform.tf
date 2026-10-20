@@ -28,7 +28,7 @@ provider "kustomization" {
 variable "gateway_api_version" {
   description = "Gateway API release version without the v prefix."
   type        = string
-  default     = "1.5.0"
+  default     = "1.6.3"
 }
 
 # ---------------------------------------------------------------------------
@@ -37,7 +37,7 @@ variable "gateway_api_version" {
 
 data "kustomization_overlay" "this" {
   resources = [
-    "github.com/kubernetes-sigs/gateway-api/config/crd/experimental?ref=v${var.gateway_api_version}",
+    "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v${var.gateway_api_version}",
   ]
 }
 

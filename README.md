@@ -17,7 +17,7 @@ ansible-galaxy collection install andreygubarev.com --upgrade
 Run on the machine to configure. No inventory or SSH connection is required; add `-K` if sudo requires a password.
 
 ```bash
-ansible-playbook andreygubarev.com.ubuntu2604
+ansible-playbook andreygubarev.com.ubuntu2604 -e ubuntu2604_hostname=worker-1
 ansible-playbook andreygubarev.com.kubernetes -e kubernetes_cluster_name=my-cluster
 ```
 
@@ -28,9 +28,8 @@ ansible-playbook andreygubarev.com.kubernetes -e kubernetes_cluster_name=my-clus
 
 The playbooks are independent. Kubernetes does not automatically apply the Ubuntu role.
 
-- `ubuntu2604_hostname` is optional and remembered after being supplied once.
-- `kubernetes_cluster_name` is required once, then reused from local facts. Renaming is rejected.
-- Other overrides must remain in inventory/playbooks or be supplied on each run.
+- Ubuntu requires `ubuntu2604_hostname` once and remembers the complete validated configuration, including defaults. Future runs need no repeated overrides; supply a new value once to change a setting.
+- Kubernetes requires `kubernetes_cluster_name` once, then reuses it from local facts. Renaming is rejected; other Kubernetes overrides still need to be supplied on each run or kept in inventory/playbooks.
 
 **Ubuntu baseline:** requires SSH authorized keys, disables password authentication, removes all snap data, and regenerates SSH host keys on first configuration. Review the quickstart before use.
 

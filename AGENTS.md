@@ -37,6 +37,7 @@ Every changed line should trace directly to the user request or to keeping that 
 
 - The `ubuntu2604` role configures Ubuntu 26.04 VMs that are expected to actively run container workloads.
 - Prefer host defaults that support container networking, dense service processes, and predictable VM recovery.
+- Keep all public Ubuntu settings in `defaults/main.yml`, resolving saved facts before fallback defaults. Validate and persist the complete configuration before application; hostname is required on first use.
 
 ## Kubernetes role target
 

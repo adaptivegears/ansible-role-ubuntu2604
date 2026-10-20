@@ -2,8 +2,11 @@
 - name: Prerequisite | Import checks
   ansible.builtin.import_tasks: 00-prerequisites.yml
 
+- name: Configuration | Import desired settings
+  ansible.builtin.import_tasks: 01-configuration.yml
+
 - name: Hostname | Import configuration
-  ansible.builtin.import_tasks: 01-hostname.yml
+  ansible.builtin.import_tasks: 02-hostname.yml
 
 - name: Kernel | Import modules
   ansible.builtin.import_tasks: 10-kernel-modules.yml

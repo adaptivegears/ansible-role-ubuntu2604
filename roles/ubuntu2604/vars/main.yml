@@ -1,1 +1,3 @@
 ---
+# Local facts supply fallbacks; public variables and their defaults remain in defaults/main.yml.
+ubuntu2604__facts: "{{ ansible_facts.get('ansible_local', {}).get('ubuntu2604', {}) }}"

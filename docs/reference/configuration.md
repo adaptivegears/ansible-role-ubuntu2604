@@ -2,9 +2,9 @@
 
 ## Variables
 
-| Variable | Default | Effect |
+| Variable | Initial fallback | Effect |
 |---|---|---|
-| `ubuntu2604_hostname` | Current name unless saved | Optional persistent hostname; see below |
+| `ubuntu2604_hostname` | Required once | Mandatory hostname; reused from saved settings |
 | `ubuntu2604_disable_ipv6` | `true` | Disable IPv6; set `false` for IPv6/dual-stack workloads |
 | `ubuntu2604_locale` | `en_US.UTF-8` | Generated system locale |
 | `ubuntu2604_timezone` | `UTC` | System timezone |
@@ -12,7 +12,15 @@
 | `ubuntu2604_ssh_allow_tcp_forwarding` | `false` | Allow SSH TCP forwarding |
 | `ubuntu2604_ssh_port` | `22` | SSH service/socket listener port |
 
-Only the hostname is remembered. Supply other overrides on every run or keep them in inventory/playbooks. See [defaults](../../roles/ubuntu2604/defaults/main.yml).
+All public variables remain in [defaults/main.yml](../../roles/ubuntu2604/defaults/main.yml). Their precedence is **explicit Ansible input → saved settings → fallback defaults**.
+
+## Persistence
+
+The complete validated configuration, including defaults, is saved to `/etc/ansible/facts.d/ubuntu2604.fact` before application. Later runs need no repeated overrides; changed role defaults do not reset an existing host. Invalid input is rejected before writing. Failed application retains the desired settings for retry; `--check` never writes them.
+
+The JSON keys omit the `ubuntu2604_` prefix. Boolean values and CLI port strings are normalized to booleans and integers. Unknown existing fact keys are retained. Older hostname-only files are supported; supply other existing custom settings once when upgrading.
+
+Configuration processing uses `always`, including selective runs. Root SSH auto-preservation is a runtime rule and does not change the saved `ssh_allow_root_login` choice.
 
 ## `ubuntu2604_hostname`
 
@@ -20,11 +28,11 @@ Accepts a lowercase DNS hostname or FQDN: at most 64 characters total and 63 per
 
 | Input | Behavior |
 |---|---|
-| Explicit name | Apply and save it; preserve other fact keys |
-| Omitted, saved name exists | Reuse it without rewriting the fact |
-| Omitted, no saved name | Leave hostname, hosts mapping, and cloud-init policy unchanged |
+| Explicit name | Validate, save, and apply it |
+| Omitted, saved name exists | Reuse it |
+| Omitted, no saved name | Fail before any configuration is written |
 
-The variable has no role default. Explicit values are saved after successful application in `/etc/ansible/facts.d/ubuntu2604.fact` under `hostname`, available as `ansible_facts['ansible_local']['ubuntu2604']['hostname']`.
+The public default resolves the saved name or an empty, invalid first-run value. The saved name is available as `ansible_facts['ansible_local']['ubuntu2604']['hostname']`.
 
 The role manages the runtime/static hostname and the `127.0.1.1` hosts entry, including a short alias for FQDNs. When cloud-init is installed, a drop-in sets `preserve_hostname: true` and `manage_etc_hosts: false`.
 
@@ -65,7 +73,7 @@ Exact values and package lists are defined in [numbered task files](../../roles/
 
 | Tag | Scope |
 |---|---|
-| `hostname` | Hostname, hosts mapping, cloud-init policy, saved name |
+| `hostname` | Hostname, hosts mapping, cloud-init policy |
 | `kernel` | Modules, sysctls, PAM limits, transparent hugepages |
 | `network` | Sysctls and prerequisite modules |
 | `ssh` | SSH configuration, host keys, access checks |
@@ -83,6 +91,6 @@ Exact values and package lists are defined in [numbered task files](../../roles/
 | `snap` | Purge snaps/data and block snapd |
 | `motd` | Login-message cleanup |
 
-OS/architecture checks and the cloud-init barrier use `always`; do not skip them. To retain snaps, use `--skip-tags snap`, including when selecting `apt` or `packages`.
+OS/architecture checks, the cloud-init barrier, and configuration validation/persistence use `always`; do not skip them. To retain snaps, use `--skip-tags snap`, including when selecting `apt` or `packages`.
 
 [Quickstart](../getting-started/quickstart.md)

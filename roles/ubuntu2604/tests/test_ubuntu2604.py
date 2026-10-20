@@ -55,105 +55,119 @@ def test_role_owned_text_file_has_source_breadcrumb(host, path):
 
 
 # -----------------------------------------------------------------------------
-# Hostname
+# Configuration and hostname
 # -----------------------------------------------------------------------------
 
 
-HOSTNAME_FACT = "/etc/ansible/facts.d/ubuntu2604.fact"
+SETTINGS_FACT = "/etc/ansible/facts.d/ubuntu2604.fact"
 HOSTNAME_CLOUD_CONFIG = "/etc/cloud/cloud.cfg.d/99-ubuntu2604-hostname.cfg"
+DEFAULT_OPTIONAL_SETTINGS = {
+    "disable_ipv6": True,
+    "locale": "en_US.UTF-8",
+    "timezone": "UTC",
+    "ssh_allow_root_login": False,
+    "ssh_allow_tcp_forwarding": False,
+    "ssh_port": 22,
+}
 
 
 @pytest.fixture
-def hostname_contract():
-    tasks_file = Path(__file__).resolve().parents[1] / "tasks/01-hostname.yml"
-    tasks = yaml.safe_load(tasks_file.read_text())
-    block = next(task for task in tasks if task["name"] == "Hostname | Configure hostname")
+def configuration_contract():
+    role = Path(__file__).resolve().parents[1]
+    block = yaml.safe_load((role / "tasks/01-configuration.yml").read_text())[0]
+    defaults = yaml.safe_load((role / "defaults/main.yml").read_text())
     environment = Environment()
     filters = FilterModule().filters()
-    environment.filters.update({name: filters[name] for name in ("combine", "to_nice_json")})
+    environment.filters.update({name: filters[name] for name in ("bool", "combine", "to_nice_json")})
     environment.tests["match"] = AnsibleTestModule().tests()["match"]
-    return {task["name"]: task for task in tasks + block["block"]}, environment
+    return {task["name"]: task for task in block["block"]}, defaults, environment
 
 
 @pytest.mark.parametrize(
-    "saved, overrides, expected, managed, persisted",
+    "saved, overrides, expected",
     (
-        ({}, {}, "image-host", False, False),
-        ({"hostname": "saved-host"}, {}, "saved-host", True, False),
-        ({}, {"ubuntu2604_hostname": "new-host"}, "new-host", True, True),
-        ({"hostname": "saved-host"}, {"ubuntu2604_hostname": "new-host"}, "new-host", True, True),
-        ({"hostname": "saved-host"}, {"ubuntu2604_hostname": ""}, "", True, True),
+        ({}, {"ubuntu2604_hostname": "node-1"}, {**DEFAULT_OPTIONAL_SETTINGS, "hostname": "node-1"}),
+        (
+            {"hostname": "saved-host", "ssh_port": 22022, "disable_ipv6": False},
+            {},
+            {**DEFAULT_OPTIONAL_SETTINGS, "hostname": "saved-host", "ssh_port": 22022, "disable_ipv6": False},
+        ),
+        (
+            {"hostname": "old-host", "other_setting": "keep", "ssh_port": 22022},
+            {"ubuntu2604_hostname": "new-host", "ubuntu2604_ssh_port": "022", "ubuntu2604_disable_ipv6": "0"},
+            {**DEFAULT_OPTIONAL_SETTINGS, "hostname": "new-host", "other_setting": "keep", "disable_ipv6": False},
+        ),
     ),
 )
-def test_hostname_selection_and_persistence_policy(
-    hostname_contract, saved, overrides, expected, managed, persisted
-):
-    tasks, environment = hostname_contract
-    context = {"ansible_facts": {"hostname": "image-host"}, "ubuntu2604__settings": saved, **overrides}
-    expression = tasks["Hostname | Select effective hostname"]["ansible.builtin.set_fact"]["ubuntu2604__hostname"]
-
-    assert environment.from_string(expression).render(**context) == expected
-    for task_name, enabled in (
-        ("Hostname | Configure hostname", managed),
-        ("Hostname | Save explicit hostname", persisted),
-    ):
-        condition = tasks[task_name]["when"]
-        assert environment.from_string("{{ " + condition + " }}").render(**context) == str(enabled)
+def test_configuration_precedence_and_complete_snapshot(configuration_contract, saved, overrides, expected):
+    tasks, defaults, environment = configuration_contract
+    assert set(defaults) == {"ubuntu2604_" + key for key in ["hostname", *DEFAULT_OPTIONAL_SETTINGS]}
+    context = {"ubuntu2604__facts": saved}
+    context.update({
+        name: environment.compile_expression(value[2:-2].strip())(**context)
+        for name, value in defaults.items()
+    })
+    context.update(overrides)
+    expression = tasks["Configuration | Prepare complete settings snapshot"]["ansible.builtin.set_fact"]["ubuntu2604__vars"]
+    actual = environment.compile_expression(expression.strip()[2:-2].strip())(**context)
+    assert actual == expected
+    assert type(actual["ssh_port"]) is int
+    assert type(actual["disable_ipv6"]) is bool
+    copy = tasks["Configuration | Save complete desired settings"]["ansible.builtin.copy"]
+    assert copy["dest"] == SETTINGS_FACT
+    assert json.loads(environment.from_string(copy["content"]).render(ubuntu2604__vars=actual)) == expected
 
 
 @pytest.mark.parametrize(
-    "hostname, valid",
+    "task, name, value, valid",
     (
-        ("node-1", True),
-        ("node-1.example.com", True),
-        ("", False),
-        (False, False),
-        (0, False),
-        ("Node-1", False),
-        ("bad name", False),
-        ("-node", False),
-        ("node..example.com", False),
-        ("x" * 65, False),
+        ("Validate required hostname", "hostname", "node-1.example.com", True),
+        ("Validate required hostname", "hostname", "", False),
+        ("Validate required hostname", "hostname", False, False),
+        ("Validate required hostname", "hostname", "Node-1", False),
+        ("Validate required hostname", "hostname", "node..example.com", False),
+        ("Validate required hostname", "hostname", "x" * 65, False),
+        ("Validate string settings", "locale", "C.UTF-8", True),
+        ("Validate string settings", "locale", "", False),
+        ("Validate string settings", "timezone", None, False),
+        ("Validate boolean settings", "disable_ipv6", False, True),
+        ("Validate boolean settings", "disable_ipv6", "false", True),
+        ("Validate boolean settings", "ssh_allow_root_login", "0", True),
+        ("Validate boolean settings", "ssh_allow_tcp_forwarding", "invalid", False),
+        ("Validate boolean settings", "disable_ipv6", "", False),
+        ("Validate SSH port", "ssh_port", 22022, True),
+        ("Validate SSH port", "ssh_port", "022", True),
+        ("Validate SSH port", "ssh_port", 0, False),
+        ("Validate SSH port", "ssh_port", 65536, False),
+        ("Validate SSH port", "ssh_port", True, False),
     ),
 )
-def test_hostname_validation(hostname_contract, hostname, valid):
-    tasks, environment = hostname_contract
-    conditions = tasks["Hostname | Validate hostname"]["ansible.builtin.assert"]["that"]
-
-    assert all(
-        environment.from_string("{{ " + condition + " }}").render(ubuntu2604__hostname=hostname) == "True"
-        for condition in conditions
-    ) is valid
-
-
-def test_hostname_fact_preserves_other_settings(hostname_contract):
-    tasks, environment = hostname_contract
-    copy = tasks["Hostname | Save explicit hostname"]["ansible.builtin.copy"]
-    content = environment.from_string(copy["content"]).render(
-        ubuntu2604__settings={"hostname": "old-host", "other_setting": "keep"},
-        ubuntu2604__hostname="new-host",
-    )
-
-    assert copy["dest"] == HOSTNAME_FACT
-    assert copy["mode"] == "0644"
-    assert json.loads(content) == {"hostname": "new-host", "other_setting": "keep"}
-    defaults = Path(__file__).resolve().parents[1] / "defaults/main.yml"
-    assert "ubuntu2604_hostname" not in yaml.safe_load(defaults.read_text())
+def test_configuration_validation(configuration_contract, task, name, value, valid):
+    tasks, _defaults, environment = configuration_contract
+    public_name = "ubuntu2604_" + name
+    context = {public_name: value, "item": public_name}
+    context["lookup"] = lambda _plugin, key: context[key]
+    conditions = tasks["Configuration | " + task]["ansible.builtin.assert"]["that"]
+    assert all(environment.compile_expression(condition)(**context) for condition in conditions) is valid
 
 
 @pytest.fixture
-def saved_hostname(host):
-    fact = host.file(HOSTNAME_FACT)
-    if not fact.exists:
-        pytest.skip("No hostname has been explicitly configured")
-    settings = json.loads(fact.content_string)
-    if "hostname" not in settings:
-        pytest.skip("No hostname has been explicitly configured")
-
+def saved_settings(host):
+    fact = host.file(SETTINGS_FACT)
+    assert fact.exists
     assert fact.user == "root"
     assert fact.group == "root"
     assert fact.mode == 0o644
-    return settings["hostname"]
+    settings = json.loads(fact.content_string)
+    expected_types = {"hostname": str, **{key: type(value) for key, value in DEFAULT_OPTIONAL_SETTINGS.items()}}
+    for key, expected_type in expected_types.items():
+        assert type(settings[key]) is expected_type
+    return settings
+
+
+@pytest.fixture
+def saved_hostname(saved_settings):
+    return saved_settings["hostname"]
 
 
 def test_configured_hostname_is_persistent(host, saved_hostname):
@@ -232,9 +246,6 @@ EXPECTED_SYSCTLS = {
     "net.ipv4.tcp_max_syn_backlog": "65536",
     "net.ipv4.tcp_syncookies": "1",
     "net.ipv4.tcp_tw_reuse": "1",
-    "net.ipv6.conf.all.disable_ipv6": "1",
-    "net.ipv6.conf.default.disable_ipv6": "1",
-    "net.ipv6.conf.lo.disable_ipv6": "1",
     "net.netfilter.nf_conntrack_max": "1048576",
     "user.max_user_namespaces": "15000",
     "vm.max_map_count": "262144",
@@ -257,6 +268,28 @@ def test_sysctl_value_is_persistent(host, name, expected):
         f"[[:space:]]*{grep_literal(expected)}[[:space:]]*$"
     )
 
+    assert host.file(SYSCTL_CONFIG).contains(pattern)
+
+
+@pytest.mark.parametrize(
+    "name, enabled_value",
+    (
+        ("net.ipv6.conf.all.disable_ipv6", 0),
+        ("net.ipv6.conf.default.disable_ipv6", 0),
+        ("net.ipv6.conf.lo.disable_ipv6", 0),
+        ("net.ipv6.conf.all.accept_ra", 2),
+        ("net.ipv6.conf.default.accept_ra", 2),
+        ("net.ipv6.conf.all.forwarding", 1),
+        ("net.ipv6.conf.default.forwarding", 1),
+    ),
+)
+def test_saved_ipv6_policy_is_applied(host, saved_settings, name, enabled_value):
+    disabled = saved_settings["disable_ipv6"]
+    if not name.endswith("disable_ipv6") and disabled:
+        pytest.skip("IPv6 routing settings are only managed when IPv6 is enabled")
+    expected = str(int(disabled) if name.endswith("disable_ipv6") else enabled_value)
+    assert str(host.sysctl(name)) == expected
+    pattern = rf"^{grep_literal(name)}[[:space:]]*=[[:space:]]*{expected}$"
     assert host.file(SYSCTL_CONFIG).contains(pattern)
 
 
@@ -625,8 +658,6 @@ def test_operation_package_is_installed(host, package):
 
 SSHD_CONFIG = "/etc/ssh/sshd_config"
 SSHD_HARDENING_CONFIG = "/etc/ssh/sshd_config.d/00-ubuntu2604-hardening.conf"
-# Verify the role's default SSH port.
-EXPECTED_SSH_PORT = "22"
 # ssh-audit Ubuntu 26.04 server guide v1 (2026-06-14), including list order.
 EXPECTED_SSHD_KEY_ALGORITHMS = (
     "sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,"
@@ -634,7 +665,6 @@ EXPECTED_SSHD_KEY_ALGORITHMS = (
     "sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256"
 )
 EXPECTED_SSHD_HARDENING_SETTINGS = (
-    ("Port", "port", EXPECTED_SSH_PORT),
     ("LogLevel", "loglevel", "VERBOSE"),
     ("X11Forwarding", "x11forwarding", "no"),
     ("MaxAuthTries", "maxauthtries", "3"),
@@ -665,7 +695,6 @@ EXPECTED_SSHD_HARDENING_SETTINGS = (
     ("LoginGraceTime", "logingracetime", "60"),
     ("Banner", "banner", "none"),
     ("UsePAM", "usepam", "yes"),
-    ("AllowTcpForwarding", "allowtcpforwarding", "no"),
     ("MaxStartups", "maxstartups", "10:30:60"),
     ("MaxSessions", "maxsessions", "3"),
     ("PubkeyAuthentication", "pubkeyauthentication", "yes"),
@@ -759,8 +788,8 @@ def test_ssh_service_is_active_and_enabled(host):
     assert service.is_enabled
 
 
-def test_sshd_is_listening_on_expected_port(host):
-    assert host.socket(f"tcp://0.0.0.0:{EXPECTED_SSH_PORT}").is_listening
+def test_sshd_is_listening_on_saved_port(host, saved_settings):
+    assert host.socket(f"tcp://0.0.0.0:{saved_settings['ssh_port']}").is_listening
 
 
 def test_sshd_config_permissions(host):
@@ -806,6 +835,17 @@ def test_sshd_hardening_setting_is_persistent(host, directive, _effective_key, e
     "_directive, effective_key, expected", EXPECTED_SSHD_HARDENING_SETTINGS
 )
 def test_sshd_hardening_setting_is_effective(host, _directive, effective_key, expected):
+    assert sshd_effective_config(host)[effective_key] == expected
+
+
+@pytest.mark.parametrize(
+    "directive, effective_key, setting",
+    (("Port", "port", "ssh_port"), ("AllowTcpForwarding", "allowtcpforwarding", "ssh_allow_tcp_forwarding")),
+)
+def test_saved_sshd_setting_is_applied(host, saved_settings, directive, effective_key, setting):
+    value = saved_settings[setting]
+    expected = ("yes" if value else "no") if isinstance(value, bool) else str(value)
+    assert host.file(SSHD_HARDENING_CONFIG).contains(rf"^{directive}[[:space:]]*{expected}$")
     assert sshd_effective_config(host)[effective_key] == expected
 
 
@@ -857,24 +897,21 @@ def test_ssh_public_host_key_permissions(host):
 # -----------------------------------------------------------------------------
 
 
-EXPECTED_LOCALE = "en_US.UTF-8"
-
-
 def test_locales_package_is_installed(host):
     assert host.package("locales").is_installed
 
 
-def test_configured_locale_is_generated(host):
+def test_configured_locale_is_generated(host, saved_settings):
     generated_locales = {
         locale_a_name(line) for line in host.check_output("locale -a").splitlines()
     }
 
-    assert locale_a_name(EXPECTED_LOCALE) in generated_locales
+    assert locale_a_name(saved_settings["locale"]) in generated_locales
 
 
-def test_default_locale_is_configured(host):
+def test_default_locale_is_configured(host, saved_settings):
     assert host.file("/etc/default/locale").contains(
-        f"^LANG={grep_literal(EXPECTED_LOCALE)}$"
+        f"^LANG={grep_literal(saved_settings['locale'])}$"
     )
 
 
@@ -882,11 +919,8 @@ def test_default_locale_is_configured(host):
 # Time
 # -----------------------------------------------------------------------------
 
-EXPECTED_TIMEZONE = "UTC"
-
-
-def test_timezone_is_utc(host):
-    assert host.check_output("timedatectl show --property=Timezone --value").strip() == EXPECTED_TIMEZONE
+def test_saved_timezone_is_applied(host, saved_settings):
+    assert host.check_output("timedatectl show --property=Timezone --value").strip() == saved_settings["timezone"]
 
 
 def test_chrony_package_is_installed(host):

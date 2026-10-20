@@ -10,18 +10,18 @@
 
 ```bash
 ansible-galaxy collection install andreygubarev.com --upgrade
-ansible-playbook andreygubarev.com.ubuntu2604
-```
-
-No inventory or SSH transport is required. Add `-K` if sudo requires a password.
-
-Set a hostname once:
-
-```bash
 ansible-playbook andreygubarev.com.ubuntu2604 -e ubuntu2604_hostname=worker-1
 ```
 
-Later runs reuse the saved hostname. Without an explicit or saved name, the existing name is unchanged. Other overrides are not remembered; for IPv6/dual-stack hosts, keep supplying `-e ubuntu2604_disable_ipv6=false` or define it in inventory/playbooks.
+No inventory or SSH transport is required. Add `-K` if sudo requires a password. Hostname is mandatory on the first run. Set other overrides at the same time, such as `-e ubuntu2604_disable_ipv6=false` for IPv6/dual-stack hosts.
+
+The complete validated configuration, including defaults, is saved before application. Subsequent runs reuse it:
+
+```bash
+ansible-playbook andreygubarev.com.ubuntu2604
+```
+
+To change a setting, supply a new override once. Invalid input does not overwrite saved settings; application failures retain the desired configuration for retry. See [persistence](../reference/configuration.md#persistence).
 
 ## Operational cautions
 
@@ -38,7 +38,7 @@ ansible-playbook andreygubarev.com.ubuntu2604 --tags hostname
 ansible-playbook andreygubarev.com.ubuntu2604 --skip-tags upgrade
 ```
 
-See [tags](../reference/configuration.md#tags). Do not skip `always`; SSH key checks run with `ssh`.
+See [tags](../reference/configuration.md#tags). Configuration validation and persistence run with `always`, including selective runs; do not skip it. SSH key checks run with `ssh`.
 
 ## Remote provisioning
 
@@ -51,7 +51,7 @@ Use the role in your own `workers.yml`:
     - andreygubarev.com.ubuntu2604
 ```
 
-Set the SSH login user in inventory, for example `worker1 ansible_user=ubuntu`, then run:
+Set the SSH login user in inventory, for example `worker1 ansible_user=ubuntu ubuntu2604_hostname=worker1`, then run:
 
 ```bash
 ansible-playbook -i inventory.ini workers.yml

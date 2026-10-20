@@ -4,6 +4,8 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.8] - 2026-10-20
+
 ### Added
 - **Terraform tooling role**: Add `andreygubarev.com.terraform` for Ubuntu 26.04, installing system-wide direnv and tenv plus per-user OpenTofu 1.12.x and Terragrunt 1.1.x through tenv. Release selectors resolve to saved exact versions; Bash gets a direnv hook without automatic `.envrc` approval. The local playbook and Incus/testinfra checks cover installation, repeat application, and reboot persistence.
 

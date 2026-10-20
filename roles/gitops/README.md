@@ -16,11 +16,14 @@ The scaffold includes `.envrc`, pinned OpenTofu/Terragrunt versions, and a `.git
 - `11-istio-base`: The `istio-system` namespace and Istio base chart.
 - `12-istiod`: The Istio control plane, with automatic Gateway Deployment/Service provisioning disabled.
 - `20-cert-manager`: The `cert-manager` namespace and cert-manager chart, including CRDs and Gateway API integration. No Issuer, ClusterIssuer, or ACME account is created.
+- `30-openebs`: The `openebs` namespace and OpenEBS LocalPV Hostpath provisioner. `openebs-hostpath` is the default StorageClass; `openebs-hostpath-retain` provides an explicit Retain alternative.
 
 The role installs Helm `3.22.1` system-wide at `/usr/local/bin/helm`, linked to a versioned binary under `/usr/local/lib/helm/`. Downloads for amd64/arm64 are verified against the upstream SHA256 checksum. Override `gitops_helm_version` with an exact Helm 3 version; Helm 4 is not accepted because the Kustomize version embedded in `kbst/kustomization` requires Helm 3. Installing Helm does not install or apply charts.
 
 Both Istio charts default to `1.31.2`; keep their `istio_version` overrides aligned.
 
 cert-manager defaults to `v1.21.2` from the upstream OCI registry; override `cert_manager_version` in its `terraform.tfvars.yaml`. Gateway API integration uses `config.gatewayAPI.enabled`, replacing the deprecated `enableGatewayAPI` setting.
+
+OpenEBS defaults to `4.6.2`; override `openebs_version` in its `terraform.tfvars.yaml`. LVM, ZFS, Rawfile, Mayastor, Loki (including MinIO), and Alloy are disabled. Both Hostpath classes use `/var/openebs/local` and `WaitForFirstConsumer`; the default class uses `Delete`, while the Retain class keeps volumes after PVC deletion for manual recovery. Local storage is not replicated or backed up by this workload. Other default StorageClasses are not modified; review them before applying to avoid multiple defaults. OpenEBS has no ordering dependencies on the other workloads.
 
 For Terragrunt `run --all`, Istiod declares ordering dependencies on Gateway API and Istio base; cert-manager depends on Gateway API so its CRDs are present when the controller starts. Single-workload commands do not apply dependencies automatically: apply Gateway API before cert-manager, apply Gateway API and base before Istiod, and destroy cert-manager and Istiod before their dependencies.

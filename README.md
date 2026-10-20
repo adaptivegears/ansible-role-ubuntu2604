@@ -40,14 +40,16 @@ make deps     # Install the local collection and dependencies
 make check    # Lint and syntax-check both playbooks
 make build    # Build the collection artifact in dist/
 make publish  # Check, build, and publish to Galaxy
-make test     # Verify Ubuntu hosts from inventory.ini
+make test     # Test Ubuntu followed by Kubernetes in a fresh Incus VM
 ```
 
-For local Kubernetes verification:
+### Integration tests
 
-```bash
-make test ANSIBLE_ROLE_DIR=roles/kubernetes TESTINFRA_HOSTS=local://
-```
+`make test` requires a running local Incus server with VM support, `uv`, and an SSH client compatible with the role's SSH policy. It creates a fresh Ubuntu 26.04 cloud VM with 4 vCPUs, 6 GiB RAM, and a 30 GiB disk. The existing Incus network and storage pool default to `incusbr0` and `default`; override them with `INCUS_NETWORK` and `INCUS_STORAGE_POOL` if needed. The VM needs outbound access to Ubuntu archives, Kubernetes repositories, GitHub, and container registries.
+
+The test applies the checkout's Ubuntu role, then Kubernetes, waits for the node and system workloads, and runs both testinfra suites. It reapplies both roles without first-run overrides and requires `changed=0`, then reboots and reruns verification. This tests the combined fresh-machine workflow; the roles remain independently usable.
+
+Successful runs delete the VM and temporary files. Failed or interrupted runs retain the VM, generated inventory, disposable SSH key, and logs under `.cache/incus-test.*`, printing inspection and cleanup commands. No existing instances or host SSH keys are used. `make test` no longer reads `inventory.ini` or verifies the local host.
 
 ## Publish
 

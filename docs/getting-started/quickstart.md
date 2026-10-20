@@ -57,12 +57,14 @@ Set the SSH login user in inventory, for example `worker1 ansible_user=ubuntu ub
 ansible-playbook -i inventory.ini workers.yml
 ```
 
-## Verify
+## Integration tests
 
-From a repository checkout on the configured host:
+From a repository checkout on a machine with local Incus VM support:
 
 ```bash
-make test TESTINFRA_HOSTS=local://
+make test
 ```
+
+This creates a fresh VM, applies Ubuntu followed by Kubernetes, verifies both roles, checks repeat application, and verifies persistence after reboot. It does not verify the host running the command. See [development](../../README.md#integration-tests) for requirements and failure diagnostics.
 
 [Configuration](../reference/configuration.md) · [Tasks](../../roles/ubuntu2604/tasks/main.yml)

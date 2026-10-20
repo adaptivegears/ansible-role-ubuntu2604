@@ -357,6 +357,20 @@ def test_kubeadm_config_records_saved_cluster_identity(host, saved_settings):
     assert config["networking"]["serviceSubnet"] == saved_settings["service_subnet"]
 
 
+def test_kube_proxy_preserves_host_conntrack_limit(host):
+    desired = next(
+        document for document in yaml.safe_load_all(host.file(KUBEADM_CONFIG).content_string)
+        if document["kind"] == "KubeProxyConfiguration"
+    )
+    assert desired["conntrack"]["maxPerCore"] == 0
+
+    deployed = yaml.safe_load(host.check_output(
+        "kubectl --kubeconfig /etc/kubernetes/admin.conf "
+        "get configmap kube-proxy -n kube-system -o jsonpath='{.data.config\\.conf}'"
+    ))
+    assert deployed["conntrack"]["maxPerCore"] == 0
+
+
 def test_kubeadm_config_pins_kubernetes_version(host):
     assert host.file(KUBEADM_CONFIG).contains(
         r'^kubernetesVersion: "v[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*"$'

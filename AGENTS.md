@@ -70,17 +70,18 @@ Every changed line should trace directly to the user request or to keeping that 
 
 ## Testinfra verification
 
-- Use testinfra for production deployment verification.
+- Use testinfra to verify role application in a fresh local Incus VM.
 - Keep verification in `roles/ubuntu2604/tests/test_ubuntu2604.py` and `roles/kubernetes/tests/test_kubernetes.py`.
-- Select the role to verify with `make test ANSIBLE_ROLE_DIR=roles/kubernetes` (the default is `roles/ubuntu2604`).
+- `make test` applies Ubuntu followed by Kubernetes to a fresh VM and verifies both roles. The roles remain independently usable; standalone Kubernetes testing is not required.
 - Keep tests self-contained by hardcoding the expected role contract in the tests.
 - Use native testinfra modules such as `host.sysctl`, `host.file`, `host.service`, and `host.package`.
 - Place expected-value constants close to the tests that use them, grouped by semantic section.
 - Use parametrized tests for repeated settings such as sysctls, kernel modules, and PAM limits.
-- Run verification through `make test`, which uses pytest/testinfra with xdist parallelism and SSH ControlPersist connection reuse.
+- Run verification through `make test`, which uses pytest/testinfra with xdist parallelism and SSH ControlPersist connection reuse, checks repeat application for `changed=0`, and verifies persistence after reboot.
+- Delete successful test VMs; retain failed or interrupted runs and their diagnostics under `.cache/`. Do not target existing hosts or instances.
 
 ## Makefile style
 
 - Prefix Ansible-related knobs with `ANSIBLE_` and testinfra-related knobs with `TESTINFRA_`.
-- Group Makefile variables by tool area with short comments such as `# Ansible` and `# Testinfra`.
+- Group Makefile variables by tool area with short comments such as `# Ansible`, `# Incus`, and `# Testinfra`.
 - Put each `.PHONY` declaration immediately above the target it declares.

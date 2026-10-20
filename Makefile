@@ -5,13 +5,14 @@ ANSIBLE_BUILD_DIR ?= $(CURDIR)/dist
 ANSIBLE_COLLECTIONS_PATH ?= $(CURDIR)/.ansible/collections
 ANSIBLE_COLLECTION_VERSION := $(shell awk '/^version:/ { print $$2 }' galaxy.yml)
 ANSIBLE_GALAXY ?= uvx --from ansible-core ansible-galaxy
-ANSIBLE_INVENTORY ?= inventory.ini
 ANSIBLE_LINT ?= uvx --from ansible-lint ansible-lint
 ANSIBLE_PLAYBOOK ?= uvx --from ansible-core ansible-playbook
-ANSIBLE_ROLE_DIR ?= roles/ubuntu2604
+
+# Incus
+INCUS_NETWORK ?= incusbr0
+INCUS_STORAGE_POOL ?= default
 
 # Testinfra
-TESTINFRA_HOSTS ?= ansible://all?controlpersist=300&timeout=30
 TESTINFRA_PYTEST ?= uvx --from pytest --with pytest-testinfra --with pytest-xdist --with ansible-core pytest
 TESTINFRA_WORKERS ?= 8
 
@@ -43,5 +44,9 @@ syntax: deps ## Check the installed collection playbooks syntax
 	ANSIBLE_COLLECTIONS_PATH=$(ANSIBLE_COLLECTIONS_PATH) $(ANSIBLE_PLAYBOOK) --syntax-check andreygubarev.com.ubuntu2604 andreygubarev.com.kubernetes
 
 .PHONY: test
-test: ## Run testinfra verification tests against inventory.ini
-	ANSIBLE_HOST_KEY_CHECKING=False $(TESTINFRA_PYTEST) -n $(TESTINFRA_WORKERS) --dist=worksteal --hosts='$(TESTINFRA_HOSTS)' --ansible-inventory=$(ANSIBLE_INVENTORY) --sudo $(ANSIBLE_ROLE_DIR)/tests
+test: deps ## Test Ubuntu followed by Kubernetes in a fresh Incus VM
+	ANSIBLE_COLLECTIONS_PATH="$(ANSIBLE_COLLECTIONS_PATH)" \
+	ANSIBLE_PLAYBOOK="$(ANSIBLE_PLAYBOOK)" \
+	INCUS_NETWORK="$(INCUS_NETWORK)" INCUS_STORAGE_POOL="$(INCUS_STORAGE_POOL)" \
+	TESTINFRA_PYTEST="$(TESTINFRA_PYTEST)" TESTINFRA_WORKERS="$(TESTINFRA_WORKERS)" \
+	bash tests/incus.sh

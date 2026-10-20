@@ -94,6 +94,12 @@
       apiVersion: kubelet.config.k8s.io/v1beta1
       kind: KubeletConfiguration
       cgroupDriver: systemd
+      ---
+      apiVersion: kubeproxy.config.k8s.io/v1alpha1
+      kind: KubeProxyConfiguration
+      conntrack:
+        # Zero preserves the host limit instead of replacing Ubuntu's density policy.
+        maxPerCore: 0
     owner: root
     group: root
     mode: "0644"

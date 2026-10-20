@@ -4,6 +4,13 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed
+- **Incus integration tests**: `make test` now provisions a fresh Ubuntu 26.04 VM, applies Ubuntu followed by Kubernetes, runs both testinfra suites, checks repeat application for idempotence, and verifies persistence after reboot. Successful VMs are removed; failed runs retain diagnostics. Existing hosts and `inventory.ini` are no longer targeted.
+
+### Fixed
+- **Minimal Ubuntu images**: Skip stopping UFW when its service is absent, while still masking it to prevent later activation; explicitly install chrony before starting time synchronization.
+- **Combined role networking**: New clusters configure kube-proxy to preserve the host's connection-tracking limit instead of overwriting the Ubuntu baseline.
+
 ## [2026.10.6] - 2026-10-20
 
 ### Added

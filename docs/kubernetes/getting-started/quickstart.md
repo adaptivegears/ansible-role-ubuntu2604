@@ -41,11 +41,13 @@ kubectl get nodes
 kubectl get pods -A
 ```
 
-From a repository checkout on the configured host:
+For automated integration tests, run from a repository checkout on a machine with local Incus VM support:
 
 ```bash
-make test ANSIBLE_ROLE_DIR=roles/kubernetes TESTINFRA_HOSTS=local://
+make test
 ```
+
+This tests Ubuntu followed by Kubernetes in a fresh VM, including repeat application and persistence after reboot. It does not verify the host running the command. See [development](../../../README.md#integration-tests) for requirements and failure diagnostics.
 
 ## Remote provisioning
 

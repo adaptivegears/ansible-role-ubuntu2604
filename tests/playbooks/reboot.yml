@@ -1,0 +1,12 @@
+---
+- name: Reboot the test VM
+  hosts: incus_test
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Test | Reboot and reconnect
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+
+- name: Wait for the cluster after reboot
+  ansible.builtin.import_playbook: ready.yml

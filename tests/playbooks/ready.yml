@@ -1,0 +1,22 @@
+---
+- name: Wait for the test cluster to become usable
+  hosts: incus_test
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Test | Wait for the API server
+      ansible.builtin.command: kubectl --kubeconfig /etc/kubernetes/admin.conf get --raw /readyz
+      register: test_api_ready
+      until: test_api_ready.rc == 0
+      retries: 60
+      delay: 5
+      changed_when: false
+
+    - name: Test | Wait for the node and system workloads
+      ansible.builtin.command: "kubectl --kubeconfig /etc/kubernetes/admin.conf {{ item }}"
+      loop:
+        - wait --for=condition=Ready nodes --all --timeout=300s
+        - rollout status daemonset/kube-flannel-ds -n kube-flannel --timeout=300s
+        - rollout status deployment/coredns -n kube-system --timeout=300s
+        - rollout status deployment/metrics-server -n kube-system --timeout=300s
+      changed_when: false

@@ -43,12 +43,19 @@
     enabled: true
   tags: firewall
 
+# Minimal images may omit UFW entirely; masking below still prevents its activation.
+- name: Firewall | Read available services
+  become: true
+  ansible.builtin.service_facts:
+  tags: firewall
+
 - name: Firewall | Stop and disable UFW service
   become: true
   ansible.builtin.systemd_service:
     name: ufw
     state: stopped
     enabled: false
+  when: "'ufw.service' in ansible_facts['services']"
   tags: firewall
 
 - name: Firewall | Mask UFW service

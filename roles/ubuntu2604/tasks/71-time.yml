@@ -2,8 +2,17 @@
 # -----------------------------------------------------------------------------
 # Time
 # -----------------------------------------------------------------------------
-# Use UTC for cross-region log correlation; keep Ubuntu's chrony stack.
+# Use UTC for cross-region log correlation; install chrony explicitly because
+# minimal images may omit Ubuntu's usual time synchronization stack.
 # -----------------------------------------------------------------------------
+
+- name: Time | Install chrony
+  become: true
+  ansible.builtin.apt:
+    name: chrony
+    state: present
+    install_recommends: false
+  tags: [time, packages]
 
 - name: Time | Set timezone to UTC
   become: true

@@ -1,88 +1,65 @@
 # andreygubarev.com
 
-Personal Ansible collection of public infrastructure roles and playbooks.
+Ansible roles and local playbooks for Ubuntu 26.04 infrastructure.
 
 ## Requirements
 
-- ansible-core **2.20** or newer
-- Target requirements are documented for each role
+Ubuntu 26.04 on amd64 or arm64, ansible-core ≥ 2.20, and root or sudo access.
 
-## Install from Ansible Galaxy
-
-After the first release is published:
+## Install or update
 
 ```bash
-ansible-galaxy collection install andreygubarev.com
+ansible-galaxy collection install andreygubarev.com --upgrade
 ```
 
-Source repository: [andreygubarev/ansible-collection](https://github.com/andreygubarev/ansible-collection).
+## Run
 
-## Roles and playbooks
-
-| Role / playbook | Purpose |
-|-----------------|---------|
-| `andreygubarev.com.ubuntu2604` | Provision Ubuntu 26.04 VMs as container-worker hosts |
-| `andreygubarev.com.kubernetes` | Provision a single-node kubeadm cluster with containerd, Flannel, and metrics-server |
-
-Run either included playbook on the Ubuntu 26.04 machine you want to configure. Both use a local connection; no inventory or SSH connection is needed:
+Run on the machine to configure. No inventory or SSH connection is required; add `-K` if sudo requires a password.
 
 ```bash
 ansible-playbook andreygubarev.com.ubuntu2604
 ansible-playbook andreygubarev.com.kubernetes -e kubernetes_cluster_name=my-cluster
 ```
 
-The playbooks are independent: Kubernetes does not automatically apply the Ubuntu role. Its kubeconfig defaults to the invoking user's home directory. See the [Kubernetes quickstart](docs/kubernetes/getting-started/quickstart.md).
+| Role / playbook | Purpose | Documentation |
+|---|---|---|
+| `andreygubarev.com.ubuntu2604` | Container-host baseline | [Quickstart](docs/getting-started/quickstart.md) · [Configuration](docs/reference/configuration.md) |
+| `andreygubarev.com.kubernetes` | Single-node kubeadm cluster | [Quickstart](docs/kubernetes/getting-started/quickstart.md) · [Configuration](docs/kubernetes/reference/configuration.md) |
 
-Use root or a user with sudo privileges; add `-K` if sudo requires a password. The Ubuntu role additionally requires SSH authorized keys because it disables password authentication. When run as root, it automatically preserves root SSH access regardless of `ubuntu2604_ssh_allow_root_login`; no extra parameter is needed. Sudo escalation from a non-root account does not trigger this override.
+The playbooks are independent. Kubernetes does not automatically apply the Ubuntu role.
 
-Optionally choose a hostname once with `-e ubuntu2604_hostname=worker-1`. The Ubuntu role remembers it in a local fact and reuses it when omitted on later runs; without an explicit or saved name, the current hostname is left unchanged. Other Ubuntu variables do not yet use this persistence mechanism.
+- `ubuntu2604_hostname` is optional and remembered after being supplied once.
+- `kubernetes_cluster_name` is required once, then reused from local facts. Renaming is rejected.
+- Other overrides must remain in inventory/playbooks or be supplied on each run.
 
-Kubernetes requires `kubernetes_cluster_name` on the first run, with no default or interactive prompt. Later runs reuse the stored name, so `ansible-playbook andreygubarev.com.kubernetes` is sufficient for a default-configured cluster. Explicit attempts to rename it are rejected. Custom Kubernetes versions and subnets still need to be supplied on subsequent runs.
-
-For remote provisioning over SSH, use the role in your own playbook:
-
-```yaml
-- name: Provision container workers
-  hosts: workers
-  roles:
-    - andreygubarev.com.ubuntu2604
-```
-
-Documentation starts at [`docs/index.md`](docs/index.md).
+**Ubuntu baseline:** requires SSH authorized keys, disables password authentication, removes all snap data, and regenerates SSH host keys on first configuration. Review the quickstart before use.
 
 ## Development
 
-From a checkout of this repository:
-
 ```bash
-make deps   # Install this collection and its dependencies locally
-make check  # Lint the collection and syntax-check both installed playbooks
-make build  # Build dist/andreygubarev-com-2026.10.4.tar.gz
-make publish # Check, build, and publish the current version to Ansible Galaxy
-make test   # Verify deployed hosts using inventory.ini
+make deps     # Install the local collection and dependencies
+make check    # Lint and syntax-check both playbooks
+make build    # Build the collection artifact in dist/
+make publish  # Check, build, and publish to Galaxy
+make test     # Verify Ubuntu hosts from inventory.ini
 ```
 
-Roles live in `roles/`, and collection playbooks live in `playbooks/`. `make test` verifies the Ubuntu role by default; use `make test ANSIBLE_ROLE_DIR=roles/kubernetes` for Kubernetes, and add `TESTINFRA_HOSTS=local://` to verify the local machine.
+For local Kubernetes verification:
 
-## Publish to Ansible Galaxy
+```bash
+make test ANSIBLE_ROLE_DIR=roles/kubernetes TESTINFRA_HOSTS=local://
+```
 
-1. Sign in to [Ansible Galaxy](https://galaxy.ansible.com/) and ensure your account has permission to publish under the `andreygubarev` namespace. A GitHub repository alone does not grant Galaxy namespace access.
-2. Obtain an API token from [Galaxy API token management](https://galaxy.ansible.com/ui/token/). Store it outside the repository in `~/.ansible/galaxy_token` with permissions `0600`:
+## Publish
 
-   ```yaml
-   token: <your-galaxy-api-token>
-   ```
+Obtain a [Galaxy API token](https://galaxy.ansible.com/ui/token/) with access to the `andreygubarev` namespace. Store it outside the repository in `~/.ansible/galaxy_token` with permissions `0600`:
 
-3. Check `version` in `galaxy.yml` before publishing. Every published version is immutable; increment it for subsequent releases, then run:
+```yaml
+token: <your-galaxy-api-token>
+```
 
-   ```bash
-   make publish
-   ```
+Increment `version` in `galaxy.yml`, then run `make publish`. It publishes a fresh artifact for that version and waits for import validation. Published versions are immutable.
 
-   This runs `make check`, builds a fresh tarball, and publishes the artifact for the version read from `galaxy.yml`. Existing artifacts for other versions are not selected. Authentication uses the configured Galaxy token, and publishing waits for Galaxy's import validation to finish.
+## Project
 
-4. After the import succeeds, install with `ansible-galaxy collection install andreygubarev.com` and run either included playbook on the target machine.
-
-## License
-
-The collection and both roles are licensed under [Apache-2.0](LICENSE). See [NOTICE](NOTICE) for the copyright notice.
+[Documentation](docs/index.md) · [Changelog](CHANGELOG.md) · [Source](https://github.com/andreygubarev/ansible-collection) · [Apache-2.0](LICENSE) · [NOTICE](NOTICE)

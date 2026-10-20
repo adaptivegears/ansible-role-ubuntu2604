@@ -12,9 +12,12 @@ Default variables are defined in `roles/kubernetes/defaults/main.yml`.
 
 ### `kubernetes_cluster_name`
 
-- **Default**: `"kubernetes"`
-- Cluster name passed to kubeadm.
-- Immutable after first role run. The role stores the first value in `/etc/ansible/facts.d/kubernetes.fact` and refuses to proceed if a later run requests a different value.
+- **Default**: None; required on the first run.
+- Cluster name passed to kubeadm. Supply a non-empty string, for example `-e kubernetes_cluster_name=my-cluster`; there is no interactive prompt.
+- The variable is deliberately absent from `defaults/main.yml`. Without an explicit value or stored name, the role fails before writing facts or provisioning the host.
+- Later runs automatically reuse `ansible_facts['ansible_local']['kubernetes']['cluster']['cluster_name']` from `/etc/ansible/facts.d/kubernetes.fact` when the variable is omitted, including names stored by earlier role versions.
+- Immutable after first role run. An explicitly supplied different name is rejected before any mutation; the stored identity is not overwritten. Explicit empty or non-string values are rejected rather than falling back to the stored name.
+- Only the cluster name gains this fallback; custom Kubernetes versions and subnets must still be supplied on subsequent runs.
 
 ### `kubernetes_advertise_address`
 
@@ -66,6 +69,7 @@ Default variables are defined in `roles/kubernetes/defaults/main.yml`.
 
 ```yaml
 ---
+kubernetes_cluster_name: "my-cluster"
 kubernetes_version: "1.37"
 kubernetes_advertise_address: "203.0.113.10"
 kubernetes_kubeconfig_user: "ubuntu"

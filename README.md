@@ -6,7 +6,7 @@ Ansible roles and local playbooks for Ubuntu 26.04 infrastructure.
 
 Ubuntu 26.04 on amd64 or arm64, ansible-core ≥ 2.20, and root or sudo access.
 
-## Install or update
+## Getting started
 
 Install the minimal Ansible package on Ubuntu 26.04, then the collection:
 

@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.9] - 2026-10-20
+
+### Added
+- **GitOps workspace role**: Add `andreygubarev.com.gitops` to create a private `~/gitops` workspace for the selected user, initialize Git, overlay bundled files without deleting host-only data, and create a baseline commit once. Later overlays remain uncommitted; matching files overwrite local edits. The scaffold includes direnv setup and pinned OpenTofu/Terragrunt versions without automatic `.envrc` approval.
+- **Gateway API workload**: Add a Terragrunt/OpenTofu configuration using `kbst/kustomization`, local state, the current kubeconfig context, and ordered resource priorities. The Gateway API experimental release is configurable, defaulting to `1.5.0`; state, provider lock files, and runtime caches are ignored by the workspace repository.
+
 ## [2026.10.8] - 2026-10-20
 
 ### Added

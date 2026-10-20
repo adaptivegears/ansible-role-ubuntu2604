@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.14] - 2026-10-20
+
+### Added
+- **OpenEBS workload**: Add `30-openebs`, defaulting to chart `4.6.2`, with the namespace, LocalPV Hostpath provisioner, local state, and current kubeconfig context. Make `openebs-hostpath` the default StorageClass through the chart's native setting and add `openebs-hostpath-retain` with `Retain` and `WaitForFirstConsumer`. Disable LVM, ZFS, Rawfile, Mayastor, Loki/MinIO, and Alloy. Existing default StorageClasses are not modified; review them before applying. Local volumes are not replicated or backed up; workload application remains manual.
+
 ## [2026.10.13] - 2026-10-20
 
 ### Added

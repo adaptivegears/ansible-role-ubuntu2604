@@ -56,4 +56,4 @@ Set the SSH user in inventory, or provide `terraform_user` to configure another 
 
 ## Integration tests
 
-From a checkout on a machine with local Incus VM support, run `make test`. The fresh VM receives Ubuntu, Kubernetes, and this tooling role; all three suites run before and after reboot, with repeat application required to report `changed=0`. No infrastructure is provisioned by the tooling smoke tests.
+From a checkout on a machine with local Incus VM support, run `make test`. The fresh VM receives Ubuntu, Kubernetes, this tooling role, and agent skills; all four suites run before and after reboot, with repeat application required to report `changed=0`. No infrastructure is provisioned by the tooling smoke tests.

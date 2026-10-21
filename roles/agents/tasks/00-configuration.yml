@@ -1,0 +1,24 @@
+---
+# -----------------------------------------------------------------------------
+# Configuration
+# -----------------------------------------------------------------------------
+# Resolve an existing account through NSS instead of trusting HOME after sudo.
+# This role installs instructions only; it never creates users or infrastructure.
+# -----------------------------------------------------------------------------
+
+- name: Configuration | Validate skill owner
+  ansible.builtin.assert:
+    that:
+      - agents_user is string
+      - agents_user | trim | length > 0
+    fail_msg: "agents_user must name an existing user."
+
+- name: Configuration | Read skill owner account
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ agents_user }}"
+
+- name: Configuration | Record skill owner account details
+  ansible.builtin.set_fact:
+    agents__home: "{{ ansible_facts.getent_passwd[agents_user][4] }}"
+    agents__group: "{{ ansible_facts.getent_passwd[agents_user][2] }}"

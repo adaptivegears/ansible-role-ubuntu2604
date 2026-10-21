@@ -1,0 +1,8 @@
+---
+- name: Configuration | Import skill owner resolution
+  ansible.builtin.import_tasks: 00-configuration.yml
+  tags: always
+
+- name: Skills | Import infrastructure instructions
+  ansible.builtin.import_tasks: 10-skills.yml
+  tags: skills

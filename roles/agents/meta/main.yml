@@ -1,0 +1,19 @@
+---
+galaxy_info:
+  role_name: agents
+  namespace: andreygubarev
+  author: Andrey Gubarev
+  description: Infrastructure skill installation for AI agents on Ubuntu hosts
+  license: Apache-2.0
+  min_ansible_version: "2.20"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all
+  galaxy_tags:
+    - agents
+    - skills
+    - infrastructure
+    - ubuntu
+
+dependencies: []

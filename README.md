@@ -26,6 +26,7 @@ ansible-playbook andreygubarev.com.ubuntu2604 -e ubuntu2604_hostname=worker-1
 ansible-playbook andreygubarev.com.kubernetes -e kubernetes_cluster_name=my-cluster
 ansible-playbook andreygubarev.com.terraform
 ansible-playbook andreygubarev.com.gitops
+ansible-playbook andreygubarev.com.agents
 ```
 
 | Role / playbook | Purpose | Documentation |
@@ -34,6 +35,7 @@ ansible-playbook andreygubarev.com.gitops
 | `andreygubarev.com.kubernetes` | Single-node kubeadm cluster | [Quickstart](docs/kubernetes/getting-started/quickstart.md) · [Configuration](docs/kubernetes/reference/configuration.md) |
 | `andreygubarev.com.terraform` | direnv, tenv, OpenTofu, and Terragrunt | [Quickstart](docs/terraform/getting-started/quickstart.md) · [Configuration](docs/terraform/reference/configuration.md) |
 | `andreygubarev.com.gitops` | Host-local GitOps workspace and workload scaffold | [Usage](roles/gitops/README.md) |
+| `andreygubarev.com.agents` | Local infrastructure skill for AI agents | [Usage](roles/agents/README.md) |
 
 The playbooks are independent. None automatically applies another role.
 
@@ -42,6 +44,8 @@ The playbooks are independent. None automatically applies another role.
 - Terraform tooling defaults to the invoking user, latest stable tenv, OpenTofu 1.12.x, and Terragrunt 1.1.x. Exact resolved versions are remembered. OpenTofu/Terragrunt are installed through tenv in the user's `~/.tenv`; direnv is hooked into Bash, but `.envrc` authorization remains manual. HashiCorp Terraform is not installed.
 
 - GitOps installs Git and Helm 3, prepares `~/gitops` for the invoking user (`gitops_user` overrides the account), initializes Git, and records the initial baseline once. Later code overlays remain uncommitted. User `terraform.tfvars.yaml` files are created only if missing; workload application and direnv authorization remain manual.
+
+- Agents installs `~/.agents/skills/infrastructure/SKILL.md` for the invoking user (`agents_user` overrides the account). It explains the collection and safe operations, not the host's verified inventory. Other skills are preserved; no agent software or infrastructure is installed.
 
 **Ubuntu baseline:** requires SSH authorized keys, disables password authentication, removes all snap data, and regenerates SSH host keys on first configuration. Review the quickstart before use.
 
@@ -52,14 +56,14 @@ make deps     # Install the local collection and dependencies
 make check    # Lint and syntax-check all playbooks
 make build    # Build the collection artifact in dist/
 make publish  # Check, build, and publish to Galaxy
-make test     # Test all roles in a fresh Incus VM
+make test     # Test provisioning roles and skills in a fresh Incus VM
 ```
 
 ### Integration tests
 
 `make test` requires a running local Incus server with VM support, `uv`, and an SSH client compatible with the role's SSH policy. It creates a fresh Ubuntu 26.04 cloud VM with 4 vCPUs, 6 GiB RAM, and a 30 GiB disk. The existing Incus network and storage pool default to `incusbr0` and `default`; override them with `INCUS_NETWORK` and `INCUS_STORAGE_POOL` if needed. The VM needs outbound access to Ubuntu archives, Kubernetes repositories, GitHub, and container registries.
 
-The test applies the checkout's Ubuntu role, then Kubernetes and Terraform tooling, waits for the node and system workloads, and runs all three testinfra suites. It reapplies the roles without first-run overrides and requires `changed=0`, then reboots and reruns verification. This tests the combined fresh-machine workflow; the roles remain independently usable.
+The test applies the checkout's Ubuntu role, then Kubernetes, Terraform tooling, and agent skills, waits for the node and system workloads, and runs all four testinfra suites. Skill fixtures verify that unrelated skills and extra files survive installation and updates. It reapplies the roles without first-run overrides and requires `changed=0`, then reboots and reruns verification. This tests the combined fresh-machine workflow; the roles remain independently usable.
 
 Successful runs delete the VM and temporary files. Failed or interrupted runs retain the VM, generated inventory, disposable SSH key, and logs under `.cache/incus-test.*`, printing inspection and cleanup commands. No existing instances or host SSH keys are used. `make test` no longer reads `inventory.ini` or verifies the local host.
 

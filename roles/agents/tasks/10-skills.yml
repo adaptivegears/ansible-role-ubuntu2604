@@ -1,0 +1,29 @@
+---
+# -----------------------------------------------------------------------------
+# Skills
+# -----------------------------------------------------------------------------
+# Manage one named skill without synchronizing or deleting the user's skill tree.
+# Keep directories private and update only the collection-owned instruction file.
+# -----------------------------------------------------------------------------
+
+- name: Skills | Create user skill directories
+  become: true
+  ansible.builtin.file:
+    path: "{{ agents__home }}/{{ item }}"
+    state: directory
+    owner: "{{ agents_user }}"
+    group: "{{ agents__group }}"
+    mode: "0700"
+  loop:
+    - .agents
+    - .agents/skills
+    - .agents/skills/infrastructure
+
+- name: Skills | Install infrastructure instructions
+  become: true
+  ansible.builtin.copy:
+    src: skills/infrastructure/SKILL.md
+    dest: "{{ agents__home }}/.agents/skills/infrastructure/SKILL.md"
+    owner: "{{ agents_user }}"
+    group: "{{ agents__group }}"
+    mode: "0644"

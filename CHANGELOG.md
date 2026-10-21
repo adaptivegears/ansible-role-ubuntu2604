@@ -4,6 +4,9 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- **Agent infrastructure skill**: Add the independent `agents` role and localhost playbook to install `~/.agents/skills/infrastructure/SKILL.md` for an existing user. The portable skill explains role/workload ownership, configuration discovery, secrets/state, runners, and backups without treating documentation as deployed inventory. Preserve unrelated skills and files; extend fresh-VM verification to cover skill installation, updates, ownership, and preservation.
+
 ## [2026.10.22] - 2026-10-21
 
 ### Added

@@ -66,6 +66,12 @@ Every changed line should trace directly to the user request or to keeping that 
 
 - The `42-forgejo-backup` workload schedules online backups of only `forgejo-data` using an explicit per-application `b2_bucket` repository bucket/prefix while inheriting K8up's global endpoint and credentials. Keep the repository path stable across runs; do not use dated prefixes or silently inherit the global repository path. Keep PVC annotation/selection labels in `40-forgejo`, the PVC owner; do not adopt the PVC into a second state. Do not add PostgreSQL backups, application shutdown/hooks, or automatic snapshot pruning to this workload.
 
+## Agents role target
+
+- The independent `agents` role installs one portable `infrastructure` skill at `~/.agents/skills/infrastructure/SKILL.md` for an existing `agents_user`, defaulting to the invoking/SSH user. Resolve the home and primary group with `getent`, not the escalated process's HOME.
+- Keep instructions static and reusable: describe the collection contract and how to discover actual configuration, never claim all roles are applied or embed per-host settings, secret values, private keys, or state. Do not install AI clients or apply other roles.
+- Update only the managed skill file; preserve other skills and host-only files. Keep user-owned directories private and use numbered static task imports.
+
 ## Ansible style
 
 - Keep each role's `tasks/main.yml` as an explicit, ordered list of static `ansible.builtin.import_tasks` entries.
@@ -92,8 +98,8 @@ Every changed line should trace directly to the user request or to keeping that 
 ## Testinfra verification
 
 - Use testinfra to verify role application in a fresh local Incus VM.
-- Keep verification in `roles/ubuntu2604/tests/test_ubuntu2604.py`, `roles/kubernetes/tests/test_kubernetes.py`, and `roles/terraform/tests/test_terraform.py`.
-- `make test` applies Ubuntu followed by Kubernetes and Terraform tooling to a fresh VM and verifies all three roles. The roles remain independently usable; standalone Kubernetes testing is not required.
+- Keep verification in `roles/ubuntu2604/tests/test_ubuntu2604.py`, `roles/kubernetes/tests/test_kubernetes.py`, `roles/terraform/tests/test_terraform.py`, and `roles/agents/tests/test_agents.py`.
+- `make test` applies Ubuntu followed by Kubernetes, Terraform tooling, and agent skills to a fresh VM and verifies all four roles. The roles remain independently usable; standalone Kubernetes testing is not required.
 - Keep tests self-contained by hardcoding the expected role contract in the tests.
 - Use native testinfra modules such as `host.sysctl`, `host.file`, `host.service`, and `host.package`.
 - Place expected-value constants close to the tests that use them, grouped by semantic section.

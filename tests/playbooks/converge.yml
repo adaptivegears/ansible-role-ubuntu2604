@@ -16,5 +16,48 @@
   roles:
     - andreygubarev.com.terraform
 
+# -----------------------------------------------------------------------------
+# Skill preservation
+# -----------------------------------------------------------------------------
+# Seed only absent fixtures so the first run checks managed-file replacement and
+# unrelated-file preservation without introducing changes on repeat application.
+# -----------------------------------------------------------------------------
+
+- name: Install agent skills for the test user
+  hosts: incus_test
+  pre_tasks:
+    - name: Fixture | Read skill owner account
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ agents_user | default(ansible_user) }}"
+
+    - name: Fixture | Create existing skill directories
+      become: true
+      ansible.builtin.file:
+        path: "{{ ansible_facts.getent_passwd[agents_user | default(ansible_user)][4] }}/.agents/skills/{{ item }}"
+        state: directory
+        owner: "{{ agents_user | default(ansible_user) }}"
+        group: "{{ ansible_facts.getent_passwd[agents_user | default(ansible_user)][2] }}"
+        mode: "0700"
+      loop:
+        - unmanaged
+        - infrastructure
+
+    - name: Fixture | Seed files before first skill installation
+      become: true
+      ansible.builtin.copy:
+        dest: "{{ ansible_facts.getent_passwd[agents_user | default(ansible_user)][4] }}/.agents/skills/{{ item }}"
+        content: "Unmanaged test fixture.\n"
+        owner: "{{ agents_user | default(ansible_user) }}"
+        group: "{{ ansible_facts.getent_passwd[agents_user | default(ansible_user)][2] }}"
+        mode: "0644"
+        force: false
+      loop:
+        - unmanaged/SKILL.md
+        - infrastructure/notes.txt
+        - infrastructure/SKILL.md
+  roles:
+    - andreygubarev.com.agents
+
 - name: Wait for the cluster
   ansible.builtin.import_playbook: ready.yml

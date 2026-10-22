@@ -4,6 +4,13 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.23] - 2026-10-23
+
+### Added
+- **Agents role and local playbook**: Install the newest stable Pi 1.x harness and stable BB server on Ubuntu 26.04, with exact-version overrides. BB runs as a persistent systemd user service under the dedicated `bb` account, with linger, failure recovery, private state and loopback-only access. The account intentionally has unrestricted passwordless sudo; provider authentication and remote access remain manual.
+- **Pi Web Access**: Install `pi-web-access` for `bb` using Pi's package manager, preserving other packages and settings. Follow the latest stable release or pin an exact version without restarting BB on Pi/package updates. Search-provider settings and API keys remain user-managed.
+- **Agents verification**: Add testinfra coverage for installation, user-service persistence, sudo access, loopback listeners and web-tool loading; include the role in collection syntax checks and the fresh-VM integration scenario.
+
 ## [2026.10.22] - 2026-10-21
 
 ### Added

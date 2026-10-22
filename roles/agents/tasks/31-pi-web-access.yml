@@ -1,0 +1,73 @@
+---
+# -----------------------------------------------------------------------------
+# Pi Web Access
+# -----------------------------------------------------------------------------
+# Let Pi manage the user package and merge its settings entry, preserving other
+# packages and preferences. Compare the declaration and installed version before
+# invoking the installer so unchanged applications remain idempotent.
+# -----------------------------------------------------------------------------
+
+- name: Pi Web Access | Query the latest stable release
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/npm
+      - view
+      - pi-web-access@latest
+      - version
+      - --json
+  register: agents__pi_web_access_release
+  changed_when: false
+  check_mode: false
+  when: agents_pi_web_access_version == 'latest'
+  tags: pi
+
+- name: Pi Web Access | Resolve the exact desired version
+  ansible.builtin.set_fact:
+    agents__pi_web_access_version: >-
+      {{ (agents__pi_web_access_release.stdout | from_json)
+         if agents_pi_web_access_version == 'latest' else agents_pi_web_access_version }}
+  tags: pi
+
+- name: Pi Web Access | Install the package for the BB account
+  become: true
+  become_user: bb
+  environment:
+    HOME: /home/bb
+    PATH: /usr/local/bin:/usr/bin:/bin
+  tags: pi
+  block:
+    - name: Pi Web Access | Check the package declaration and installed version
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -c
+          - |
+            import json
+            import sys
+            from pathlib import Path
+            root = Path.home() / '.pi/agent'
+            settings = root / 'settings.json'
+            package = root / 'npm/node_modules/pi-web-access/package.json'
+            config = json.loads(settings.read_text()) if settings.exists() else {}
+            metadata = json.loads(package.read_text()) if package.exists() else {}
+            source = 'npm:pi-web-access@' + sys.argv[1]
+            sources = [entry if isinstance(entry, str) else entry['source']
+                       for entry in config.get('packages', [])]
+            sys.exit(0 if source in sources and metadata.get('version') == sys.argv[1] else 1)
+          - "{{ agents__pi_web_access_version }}"
+      register: agents__pi_web_access_status
+      changed_when: false
+      failed_when: agents__pi_web_access_status.rc not in [0, 1]
+      check_mode: false
+
+    - name: Pi Web Access | Install and register the selected version
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/pi
+          - install
+          - "npm:pi-web-access@{{ agents__pi_web_access_version }}"
+        chdir: /home/bb
+      environment:
+        npm_config_ignore_scripts: "true"
+      when: agents__pi_web_access_status.rc == 1
+      changed_when: true

@@ -30,6 +30,14 @@
     fail_msg: "agents_bb_version must be latest or an exact stable version without a v prefix."
   tags: always
 
+- name: Prerequisite | Validate Pi Web Access version
+  ansible.builtin.assert:
+    that:
+      - agents_pi_web_access_version is string
+      - agents_pi_web_access_version == 'latest' or agents_pi_web_access_version is match('^[0-9]+[.][0-9]+[.][0-9]+$')
+    fail_msg: "agents_pi_web_access_version must be latest or an exact stable version without a v prefix."
+  tags: always
+
 - name: Prerequisite | Require systemd
   ansible.builtin.assert:
     that:

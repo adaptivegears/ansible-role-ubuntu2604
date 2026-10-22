@@ -11,8 +11,15 @@ pi --version
 
 - `agents_pi_version` defaults to `1.x` (`>=1.0.0 <2.0.0`, excluding prereleases). Each application selects the newest stable Pi 1.x; an exact stable `1.x.y` version pins it instead.
 - `agents_bb_version` defaults to `latest`, resolving the npm stable tag on each run. An exact stable version pins BB instead.
+- `agents_pi_web_access_version` defaults to `latest`; an exact stable version pins the Pi Web Access package instead.
 
 Unchanged versions are not reinstalled. npm registry access is required to resolve moving selectors. These npm installations do not lock transitive dependencies. Pi's lifecycle scripts are disabled; BB's are enabled because its SQLite, PTY and watcher add-ons require native binaries. Build prerequisites are installed for hosts without matching prebuilt binaries.
+
+## Pi Web Access
+
+Installs [pi-web-access](https://github.com/nicobailon/pi-web-access) with `pi install` as `bb`, under `/home/bb/.pi/agent/npm/`. Pi merges the package entry into the user's `settings.json`; other packages and preferences are preserved. The role resolves an exact version and skips installation when both the package and its declaration already match.
+
+The package adds web search, source checking and URL fetching. The role does not configure a search provider, copy API keys or overwrite `web-search.json`. Upstream supports keyless Exa search by default; other providers can require separate configuration and credentials. Pi/package updates do not restart BB; use a new Pi session to load updated resources.
 
 ## BB account and service
 

@@ -4,3 +4,6 @@ agents_pi_version: "1.x"
 
 # Follow stable BB releases; an exact version can be supplied to pin the server.
 agents_bb_version: "latest"
+
+# Install the web tools for the BB account; exact versions can be pinned.
+agents_pi_web_access_version: "latest"

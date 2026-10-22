@@ -1,0 +1,6 @@
+---
+- name: Install agent tooling on the local Ubuntu 26.04 host
+  hosts: localhost
+  connection: local
+  roles:
+    - andreygubarev.com.agents

@@ -1,0 +1,44 @@
+---
+# -----------------------------------------------------------------------------
+# BB
+# -----------------------------------------------------------------------------
+# Resolve latest to an exact version so unchanged runs do not reinstall BB.
+# Unlike Pi, BB needs install scripts for its native SQLite, PTY and watcher
+# add-ons. Keep the installation root-owned, separate from mutable user state.
+# -----------------------------------------------------------------------------
+
+- name: BB | Query the latest stable server release
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/npm
+      - view
+      - bb-app@latest
+      - version
+      - --json
+  register: agents__bb_release
+  changed_when: false
+  check_mode: false
+  when: agents_bb_version == 'latest'
+  tags: bb
+
+- name: BB | Resolve the exact desired version
+  ansible.builtin.set_fact:
+    agents__bb_version: >-
+      {{ (agents__bb_release.stdout | from_json)
+         if agents_bb_version == 'latest' else agents_bb_version }}
+  tags: bb
+
+- name: BB | Install the server system-wide with native add-ons
+  become: true
+  community.general.npm:
+    name: bb-app
+    version: "{{ agents__bb_version }}"
+    global: true
+    ignore_scripts: false
+    executable: /usr/bin/npm
+    state: present
+  environment:
+    npm_config_prefix: /usr/local
+    npm_config_allow_scripts: better-sqlite3,node-pty,@parcel/watcher
+  register: agents__bb_package
+  tags: bb

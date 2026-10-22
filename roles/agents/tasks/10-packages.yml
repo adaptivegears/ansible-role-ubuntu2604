@@ -4,14 +4,21 @@
 # -----------------------------------------------------------------------------
 # Ubuntu 26.04 provides Node.js >= 22.19, as required by Pi. Keep the runtime
 # managed by APT and available to non-interactive callers without shell hooks.
+# BB's native add-ons may need compilation; its user service needs a D-Bus session.
 # -----------------------------------------------------------------------------
 
-- name: Packages | Install Node.js and npm
+- name: Packages | Install agent runtimes and BB service prerequisites
   become: true
   ansible.builtin.apt:
     name:
       - nodejs
       - npm
+      - git
+      - build-essential
+      - python3
+      - sudo
+      - dbus-user-session
+      - libpam-systemd
     state: present
     update_cache: true
     cache_valid_time: 3600

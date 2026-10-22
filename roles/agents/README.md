@@ -1,16 +1,32 @@
 # Agents
 
-Installs the [Pi coding-agent harness](https://pi.dev/docs/latest/quickstart) system-wide on Ubuntu 26.04. Node.js and npm come from Ubuntu APT; Pi is installed through npm with lifecycle scripts disabled and an explicit `/usr/local` prefix. The CLI is available at `/usr/local/bin/pi`, including to non-interactive callers.
+Installs the [Pi coding-agent harness](https://pi.dev/docs/latest/quickstart) and the [BB server](https://github.com/get-bb/bb/blob/main/packages/bb-app/README.md) on Ubuntu 26.04 with systemd. Node.js and npm come from Ubuntu APT; both applications are installed system-wide under `/usr/local` and are available without shell initialization.
 
 ```bash
 ansible-playbook andreygubarev.com.agents
 pi --version
 ```
 
-`agents_pi_version` defaults to `1.x` (`>=1.0.0 <2.0.0`, excluding prereleases). Every application queries npm and installs the latest stable release in that major series; Pi 2.x is never selected automatically. If no new release exists, reapplication does not reinstall Pi. Override `agents_pi_version` with an exact stable `1.x.y` version to pin it instead. Internet access to the npm registry is required to resolve `1.x` on each run.
+## Versions
 
-The npm installation resolves an exact Pi version before installation but does not lock transitive dependencies like Pi's standalone installer does.
+- `agents_pi_version` defaults to `1.x` (`>=1.0.0 <2.0.0`, excluding prereleases). Each application selects the newest stable Pi 1.x; an exact stable `1.x.y` version pins it instead.
+- `agents_bb_version` defaults to `latest`, resolving the npm stable tag on each run. An exact stable version pins BB instead.
 
-The role installs only the harness: no BB/getbb, service, model configuration, credentials, or automatic agent execution. Pi uses each invoking user's own `~/.pi/agent/` for configuration and sessions; existing user data is left untouched. Provider authentication is a separate manual step.
+Unchanged versions are not reinstalled. npm registry access is required to resolve moving selectors. These npm installations do not lock transitive dependencies. Pi's lifecycle scripts are disabled; BB's are enabled because its SQLite, PTY and watcher add-ons require native binaries. Build prerequisites are installed for hosts without matching prebuilt binaries.
 
-The local playbook does not apply other roles. For baseline-first provisioning, apply `andreygubarev.com.ubuntu2604` separately before `andreygubarev.com.agents`.
+## BB account and service
+
+BB runs as the dedicated `bb` user, with a locked login password and private home `/home/bb`. **This account has unrestricted passwordless sudo (`NOPASSWD: ALL`): its agents can obtain root. It is for trusted workloads, not a security sandbox.**
+
+The `bb.service` unit lives in `/home/bb/.config/systemd/user/`. Linger is enabled so the user manager and BB start at boot without an SSH login, survive logout, and restart after failures. The system-wide installation is root-owned; BB's database, configuration and history live in `/home/bb/.bb`. Pi uses `/home/bb/.pi/agent/`. Existing state and provider credentials are not overwritten.
+
+```bash
+sudo -u bb env XDG_RUNTIME_DIR=/run/user/$(id -u bb) systemctl --user status bb.service
+sudo -u bb env XDG_RUNTIME_DIR=/run/user/$(id -u bb) journalctl --user -u bb.service
+```
+
+BB listens only on `127.0.0.1:38886`. Its local API is unauthenticated: do not expose it directly to the internet. Provider login and BB Connect account pairing are manual and must be performed as `bb`; the role never copies credentials or pairs an account automatically. To sign this server in, run `sudo -iu bb bb account login` and approve it as a **new server**, not as a replacement for an existing BB instance.
+
+In-app BB updates are disabled so Ansible controls the installed version. Reapplying the role upgrades BB when needed and restarts the user service on package or unit changes.
+
+The local playbook does not apply other roles or launch agent jobs. For baseline-first provisioning, apply `andreygubarev.com.ubuntu2604` separately before `andreygubarev.com.agents`.

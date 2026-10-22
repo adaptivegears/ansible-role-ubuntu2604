@@ -7,3 +7,12 @@
 
 - name: Pi | Import installation
   ansible.builtin.import_tasks: 20-pi.yml
+
+- name: BB user | Import service account
+  ansible.builtin.import_tasks: 30-bb-user.yml
+
+- name: BB | Import installation
+  ansible.builtin.import_tasks: 40-bb-install.yml
+
+- name: BB service | Import persistent user service
+  ansible.builtin.import_tasks: 50-bb-service.yml

@@ -3,7 +3,7 @@ galaxy_info:
   role_name: agents
   namespace: andreygubarev
   author: Andrey Gubarev
-  description: Pi coding-agent harness installation for Ubuntu 26.04
+  description: Pi harness and persistent BB user service for Ubuntu 26.04
   license: Apache-2.0
   min_ansible_version: "2.20"
   platforms:

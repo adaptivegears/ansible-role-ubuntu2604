@@ -1,0 +1,89 @@
+---
+# -----------------------------------------------------------------------------
+# BB service
+# -----------------------------------------------------------------------------
+# Linger starts the user manager at boot without a login session. Address that
+# manager's bus explicitly so provisioning works over SSH and after reboot.
+# Keep BB on loopback: its local API is not an authenticated public endpoint.
+# -----------------------------------------------------------------------------
+
+- name: BB service | Configure the persistent user service
+  become: true
+  tags: bb
+  block:
+    - name: BB service | Create user unit directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: bb
+        group: bb
+        mode: "0700"
+      loop:
+        - /home/bb/.config
+        - /home/bb/.config/systemd
+        - /home/bb/.config/systemd/user
+
+    - name: BB service | Write the user unit
+      ansible.builtin.copy:
+        dest: /home/bb/.config/systemd/user/bb.service
+        content: |
+          # Source: https://github.com/andreygubarev/ansible-collection
+          [Unit]
+          Description=BB agent server
+
+          [Service]
+          Type=simple
+          WorkingDirectory=/home/bb
+          Environment=PATH=/usr/local/bin:/usr/bin:/bin
+          Environment=BB_DATA_DIR=/home/bb/.bb
+          ExecStart=/usr/local/bin/bb-app --server-bind-host 127.0.0.1 --no-in-app-updates
+          Restart=on-failure
+          RestartSec=5
+
+          [Install]
+          WantedBy=default.target
+        owner: bb
+        group: bb
+        mode: "0644"
+      register: agents__bb_unit
+
+    - name: BB service | Enable linger for boot without login
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/loginctl
+          - enable-linger
+          - bb
+        creates: /var/lib/systemd/linger/bb
+
+    - name: BB service | Start the user manager
+      ansible.builtin.systemd_service:
+        name: "user@{{ agents__bb_user.uid }}.service"
+        state: started
+
+    - name: BB service | Wait for the user bus
+      ansible.builtin.wait_for:
+        path: "/run/user/{{ agents__bb_user.uid }}/bus"
+        timeout: 30
+      when: not ansible_check_mode
+
+    - name: BB service | Enable and start the server
+      become: true
+      become_user: bb
+      ansible.builtin.systemd_service:
+        name: bb.service
+        scope: user
+        enabled: true
+        daemon_reload: "{{ agents__bb_unit is changed }}"
+        state: "{{ 'restarted' if agents__bb_unit is changed or agents__bb_package is changed else 'started' }}"
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ agents__bb_user.uid }}"
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ agents__bb_user.uid }}/bus"
+
+    - name: BB service | Wait for the local web interface
+      ansible.builtin.uri:
+        url: http://127.0.0.1:38886/
+      register: agents__bb_http
+      until: agents__bb_http.status == 200
+      retries: 30
+      delay: 2
+      when: not ansible_check_mode

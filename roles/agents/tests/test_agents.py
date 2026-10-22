@@ -1,4 +1,4 @@
-"""Verify the system-wide Pi harness without provider credentials or model calls."""
+"""Verify Pi and the persistent BB user service without model calls."""
 
 import json
 import re
@@ -49,19 +49,19 @@ def test_pi_cli_is_available_without_shell_initialization(host, pi_metadata):
     assert cli.is_symlink
     assert cli.user == "root"
     assert cli.linked_to.startswith(f"{PI_PACKAGE}/")
-    result = host.run("sudo -u ansible -H env PATH=/usr/local/bin:/usr/bin:/bin pi --version")
+    result = host.run("sudo -u bb -H env PATH=/usr/local/bin:/usr/bin:/bin pi --version")
     assert result.rc == 0, result.stderr
     assert result.stdout.strip() == pi_metadata["version"]
 
 
 def test_pi_exposes_rpc_mode(host):
-    result = host.run("sudo -u ansible -H /usr/local/bin/pi --help")
+    result = host.run("sudo -u bb -H /usr/local/bin/pi --help")
     assert result.rc == 0, result.stderr
     assert "rpc" in result.stdout
 
 
 def test_smoke_checks_do_not_configure_provider_credentials(host):
     # Pi can initialize an empty auth file even for --help or --version.
-    auth = host.file("/home/ansible/.pi/agent/auth.json")
+    auth = host.file("/home/bb/.pi/agent/auth.json")
     if auth.exists:
         assert not json.loads(auth.content_string)

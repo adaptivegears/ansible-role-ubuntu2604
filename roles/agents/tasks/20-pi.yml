@@ -1,0 +1,43 @@
+---
+# -----------------------------------------------------------------------------
+# Pi
+# -----------------------------------------------------------------------------
+# Use Pi's documented npm installation with lifecycle scripts disabled. Install
+# into /usr/local so any account can invoke the harness, while credentials and
+# sessions remain in each caller's home and are never provisioned by this role.
+# -----------------------------------------------------------------------------
+
+- name: Pi | Query stable releases in the selected major series
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/npm
+      - view
+      - "@earendil-works/pi-coding-agent@{{ agents_pi_version }}"
+      - version
+      - --json
+  register: agents__pi_releases
+  changed_when: false
+  check_mode: false
+  when: agents_pi_version == '1.x'
+  tags: pi
+
+- name: Pi | Resolve the exact desired version
+  ansible.builtin.set_fact:
+    agents__pi_version: >-
+      {{ (([agents__pi_releases.stdout | from_json] | flatten)
+          | community.general.version_sort | last)
+         if agents_pi_version == '1.x' else agents_pi_version }}
+  tags: pi
+
+- name: Pi | Install the selected harness system-wide
+  become: true
+  community.general.npm:
+    name: "@earendil-works/pi-coding-agent"
+    version: "{{ agents__pi_version }}"
+    global: true
+    ignore_scripts: true
+    executable: /usr/bin/npm
+    state: present
+  environment:
+    npm_config_prefix: /usr/local
+  tags: pi

@@ -26,6 +26,7 @@ ansible-playbook andreygubarev.com.ubuntu2604 -e ubuntu2604_hostname=worker-1
 ansible-playbook andreygubarev.com.kubernetes -e kubernetes_cluster_name=my-cluster
 ansible-playbook andreygubarev.com.terraform
 ansible-playbook andreygubarev.com.gitops
+ansible-playbook andreygubarev.com.agents
 ```
 
 | Role / playbook | Purpose | Documentation |
@@ -34,6 +35,7 @@ ansible-playbook andreygubarev.com.gitops
 | `andreygubarev.com.kubernetes` | Single-node kubeadm cluster | [Quickstart](docs/kubernetes/getting-started/quickstart.md) · [Configuration](docs/kubernetes/reference/configuration.md) |
 | `andreygubarev.com.terraform` | direnv, tenv, OpenTofu, and Terragrunt | [Quickstart](docs/terraform/getting-started/quickstart.md) · [Configuration](docs/terraform/reference/configuration.md) |
 | `andreygubarev.com.gitops` | Host-local GitOps workspace and workload scaffold | [Usage](roles/gitops/README.md) |
+| `andreygubarev.com.agents` | System-wide Pi coding-agent harness | [Usage](roles/agents/README.md) |
 
 The playbooks are independent. None automatically applies another role.
 
@@ -57,9 +59,9 @@ make test     # Test all roles in a fresh Incus VM
 
 ### Integration tests
 
-`make test` requires a running local Incus server with VM support, `uv`, and an SSH client compatible with the role's SSH policy. It creates a fresh Ubuntu 26.04 cloud VM with 4 vCPUs, 6 GiB RAM, and a 30 GiB disk. The existing Incus network and storage pool default to `incusbr0` and `default`; override them with `INCUS_NETWORK` and `INCUS_STORAGE_POOL` if needed. The VM needs outbound access to Ubuntu archives, Kubernetes repositories, GitHub, and container registries.
+`make test` requires a running local Incus server with VM support, `uv`, and an SSH client compatible with the role's SSH policy. It creates a fresh Ubuntu 26.04 cloud VM with 4 vCPUs, 6 GiB RAM, and a 30 GiB disk. The existing Incus network and storage pool default to `incusbr0` and `default`; override them with `INCUS_NETWORK` and `INCUS_STORAGE_POOL` if needed. The VM needs outbound access to Ubuntu archives, Kubernetes repositories, GitHub, the npm registry, and container registries.
 
-The test applies the checkout's Ubuntu role, then Kubernetes and Terraform tooling, waits for the node and system workloads, and runs all three testinfra suites. It reapplies the roles without first-run overrides and requires `changed=0`, then reboots and reruns verification. This tests the combined fresh-machine workflow; the roles remain independently usable.
+The test applies the checkout's Ubuntu role, then Kubernetes, Terraform tooling, and the Pi harness, waits for the node and system workloads, and runs all four testinfra suites. It reapplies the roles without first-run overrides and requires `changed=0`, then reboots and reruns verification. This tests the combined fresh-machine workflow; the roles remain independently usable.
 
 Successful runs delete the VM and temporary files. Failed or interrupted runs retain the VM, generated inventory, disposable SSH key, and logs under `.cache/incus-test.*`, printing inspection and cleanup commands. No existing instances or host SSH keys are used. `make test` no longer reads `inventory.ini` or verifies the local host.
 

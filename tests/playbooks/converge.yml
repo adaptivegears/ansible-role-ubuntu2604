@@ -16,5 +16,10 @@
   roles:
     - andreygubarev.com.terraform
 
+- name: Install the Pi harness
+  hosts: incus_test
+  roles:
+    - andreygubarev.com.agents
+
 - name: Wait for the cluster
   ansible.builtin.import_playbook: ready.yml

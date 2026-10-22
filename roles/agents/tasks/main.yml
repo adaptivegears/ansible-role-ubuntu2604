@@ -1,0 +1,9 @@
+---
+- name: Prerequisite | Import checks
+  ansible.builtin.import_tasks: 00-prerequisites.yml
+
+- name: Packages | Import Node.js runtime
+  ansible.builtin.import_tasks: 10-packages.yml
+
+- name: Pi | Import installation
+  ansible.builtin.import_tasks: 20-pi.yml

@@ -1,0 +1,23 @@
+---
+# -----------------------------------------------------------------------------
+# Prerequisite
+# -----------------------------------------------------------------------------
+# Use Ubuntu's Node.js packages rather than adding a third-party runtime source.
+# Validate the target and Pi 1.x selector before making system-wide changes.
+# -----------------------------------------------------------------------------
+
+- name: Prerequisite | Assert OS is Ubuntu 26.04
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Ubuntu'
+      - ansible_facts['distribution_version'] == '26.04'
+    fail_msg: "This role requires Ubuntu 26.04."
+  tags: always
+
+- name: Prerequisite | Validate Pi version
+  ansible.builtin.assert:
+    that:
+      - agents_pi_version is string
+      - agents_pi_version is match('^1[.]([0-9]+[.][0-9]+|x)$')
+    fail_msg: "agents_pi_version must be 1.x or an exact stable 1.x.y version without a v prefix."
+  tags: always

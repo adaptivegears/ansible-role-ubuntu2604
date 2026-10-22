@@ -1,0 +1,19 @@
+---
+# -----------------------------------------------------------------------------
+# Packages
+# -----------------------------------------------------------------------------
+# Ubuntu 26.04 provides Node.js >= 22.19, as required by Pi. Keep the runtime
+# managed by APT and available to non-interactive callers without shell hooks.
+# -----------------------------------------------------------------------------
+
+- name: Packages | Install Node.js and npm
+  become: true
+  ansible.builtin.apt:
+    name:
+      - nodejs
+      - npm
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+    install_recommends: false
+  tags: packages

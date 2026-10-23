@@ -5,12 +5,15 @@
 # Ubuntu 26.04 provides Node.js >= 22.19, as required by Pi. Keep the runtime
 # managed by APT and available to non-interactive callers without shell hooks.
 # BB's native add-ons may need compilation; its user service needs a D-Bus session.
+# POSIX ACL tools let Ansible share temporary modules with bb when switching
+# from another unprivileged user, including local runs without pipelining.
 # -----------------------------------------------------------------------------
 
 - name: Packages | Install agent runtimes and BB service prerequisites
   become: true
   ansible.builtin.apt:
     name:
+      - acl
       - nodejs
       - npm
       - git

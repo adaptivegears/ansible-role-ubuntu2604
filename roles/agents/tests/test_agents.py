@@ -6,7 +6,7 @@ import re
 import pytest
 
 
-@pytest.mark.parametrize("package", ("nodejs", "npm"))
+@pytest.mark.parametrize("package", ("acl", "nodejs", "npm"))
 def test_runtime_package_is_installed(host, package):
     assert host.package(package).is_installed
 

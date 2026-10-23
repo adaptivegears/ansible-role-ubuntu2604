@@ -60,6 +60,25 @@
           - ""
         creates: /etc/ssh/ssh_host_rsa_key
 
+# Existing role-managed hosts may only have Ed25519/RSA keys. Add ECDSA without
+# replacing their identities so clients pinned to ECDSA algorithms can connect.
+- name: SSH | Hardening | Ensure ECDSA host key exists
+  become: true
+  ansible.builtin.command:
+    argv:
+      - ssh-keygen
+      - -t
+      - ecdsa
+      - -b
+      - "256"
+      - -f
+      - /etc/ssh/ssh_host_ecdsa_key
+      - -N
+      - ""
+    creates: /etc/ssh/ssh_host_ecdsa_key
+  tags: ssh
+  notify: Restart OpenSSH
+
 - name: SSH | Hardening | Configure sshd_config permissions
   become: true
   ansible.builtin.file:

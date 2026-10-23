@@ -46,8 +46,8 @@ ansible-playbook andreygubarev.com.ubuntu2604 --tags hostname
 - Password authentication is disabled; the provisioning account must have non-empty authorized keys.
 - Local root invocation or remote root SSH forces `PermitRootLogin yes`, even if the variable is `false`. Otherwise, `ubuntu2604_ssh_allow_root_login` controls the value. Sudo escalation alone does not enable root SSH.
 - Hardening is applied through `/etc/ssh/sshd_config.d/00-ubuntu2604-hardening.conf` and validated with `sshd -t`.
-- Crypto settings follow the [ssh-audit Ubuntu 26.04 profile, v1](https://github.com/jtesta/ssh-audit/blob/974dd324a6acf739b42c607804db731e507a13f8/src/ssh_audit/hardening_guides.py#L566). Clients need hybrid post-quantum key exchange; ECDSA user keys and RSA keys below 3072 bits are rejected. The authorized-keys check does not validate key compatibility.
-- The first SSH run replaces `/etc/ssh/ssh_host_*` with Ed25519 and 4096-bit RSA keys. Verify the new fingerprints. The hardening drop-in is the first-run marker; removing it triggers regeneration.
+- Crypto algorithms and minimum RSA key size use Ubuntu's OpenSSH defaults. ECDSA and RSA 2048 user keys, ECDH key exchange, AES-CTR, and HMAC-SHA2 remain compatible; the role does not enable DSA or RSA/SHA-1 signatures. The authorized-keys check only verifies a non-empty file, not successful authentication.
+- The first SSH run replaces `/etc/ssh/ssh_host_*` with Ed25519, ECDSA P-256, and 4096-bit RSA keys. Verify the new fingerprints. The hardening drop-in is the first-run marker; removing it triggers regeneration. Existing role-managed hosts gain a missing ECDSA key without replacing their other host keys.
 
 For remote port changes, connect on the current port while applying `ubuntu2604_ssh_port`, then update inventory `ansible_port`. The handler reloads systemd and restarts `ssh.socket` before `ssh.service`. Local execution needs no inventory update.
 

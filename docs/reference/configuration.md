@@ -63,7 +63,7 @@ For remote port changes, connect on the current port while applying `ubuntu2604_
 | Unattended updates | Security timers enabled; automatic reboot, shutdown installs, and needrestart service restarts disabled |
 | Logs | Persistent journald; 1 GiB cap, 30-day retention, 2 GiB free-space reserve on `/var/log`; volatile logs also bounded |
 | Firewall | Enable nftables, mask UFW, select nft-backed iptables tools; no filtering rules managed |
-| Packages | Purge all snap data and block snapd reinstallation; remove desktop/hardware/storage agents, including `multipath-tools` and `open-iscsi`; install troubleshooting tools |
+| Packages | Remove desktop/hardware/storage agents, including `multipath-tools` and `open-iscsi`; install troubleshooting tools; no explicit Snap cleanup or reinstallation block |
 | Time / DNS | Use the stock chrony service and systemd-resolved stub; fallback DNS `1.1.1.1`, `1.0.0.1` does not replace per-link resolvers |
 | Login | Clear MOTD and mask `motd-news.timer` |
 
@@ -81,16 +81,15 @@ Exact values and package lists are defined in [numbered task files](../../roles/
 | `swap` | Swap and fstab cleanup |
 | `apt` | Sources, cache, package cleanup, upgrades, reboot reporting |
 | `upgrade` | Safe upgrade, autoremove, autoclean |
-| `packages` | Installs, removals, snap cleanup, upgrades, reboot reporting |
+| `packages` | Installs, removals, upgrades, reboot reporting |
 | `unattended_upgrades` | Security updates, reboot policy, needrestart |
 | `logs` | Journald retention and disk-pressure controls |
 | `firewall` | nftables, UFW, compatibility tools |
 | `locale` | Locale generation and default |
 | `time` | Timezone and chrony |
 | `dns` | systemd-resolved and fallback DNS |
-| `snap` | Purge snaps/data and block snapd |
 | `motd` | Login-message cleanup |
 
-OS/architecture checks, the cloud-init barrier, and configuration validation/persistence use `always`; do not skip them. To retain snaps, use `--skip-tags snap`, including when selecting `apt` or `packages`.
+OS/architecture checks, the cloud-init barrier, and configuration validation/persistence use `always`; do not skip them.
 
 [Quickstart](../getting-started/quickstart.md)

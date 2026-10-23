@@ -25,7 +25,7 @@ To change a setting, supply a new override once. Invalid input does not overwrit
 
 ## Operational cautions
 
-- Intended for fresh container-host VMs. All snaps and their data are purged without backups; use `--skip-tags snap` to retain them.
+- Intended for fresh container-host VMs. The role no longer explicitly removes Snap packages or their data.
 - Password SSH authentication is disabled. Root provisioning always retains root SSH access, regardless of `ubuntu2604_ssh_allow_root_login`; non-root sudo escalation does not trigger this override.
 - First SSH configuration regenerates host keys. Verify new fingerprints through a trusted channel before updating `known_hosts`. See [SSH policy](../reference/configuration.md#ssh-policy) for client requirements.
 - Package upgrades run by default. Reboot requirements are reported, but the role does not reboot the host.

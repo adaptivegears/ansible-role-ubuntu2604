@@ -29,9 +29,6 @@
 - name: APT | Import sources
   ansible.builtin.import_tasks: 20-apt-sources.yml
 
-- name: Snap | Import removal
-  ansible.builtin.import_tasks: 21-snap.yml
-
 - name: APT | Import package cleanup
   ansible.builtin.import_tasks: 22-package-cleanup.yml
 

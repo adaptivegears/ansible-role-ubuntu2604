@@ -35,7 +35,6 @@ EXPECTED_BREADCRUMBED_FILES = (
     "/etc/systemd/system/transparent-hugepages-madvise.service",
     "/etc/systemd/system.conf.d/60-ubuntu2604-density.conf",
     "/etc/apt/sources.list.d/ubuntu.sources",
-    "/etc/apt/preferences.d/99-ubuntu2604-nosnap.pref",
     "/etc/apt/apt.conf.d/20auto-upgrades",
     "/etc/apt/apt.conf.d/52ubuntu2604-unattended-upgrades",
     "/etc/needrestart/conf.d/99-ubuntu2604-no-auto-restarts.conf",
@@ -389,7 +388,6 @@ APT_LEGACY_MIRRORS = (
     "/etc/apt/ubuntu-security-mirrors.txt",
 )
 APT_SOURCES = "/etc/apt/sources.list.d/ubuntu.sources"
-APT_NOSNAP_PREF = "/etc/apt/preferences.d/99-ubuntu2604-nosnap.pref"
 APT_CONTAINER_WORKER_REMOVED_PACKAGES = (
     "modemmanager",
     "fwupd",
@@ -434,41 +432,6 @@ def test_apt_legacy_mirror_list_is_absent(host, path):
 @pytest.mark.parametrize("package", APT_CONTAINER_WORKER_REMOVED_PACKAGES)
 def test_container_worker_irrelevant_package_is_removed(host, package):
     assert not host.package(package).is_installed
-
-
-# -----------------------------------------------------------------------------
-# Snap
-# -----------------------------------------------------------------------------
-
-
-def test_snapd_package_is_removed(host):
-    assert not host.package("snapd").is_installed
-
-
-def test_snap_command_is_absent(host):
-    assert host.run("command -v snap").rc != 0
-
-
-EXPECTED_REMOVED_SNAP_DIRECTORIES = (
-    "/snap",
-    "/var/cache/snapd",
-    "/var/lib/snapd",
-    "/var/snap",
-)
-
-
-@pytest.mark.parametrize("path", EXPECTED_REMOVED_SNAP_DIRECTORIES)
-def test_snap_state_directory_is_absent(host, path):
-    assert not host.file(path).exists
-
-
-def test_snapd_reinstallation_is_pinned(host):
-    policy = host.file(APT_NOSNAP_PREF)
-
-    assert policy.exists
-    assert policy.contains(r"^Package:[[:space:]][[:space:]]*snapd$")
-    assert policy.contains(r"^Pin:[[:space:]][[:space:]]*release \*$")
-    assert policy.contains(r"^Pin-Priority:[[:space:]][[:space:]]*-1$")
 
 
 # -----------------------------------------------------------------------------

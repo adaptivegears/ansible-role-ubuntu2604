@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.26] - 2026-10-23
+
+### Fixed
+- **SSH client compatibility**: Use Ubuntu's OpenSSH defaults for cryptographic algorithms and minimum RSA size instead of the restrictive ssh-audit lists and RSA 3072 minimum. Restore compatibility with ECDSA and RSA 2048 user keys, ECDH key exchange, AES-CTR, and HMAC-SHA2 while retaining key-only authentication and leaving DSA/RSA-SHA1 disabled by default. Create a missing ECDSA P-256 host key on new and existing role-managed hosts without replacing existing Ed25519/RSA keys during upgrades.
+
 ## [2026.10.25] - 2026-10-23
 
 ### Changed

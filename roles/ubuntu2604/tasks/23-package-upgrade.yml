@@ -12,8 +12,8 @@
     lock_timeout: 600
     # Use safe upgrades to keep rebuilt VMs current without removals.
     upgrade: safe
-    # Remove orphans so old image/provisioning packages stop consuming disk.
-    autoremove: true
+    # Do not autoremove: cloud images can mark administrative tools automatic.
+    # Only the explicit cleanup list should select packages for removal.
     # Drop obsolete downloads while preserving cache entries useful later.
     autoclean: true
   tags: [apt, upgrade, packages]

@@ -393,22 +393,31 @@ APT_CONTAINER_WORKER_REMOVED_PACKAGES = (
     "fwupd",
     "udisks2",
     "bolt",
-    "multipath-tools",
-    "open-iscsi",
-    "software-properties-common",
-    "packagekit",
-    "polkitd",
     "apport",
     "apport-core-dump-handler",
     "pollinate",
-    "networkd-dispatcher",
-    "ubuntu-pro-client",
-    "ubuntu-pro-client-l10n",
     "update-manager-core",
     "update-notifier-common",
-    "ubuntu-minimal",
-    "sysstat",
 )
+
+
+def test_package_cleanup_is_limited_to_explicit_contract():
+    role = Path(__file__).resolve().parents[1]
+    tasks = yaml.safe_load((role / "tasks/22-package-cleanup.yml").read_text())
+    apt_tasks = [task["ansible.builtin.apt"] for task in tasks if "ansible.builtin.apt" in task]
+
+    assert len(apt_tasks) == 1
+    assert set(apt_tasks[0]["name"]) == set(APT_CONTAINER_WORKER_REMOVED_PACKAGES)
+
+
+@pytest.mark.parametrize("tasks_file", ("22-package-cleanup.yml", "23-package-upgrade.yml"))
+def test_package_maintenance_does_not_autoremove_image_packages(tasks_file):
+    role = Path(__file__).resolve().parents[1]
+    tasks = yaml.safe_load((role / "tasks" / tasks_file).read_text())
+    apt_tasks = [task["ansible.builtin.apt"] for task in tasks if "ansible.builtin.apt" in task]
+
+    assert apt_tasks
+    assert all(not task.get("autoremove", False) for task in apt_tasks)
 
 
 def test_apt_sources_use_provider_neutral_official_endpoints(host):

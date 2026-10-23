@@ -2,7 +2,8 @@
 # -----------------------------------------------------------------------------
 # Package cleanup
 # -----------------------------------------------------------------------------
-# Remove image packages outside the container-worker baseline.
+# Limit cleanup to explicit packages, preserving the base metapackage, Ubuntu Pro,
+# storage/network integration, and administrative tools supplied by cloud images.
 # -----------------------------------------------------------------------------
 
 - name: APT | Remove container-worker irrelevant packages
@@ -16,32 +17,17 @@
       - fwupd
       - udisks2
       - bolt
-      # Multipath and iSCSI belong to broad SAN-capable server images, not the
-      # local virtual disks expected by this role.
-      - multipath-tools
-      - open-iscsi
-      # GUI/package-management authorization helpers keep PackageKit and polkit
-      # daemons alive; repositories and packages are managed directly by Ansible.
-      - software-properties-common
-      - packagekit
-      - polkitd
       # Crash-reporting packages are for interactive Ubuntu bug reporting, not
       # production VM recovery where logs and core policies are managed separately.
       - apport
       - apport-core-dump-handler
-      # One-shot entropy and network event hook helpers have no steady-state role
-      # here, so keeping their enabled units only adds boot/runtime noise.
+      # Cloud images seed entropy at boot; this external entropy helper is not
+      # needed by the container-worker baseline.
       - pollinate
-      - networkd-dispatcher
-      # Ubuntu Pro and desktop-style update notification plumbing are not used by
-      # this self-managed container-worker baseline.
-      - ubuntu-pro-client
-      - ubuntu-pro-client-l10n
+      # Interactive release upgrades and update notifications are outside the
+      # role's APT-based package and security update management.
       - update-manager-core
       - update-notifier-common
-      - ubuntu-minimal
-      # The role favors on-demand incident tools over periodic sar collection.
-      - sysstat
     state: absent
     purge: true
     lock_timeout: 600

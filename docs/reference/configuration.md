@@ -59,11 +59,11 @@ For remote port changes, connect on the current port while applying `ubuntu2604_
 | Limits | PAM `nofile`/`nproc`: soft and hard `65536`; systemd `NOFILE`, `NPROC`, and `TasksMax`: `65536`; memory/task accounting enabled |
 | Memory | Disable swap and fstab entries; transparent hugepages use `madvise` |
 | APT | DEB822 sources at `archive.ubuntu.com` and `security.ubuntu.com` for amd64 and arm64; no provider detection |
-| Upgrades | Safe upgrade, autoremove, and autoclean; 10-minute APT lock timeout; report reboot requirements without rebooting |
+| Upgrades | Safe upgrade and autoclean without autoremove; 10-minute APT lock timeout; report reboot requirements without rebooting |
 | Unattended updates | Security timers enabled; automatic reboot, shutdown installs, and needrestart service restarts disabled |
 | Logs | Persistent journald; 1 GiB cap, 30-day retention, 2 GiB free-space reserve on `/var/log`; volatile logs also bounded |
 | Firewall | Enable nftables, mask UFW, select nft-backed iptables tools; no filtering rules managed |
-| Packages | Remove desktop/hardware/storage agents, including `multipath-tools` and `open-iscsi`; install troubleshooting tools; no explicit Snap cleanup or reinstallation block |
+| Packages | Remove selected hardware agents, crash reporting, and interactive update helpers; retain Ubuntu Pro, `ubuntu-minimal`, storage/network integration, and administrative tools; install troubleshooting tools; no explicit Snap cleanup or reinstallation block |
 | Time / DNS | Use the stock chrony service and systemd-resolved stub; fallback DNS `1.1.1.1`, `1.0.0.1` does not replace per-link resolvers |
 | Login | Clear MOTD and mask `motd-news.timer` |
 
@@ -80,7 +80,7 @@ Exact values and package lists are defined in [numbered task files](../../roles/
 | `systemd` | Manager limits and accounting |
 | `swap` | Swap and fstab cleanup |
 | `apt` | Sources, cache, package cleanup, upgrades, reboot reporting |
-| `upgrade` | Safe upgrade, autoremove, autoclean |
+| `upgrade` | Safe upgrade, autoclean |
 | `packages` | Installs, removals, upgrades, reboot reporting |
 | `unattended_upgrades` | Security updates, reboot policy, needrestart |
 | `logs` | Journald retention and disk-pressure controls |

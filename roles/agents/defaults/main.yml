@@ -2,6 +2,9 @@
 # Follow stable Pi 1.x releases for plugin compatibility without crossing to 2.x.
 agents_pi_version: "1.x"
 
+# Follow stable Claude Code releases; an exact version can be supplied to pin the CLI.
+agents_claude_code_version: "latest"
+
 # Follow stable BB releases; an exact version can be supplied to pin the server.
 agents_bb_version: "latest"
 

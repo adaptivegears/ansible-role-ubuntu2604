@@ -1,0 +1,44 @@
+---
+# -----------------------------------------------------------------------------
+# Claude Code
+# -----------------------------------------------------------------------------
+# Resolve latest before installation to avoid reinstalling unchanged releases.
+# Keep the CLI root-owned and available to BB without shell initialization; its
+# postinstall script links the platform binary supplied by optional dependencies.
+# Authentication and user settings are deliberately left to the caller.
+# -----------------------------------------------------------------------------
+
+- name: Claude Code | Query the latest stable release
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/npm
+      - view
+      - "@anthropic-ai/claude-code@latest"
+      - version
+      - --json
+  register: agents__claude_code_release
+  changed_when: false
+  check_mode: false
+  when: agents_claude_code_version == 'latest'
+  tags: claude-code
+
+- name: Claude Code | Resolve the exact desired version
+  ansible.builtin.set_fact:
+    agents__claude_code_version: >-
+      {{ (agents__claude_code_release.stdout | from_json)
+         if agents_claude_code_version == 'latest' else agents_claude_code_version }}
+  tags: claude-code
+
+- name: Claude Code | Install the CLI system-wide
+  become: true
+  community.general.npm:
+    name: "@anthropic-ai/claude-code"
+    version: "{{ agents__claude_code_version }}"
+    global: true
+    ignore_scripts: false
+    executable: /usr/bin/npm
+    state: present
+  environment:
+    npm_config_prefix: /usr/local
+    npm_config_allow_scripts: "@anthropic-ai/claude-code"
+  tags: claude-code

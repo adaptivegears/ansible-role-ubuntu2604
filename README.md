@@ -35,7 +35,7 @@ ansible-playbook andreygubarev.com.agents
 | `andreygubarev.com.kubernetes` | Single-node kubeadm cluster | [Quickstart](docs/kubernetes/getting-started/quickstart.md) · [Configuration](docs/kubernetes/reference/configuration.md) |
 | `andreygubarev.com.terraform` | direnv, tenv, OpenTofu, and Terragrunt | [Quickstart](docs/terraform/getting-started/quickstart.md) · [Configuration](docs/terraform/reference/configuration.md) |
 | `andreygubarev.com.gitops` | Host-local GitOps workspace and workload scaffold | [Usage](roles/gitops/README.md) |
-| `andreygubarev.com.agents` | Pi harness and persistent BB user service | [Usage](roles/agents/README.md) |
+| `andreygubarev.com.agents` | Pi harness, Claude Code, and persistent BB user service | [Usage](roles/agents/README.md) |
 
 The playbooks are independent. None automatically applies another role.
 

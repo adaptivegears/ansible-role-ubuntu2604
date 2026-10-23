@@ -8,6 +8,9 @@
 - name: Pi | Import installation
   ansible.builtin.import_tasks: 20-pi.yml
 
+- name: Claude Code | Import installation
+  ansible.builtin.import_tasks: 21-claude-code.yml
+
 - name: BB user | Import service account
   ansible.builtin.import_tasks: 30-bb-user.yml
 

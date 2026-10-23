@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.24] - 2026-10-23
+
+### Added
+- **Claude Code installation**: Install Claude Code system-wide in the agents role after Pi and before BB. Follow the latest stable npm release by default or pin an exact version with `agents_claude_code_version`; leave authentication and user settings untouched. Add testinfra checks for package installation and CLI availability to the BB account without model calls.
+
 ## [2026.10.23] - 2026-10-23
 
 ### Added

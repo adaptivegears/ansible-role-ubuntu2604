@@ -1,19 +1,25 @@
 # Agents
 
-Installs the [Pi coding-agent harness](https://pi.dev/docs/latest/quickstart) and the [BB server](https://github.com/get-bb/bb/blob/main/packages/bb-app/README.md) on Ubuntu 26.04 with systemd. Node.js and npm come from Ubuntu APT; both applications are installed system-wide under `/usr/local` and are available without shell initialization.
+Installs the [Pi coding-agent harness](https://pi.dev/docs/latest/quickstart), [Claude Code](https://code.claude.com/docs/en/setup#install-with-npm), and the [BB server](https://github.com/get-bb/bb/blob/main/packages/bb-app/README.md), in that order, on Ubuntu 26.04 with systemd. Node.js and npm come from Ubuntu APT; all three applications are installed system-wide under `/usr/local` and are available without shell initialization.
 
 ```bash
 ansible-playbook andreygubarev.com.agents
 pi --version
+claude --version
 ```
 
 ## Versions
 
 - `agents_pi_version` defaults to `1.x` (`>=1.0.0 <2.0.0`, excluding prereleases). Each application selects the newest stable Pi 1.x; an exact stable `1.x.y` version pins it instead.
+- `agents_claude_code_version` defaults to `latest`, resolving the npm stable tag on each run. An exact stable version pins Claude Code instead.
 - `agents_bb_version` defaults to `latest`, resolving the npm stable tag on each run. An exact stable version pins BB instead.
 - `agents_pi_web_access_version` defaults to `latest`; an exact stable version pins the Pi Web Access package instead.
 
-Unchanged versions are not reinstalled. npm registry access is required to resolve moving selectors. These npm installations do not lock transitive dependencies. Pi's lifecycle scripts are disabled; BB's are enabled because its SQLite, PTY and watcher add-ons require native binaries. Build prerequisites are installed for hosts without matching prebuilt binaries.
+Unchanged versions are not reinstalled. npm registry access is required to resolve moving selectors. These npm installations do not lock transitive dependencies. Pi's lifecycle scripts are disabled; Claude Code's are enabled to link its platform binary from an optional dependency, and BB's are enabled because its SQLite, PTY and watcher add-ons require native binaries. Build prerequisites are installed for hosts without matching prebuilt binaries.
+
+## Claude Code
+
+The root-owned npm installation exposes `claude` in `/usr/local/bin`, including for the BB service. The role does not run Claude sessions, configure credentials, or modify user settings. To authenticate for BB, run `sudo -iu bb claude` and follow the login prompts. Reapply the role to update the system-wide package; Claude Code updates do not restart BB.
 
 ## Pi Web Access
 

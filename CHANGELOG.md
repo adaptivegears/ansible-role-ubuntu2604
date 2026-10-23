@@ -4,6 +4,14 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.25] - 2026-10-23
+
+### Changed
+- **Snap preservation**: Stop purging installed snaps and their data, stopping snapd services, or blocking snapd reinstallation. Previously removed snaps and existing snapd pinning policies are not restored automatically.
+
+### Fixed
+- **Cloud-image package preservation**: Disable autoremove and narrow the explicit cleanup list to retain `ubuntu-minimal`, Ubuntu Pro, `multipath-tools`, `open-iscsi`, `networkd-dispatcher`, `software-properties-common`, its PackageKit/polkit dependencies, and `sysstat`. Avoid removing automatically installed administrative tools such as sudo. Previously removed packages are not restored automatically.
+
 ## [2026.10.24] - 2026-10-23
 
 ### Added

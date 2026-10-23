@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.10.27] - 2026-10-23
+
+### Fixed
+- **Unprivileged Ansible execution**: Install `acl` before agents tasks switch to the `bb` account, allowing Ansible to share temporary module files securely when pipelining is unavailable. Verify the package in testinfra and disable pipelining for the agents integration play to exercise this permission path.
+
 ## [2026.10.26] - 2026-10-23
 
 ### Fixed
